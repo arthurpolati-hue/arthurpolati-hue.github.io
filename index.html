@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bilan gratuit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14171A;
+    --ink-soft:#1D2124;
+    --steel:#2A2E31;
+    --steel-line:#383D40;
+    --paper:#F6F4EF;
+    --fog:#9AA0A6;
+    --accent:#3E8EFF;
+    --accent-dim:#173A63;
+    --volt:#3E8EFF;
+    --volt-dim:#173A63;
+    --ok:#38D97A;
+    --err:#FF6B6B;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Work Sans',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    width:100%;
+    max-width:480px;
+    padding:36px 20px 48px;
+    position:relative;
+  }
+  /* texture: faint diagonal lane lines like a track */
+  .wrap::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:repeating-linear-gradient(115deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 64px);
+    pointer-events:none;
+    z-index:0;
+  }
+  .content{position:relative;z-index:1;}
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:0.72rem;
+    letter-spacing:0.18em;
+    font-weight:700;
+    color:var(--accent);
+    text-transform:uppercase;
+    margin-bottom:14px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:8px;height:8px;
+    background:var(--accent);
+    border-radius:50%;
+    box-shadow:0 0 0 4px var(--accent-dim);
+  }
+  h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:3.2rem;
+    line-height:0.92;
+    letter-spacing:0.01em;
+    margin:0 0 12px;
+    color:var(--paper);
+  }
+  h1 span{color:var(--accent);}
+  .sub{
+    color:var(--fog);
+    font-size:0.98rem;
+    line-height:1.5;
+    margin:0 0 32px;
+    max-width:38ch;
+  }
+
+  .section{margin-bottom:30px;}
+  .section-label{
+    font-size:0.78rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--fog);
+    margin-bottom:12px;
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+
+  /* format tiles */
+  .tiles{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .tile{
+    background:var(--steel);
+    border:1.5px solid var(--steel-line);
+    border-radius:14px;
+    padding:16px 14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+    user-select:none;
+  }
+  .tile:active{transform:scale(0.97);}
+  .tile .ic{font-size:1.5rem;line-height:1;}
+  .tile .lbl{font-weight:600;font-size:0.92rem;}
+  .tile.selected{
+    border-color:var(--volt);
+    background:var(--volt-dim);
+  }
+  .tile:focus-visible{outline:2px solid var(--volt);outline-offset:2px;}
+
+  /* inputs */
+  .row{display:flex;gap:10px;}
+  .field{margin-bottom:12px;flex:1;}
+  label.flabel{
+    display:block;
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--fog);
+    margin-bottom:6px;
+  }
+  input[type=text], input[type=tel]{
+    width:100%;
+    background:var(--steel);
+    border:1.5px solid var(--steel-line);
+    border-radius:10px;
+    padding:13px 14px;
+    color:var(--paper);
+    font-family:'Work Sans',sans-serif;
+    font-size:1rem;
+    transition:border-color .15s ease;
+  }
+  input::placeholder{color:#6b7175;}
+  input:focus{outline:none;border-color:var(--volt);}
+  input:focus-visible{outline:2px solid var(--volt);outline-offset:1px;}
+
+  /* textarea objectif */
+  textarea{
+    width:100%;
+    background:var(--steel);
+    border:1.5px solid var(--steel-line);
+    border-radius:10px;
+    padding:13px 14px;
+    color:var(--paper);
+    font-family:'Work Sans',sans-serif;
+    font-size:1rem;
+    resize:vertical;
+    min-height:88px;
+    transition:border-color .15s ease;
+  }
+  textarea::placeholder{color:#6b7175;}
+  textarea:focus{outline:none;border-color:var(--accent);}
+  textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+  .hint{font-size:0.78rem;color:var(--fog);margin-top:6px;}
+
+  /* submit button w/ built-in progress fill */
+  .submit-btn{
+    position:relative;
+    width:100%;
+    border:none;
+    border-radius:14px;
+    padding:18px;
+    background:var(--accent);
+    color:#07162B;
+    font-family:'Bebas Neue',sans-serif;
+    font-size:1.3rem;
+    letter-spacing:0.04em;
+    cursor:pointer;
+    overflow:hidden;
+    margin-top:8px;
+    transition:transform .1s ease, opacity .2s ease;
+  }
+  .submit-btn:active{transform:scale(0.98);}
+  .submit-btn:disabled{cursor:default;}
+  .submit-btn .fill{
+    position:absolute;
+    left:0;top:0;bottom:0;
+    width:0%;
+    background:rgba(0,0,0,0.18);
+    transition:width .9s cubic-bezier(.3,.8,.4,1);
+  }
+  .submit-btn .label{position:relative;}
+
+  .error-msg{
+    display:none;
+    background:#3A1F1F;
+    border:1.5px solid var(--err);
+    color:#FFD5D5;
+    font-size:0.85rem;
+    padding:10px 12px;
+    border-radius:10px;
+    margin-top:10px;
+  }
+
+  /* success state */
+  .success{
+    display:none;
+    text-align:center;
+    padding:40px 10px 10px;
+  }
+  .success .check{
+    width:64px;height:64px;
+    border-radius:50%;
+    background:var(--ok);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 20px;
+    font-size:1.8rem;
+    color:#0A1F12;
+  }
+  .success h2{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:2.2rem;
+    margin:0 0 10px;
+  }
+  .success p{color:var(--fog);font-size:0.95rem;line-height:1.5;margin:0 auto;max-width:32ch;}
+
+  .whatsapp-fallback{
+    margin-top:28px;
+    text-align:center;
+    font-size:0.85rem;
+    color:var(--fog);
+  }
+  .whatsapp-fallback a{
+    color:var(--volt);
+    font-weight:600;
+    text-decoration:none;
+  }
+  .whatsapp-fallback a:hover{text-decoration:underline;}
+
+  @media (prefers-reduced-motion: reduce){
+    .submit-btn .fill{transition:none;}
+    .tile,.submit-btn{transition:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="content">
+
+    <div id="formView">
+      <div class="eyebrow">Bilan gratuit</div>
+      <h1>ON FAIT<br><span>LE POINT&nbsp;?</span></h1>
+      <p class="sub">3 infos, 30 secondes. Je te recontacte sous 24h pour caler ton bilan offert.</p>
+
+      <form id="bilanForm">
+        <div class="section">
+          <div class="section-label">Comment tu veux ton bilan ?</div>
+          <div class="tiles" id="formatTiles">
+            <div class="tile" data-value="WhatsApp" tabindex="0" role="button" aria-pressed="false">
+              <span class="ic">💬</span><span class="lbl">WhatsApp</span>
+            </div>
+            <div class="tile" data-value="Appel vocal" tabindex="0" role="button" aria-pressed="false">
+              <span class="ic">📞</span><span class="lbl">Appel vocal</span>
+            </div>
+            <div class="tile" data-value="Appel vidéo" tabindex="0" role="button" aria-pressed="false">
+              <span class="ic">🎥</span><span class="lbl">Appel vidéo</span>
+            </div>
+            <div class="tile" data-value="Présentiel" tabindex="0" role="button" aria-pressed="false">
+              <span class="ic">🤝</span><span class="lbl">Présentiel</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-label">Tes coordonnées</div>
+          <div class="row">
+            <div class="field">
+              <label class="flabel" for="prenom">Prénom</label>
+              <input type="text" id="prenom" name="prenom" placeholder="Léa" autocomplete="given-name" required>
+            </div>
+            <div class="field">
+              <label class="flabel" for="nom">Nom</label>
+              <input type="text" id="nom" name="nom" placeholder="Martin" autocomplete="family-name" required>
+            </div>
+          </div>
+          <div class="field">
+            <label class="flabel" for="tel">Téléphone</label>
+            <input type="tel" id="tel" name="tel" placeholder="06 12 34 56 78" autocomplete="tel" required>
+          </div>
+          <div class="field">
+            <label class="flabel" for="ville">Ville de résidence</label>
+            <input type="text" id="ville" name="ville" placeholder="Nancy" autocomplete="address-level2" required>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-label">Ton objectif principal</div>
+          <textarea id="objectif" name="objectif" placeholder="Dis-m'en plus sur ce que tu veux atteindre..." required></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <span class="fill" id="btnFill"></span>
+          <span class="label" id="btnLabel">ENVOYER MA DEMANDE</span>
+        </button>
+        <div class="error-msg" id="errorMsg">Oups, l'envoi a échoué. Réessaie, ou écris-moi directement sur WhatsApp ci-dessous.</div>
+      </form>
+
+      <div class="whatsapp-fallback">
+        Tu préfères écrire tout de suite ?
+        <a href="https://wa.me/33786066317" target="_blank" rel="noopener">Contacte-moi sur WhatsApp →</a>
+      </div>
+    </div>
+
+    <div class="success" id="successView">
+      <div class="check">✓</div>
+      <h2>C'EST ENVOYÉ 💪</h2>
+      <p>Je reviens vers toi sous 24h pour lancer ton bilan gratuit. À très vite !</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let selectedFormat = null;
+
+  function setupSelectable(containerId){
+    const container = document.getElementById(containerId);
+    const items = container.querySelectorAll('.tile');
+    items.forEach(item => {
+      const activate = () => {
+        items.forEach(i => { i.classList.remove('selected'); i.setAttribute('aria-pressed','false'); });
+        item.classList.add('selected');
+        item.setAttribute('aria-pressed','true');
+        selectedFormat = item.dataset.value;
+      };
+      item.addEventListener('click', activate);
+      item.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); activate(); }
+      });
+    });
+  }
+  setupSelectable('formatTiles');
+
+  const form = document.getElementById('bilanForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const btnFill = document.getElementById('btnFill');
+  const btnLabel = document.getElementById('btnLabel');
+  const errorMsg = document.getElementById('errorMsg');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorMsg.style.display = 'none';
+
+    const prenom = document.getElementById('prenom').value.trim();
+    const nom = document.getElementById('nom').value.trim();
+    const tel = document.getElementById('tel').value.trim();
+    const ville = document.getElementById('ville').value.trim();
+    const objectif = document.getElementById('objectif').value.trim();
+
+    if(!prenom || !nom || !tel || !ville){
+      errorMsg.textContent = "Merci de remplir prénom, nom, téléphone et ville.";
+      errorMsg.style.display = 'block';
+      return;
+    }
+    if(!selectedFormat){
+      errorMsg.textContent = "Choisis un format de bilan (WhatsApp, appel...).";
+      errorMsg.style.display = 'block';
+      return;
+    }
+    if(!objectif){
+      errorMsg.textContent = "Dis-nous un mot sur ton objectif.";
+      errorMsg.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    btnLabel.textContent = 'ENVOI...';
+    btnFill.style.width = '100%';
+
+    // === À CONFIGURER : remplace l'URL ci-dessous par ton endpoint Formspree ===
+    // 1) Crée un compte gratuit sur https://formspree.io
+    // 2) Crée un formulaire, récupère l'URL du type https://formspree.io/f/xxxxxxx
+    // 3) Colle-la ici à la place de FORMSPREE_ENDPOINT
+    const FORMSPREE_ENDPOINT = "https://formspree.io/f/mlgyplrr";
+
+    try{
+      const res = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          prenom, nom, telephone: tel, ville,
+          format_souhaite: selectedFormat,
+          objectif
+        })
+      });
+
+      if(!res.ok) throw new Error('Réponse serveur non ok');
+
+      setTimeout(() => {
+        document.getElementById('formView').style.display = 'none';
+        document.getElementById('successView').style.display = 'block';
+      }, 500);
+
+    } catch(err){
+      submitBtn.disabled = false;
+      btnLabel.textContent = 'ENVOYER MA DEMANDE';
+      btnFill.style.width = '0%';
+      errorMsg.textContent = "Oups, l'envoi a échoué. Réessaie, ou écris-moi directement sur WhatsApp ci-dessous.";
+      errorMsg.style.display = 'block';
+    }
+  });
+</script>
+</body>
+</html>
