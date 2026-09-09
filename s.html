@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARD Coaching — Séance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0E11; --steel:#1B1F22; --steel-line:#2C3134;
+    --paper:#F6F4EF; --fog:#9AA0A6; --blue:#3E8EFF; --blue-dim:#173A63;
+    --ok:#38D97A; --err:#FF6B6B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--ink);color:var(--paper);font-family:'Work Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:600px;margin:0 auto;padding:30px 20px 60px;}
+
+  .brand{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .brand-dot{width:9px;height:9px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--blue-dim);}
+  .brand-text{font-weight:700;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;color:var(--blue);}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;line-height:0.95;margin:6px 0 10px;letter-spacing:0.01em;}
+  .sub{color:var(--fog);font-size:0.92rem;line-height:1.5;margin:0 0 26px;}
+
+  .card{background:var(--steel);border:1px solid var(--steel-line);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .card h2{font-family:'Bebas Neue',sans-serif;font-size:1.25rem;margin:0 0 14px;letter-spacing:0.01em;}
+  label{display:block;font-size:0.74rem;font-weight:700;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;}
+  .field{margin-bottom:12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .row .field{flex:1;min-width:130px;}
+  input[type=text], input[type=tel], input[type=date], select, textarea{
+    width:100%;background:var(--ink);border:1.5px solid var(--steel-line);border-radius:9px;
+    padding:11px 12px;color:var(--paper);font-family:'Work Sans',sans-serif;font-size:0.95rem;
+  }
+  input:focus, select:focus, textarea:focus{outline:none;border-color:var(--blue);}
+  ::placeholder{color:#5c6266;}
+  textarea{resize:vertical;min-height:44px;}
+
+  .btn{border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Work Sans',sans-serif;}
+  .btn-blue{background:var(--blue);color:#071527;position:relative;overflow:hidden;}
+  .btn-blue .fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:rgba(0,0,0,0.18);transition:width .8s ease;}
+  .btn-blue .label{position:relative;}
+  .btn-ghost{background:transparent;color:var(--paper);border:1.5px solid var(--steel-line);}
+  .btn-full{width:100%;}
+  .btn-sm{padding:8px 14px;font-size:0.82rem;border-radius:8px;}
+  .btn:disabled{opacity:0.5;cursor:default;}
+
+  .ex-card{background:var(--ink);border:1.5px solid var(--steel-line);border-radius:12px;padding:16px 16px 4px;margin-bottom:14px;}
+  .ex-head{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+  .ex-head input{flex:1;font-weight:700;}
+  .ex-head .ex-title{flex:1;font-weight:700;font-size:0.98rem;}
+  .rm-btn{background:none;border:none;color:var(--err);font-size:1.2rem;cursor:pointer;padding:6px;}
+  .ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin-bottom:14px;}
+  .ex-grid .field{margin-bottom:0;min-width:0;}
+  .ex-grid label{font-size:0.68rem;}
+
+  .objectif-box{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.35);border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:0.85rem;color:#CFE3FF;}
+  .objectif-box b{color:#fff;}
+  .section-tag{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--fog);margin:0 0 8px;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ok);color:#08240f;padding:12px 22px;border-radius:10px;font-weight:700;font-size:0.9rem;display:none;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.35);}
+  .toast.show{display:block;}
+  .toast.err{background:var(--err);color:#3a0d0d;}
+
+  #linkResult{display:none;}
+  #generatedLink{width:100%;background:var(--ink);border:1.5px solid var(--steel-line);border-radius:9px;padding:11px 12px;color:var(--paper);font-size:0.82rem;margin-bottom:12px;}
+  .link-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .hint{color:var(--fog);font-size:0.8rem;line-height:1.4;margin-top:10px;}
+
+  .error-msg{display:none;background:#3A1F1F;border:1.5px solid var(--err);color:#FFD5D5;font-size:0.85rem;padding:10px 12px;border-radius:10px;margin-top:10px;}
+
+  .success{display:none;text-align:center;padding:50px 10px 10px;}
+  .success .check{width:64px;height:64px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.8rem;color:#0A1F12;}
+  .success h2{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;margin:0 0 10px;}
+  .success p{color:var(--fog);font-size:0.95rem;line-height:1.5;margin:0 auto;max-width:32ch;}
+
+  #builderView, #fillView, #fillSuccess{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===================== MODE COACH : CRÉER UNE SÉANCE ===================== -->
+  <div id="builderView">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
+    <h1>Créer une séance</h1>
+    <p class="sub">Remplis le programme, génère le lien, envoie-le à ton client.</p>
+
+    <div class="card">
+      <h2>Client &amp; date</h2>
+      <div class="row">
+        <div class="field"><label>Nom du client</label><input type="text" id="clientName" placeholder="Prénom Nom"></div>
+        <div class="field"><label>Téléphone (optionnel)</label><input type="tel" id="clientPhone" placeholder="06 12 34 56 78"></div>
+        <div class="field"><label>Date de la séance</label><input type="date" id="sessionDate"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Exercices</h2>
+      <div id="exCardsWrap"></div>
+      <button class="btn btn-ghost btn-sm" id="addExBtn" type="button">+ Ajouter un exercice</button>
+    </div>
+
+    <button class="btn btn-blue btn-full" id="genLinkBtn" type="button">Générer le lien pour le client</button>
+
+    <div class="card" id="linkResult">
+      <h2>Lien à envoyer</h2>
+      <input type="text" id="generatedLink" readonly>
+      <div class="link-actions">
+        <button class="btn btn-ghost btn-sm" id="copyLinkBtn" type="button">Copier le lien</button>
+        <button class="btn btn-blue btn-sm" id="waLinkBtn" type="button" style="display:none;">Envoyer sur WhatsApp</button>
+      </div>
+      <div class="hint">Ton client ouvre ce lien sur son téléphone, voit sa séance, remplit ce qu'il a fait, et clique "Séance terminée" — ça t'arrive directement dans ton Google Sheet.</div>
+    </div>
+  </div>
+
+  <!-- ===================== MODE CLIENT : REMPLIR LA SÉANCE ===================== -->
+  <div id="fillView">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
+    <h1 id="fillTitle">TA SÉANCE<br>DU JOUR</h1>
+    <p class="sub">Voici le programme préparé par ton coach. Remplis ce que tu as réellement fait, puis termine la séance.</p>
+
+    <form id="crForm">
+      <div class="card">
+        <div class="row">
+          <div class="field"><label>Ton nom</label><input type="text" id="nomClient" required></div>
+          <div class="field"><label>Date</label><input type="date" id="dateSeance" required></div>
+        </div>
+      </div>
+
+      <div id="exercicesWrap"></div>
+
+      <div class="card">
+        <div class="field" style="margin-bottom:0;">
+          <label>Remarques générales (optionnel)</label>
+          <textarea id="notesGlobales" placeholder="Fatigue, douleur, motivation..."></textarea>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-blue btn-full" id="submitBtn">
+        <span class="fill" id="btnFill"></span>
+        <span class="label" id="btnLabel">SÉANCE TERMINÉE</span>
+      </button>
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+  </div>
+
+  <div class="success" id="fillSuccess">
+    <div class="check">✓</div>
+    <h2>MERCI ! 💪</h2>
+    <p>C'est bien reçu par ton coach. Continue comme ça, les petites habitudes font les grandes transformations.</p>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const $ = (s,r=document)=>r.querySelector(s);
+  const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+  function todayISO(){ return new Date().toISOString().slice(0,10); }
+  function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function showToast(msg, isErr){
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.toggle('err', !!isErr);
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+
+  // === À CONFIGURER UNE SEULE FOIS ===
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeYYMMb9XOSBaC8VQriaa62InbTu9PIw90nEXTMp4ZM9tdfl43mPN3QHvhpLd4_Yc/exec"; // URL Google Apps Script (se termine par /exec)
+
+  // ---- UTF-8 safe base64 encode/decode (le lien transporte le programme dans son hash) ----
+  function b64uEncode(obj){
+    const json = JSON.stringify(obj);
+    const percent = encodeURIComponent(json);
+    const bin = percent.replace(/%([0-9A-F]{2})/g, (m,p1)=>String.fromCharCode('0x'+p1));
+    return encodeURIComponent(btoa(bin));
+  }
+  function b64uDecode(str){
+    const b64 = decodeURIComponent(str);
+    const bin = atob(b64);
+    const percent = Array.prototype.map.call(bin, c => '%' + ('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('');
+    return JSON.parse(decodeURIComponent(percent));
+  }
+
+  // ---- détecte le mode : lien avec programme = mode client, sinon mode coach ----
+  // On lit en priorité le paramètre "?d=" (query string), qui survit aux redirections
+  // et aux navigateurs intégrés de WhatsApp/Messages (contrairement au "#d=" en fragment,
+  // qui peut être coupé avant que la page ne charge).
+  // On garde aussi la lecture du "#d=" pour les anciens liens déjà envoyés.
+  let plan = null;
+  let dataFoundButBroken = false;
+  const params = new URLSearchParams(window.location.search);
+  const dParam = params.get('d');
+  if(dParam){
+    try{ plan = b64uDecode(dParam); }
+    catch(e){
+      // tentative de secours : certaines applis re-encodent le lien une fois de plus
+      try{ plan = b64uDecode(decodeURIComponent(dParam)); }
+      catch(e2){ dataFoundButBroken = true; }
+    }
+  }
+  if(!plan && !dataFoundButBroken){
+    const hash = window.location.hash;
+    if(hash && hash.indexOf('d=') !== -1){
+      try{ plan = b64uDecode(hash.split('d=')[1]); }
+      catch(e){ dataFoundButBroken = true; }
+    }
+  }
+
+  if(plan && Array.isArray(plan.exercises) && plan.exercises.length){
+    initFillMode(plan);
+  } else if(dataFoundButBroken){
+    document.body.innerHTML = '<div style="padding:40px 20px;text-align:center;font-family:sans-serif;color:#fff;background:#111;min-height:100vh;">'
+      + '<h2 style="margin-bottom:12px;">Lien abîmé 😕</h2>'
+      + '<p style="opacity:.8;">Le lien reçu a été modifié en cours de route (par l\'appli utilisée pour l\'ouvrir).<br>Demande à ton coach de te le renvoyer, ou ouvre-le dans Safari/Chrome directement.</p>'
+      + '</div>';
+  } else {
+    initBuilderMode();
+  }
+
+  // ===================== MODE COACH =====================
+  function initBuilderMode(){
+    $('#builderView').style.display = 'block';
+
+    function blankExercise(){ return { id: uid(), nom:'', series:'', repetitions:'', charge:'', repos:'', notes:'' }; }
+    let exerciseRows = [blankExercise()];
+
+    function renderExTable(){
+      const body = $('#exCardsWrap');
+      body.innerHTML = '';
+      exerciseRows.forEach((ex, idx)=>{
+        const card = document.createElement('div');
+        card.className = 'ex-card';
+        card.innerHTML = `
+          <div class="ex-head">
+            <input type="text" data-field="nom" placeholder="Nom de l'exercice (ex: Développé couché)" value="${escapeHtml(ex.nom)}">
+            <button class="rm-btn" type="button" title="Supprimer">✕</button>
+          </div>
+          <div class="ex-grid">
+            <div class="field"><label>Séries</label><input type="text" data-field="series" placeholder="4" value="${escapeHtml(ex.series)}"></div>
+            <div class="field"><label>Répét. cible</label><input type="text" data-field="repetitions" placeholder="8-12" value="${escapeHtml(ex.repetitions)}"></div>
+            <div class="field"><label>Charge cible</label><input type="text" data-field="charge" placeholder="40kg" value="${escapeHtml(ex.charge)}"></div>
+            <div class="field"><label>Repos</label><input type="text" data-field="repos" placeholder="90s" value="${escapeHtml(ex.repos)}"></div>
+          </div>
+          <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
+        `;
+        $$('input, textarea', card).forEach(inp=>{
+          inp.addEventListener('input', ()=>{ exerciseRows[idx][inp.dataset.field] = inp.value; });
+        });
+        $('.rm-btn', card).addEventListener('click', ()=>{ exerciseRows.splice(idx,1); renderExTable(); });
+        body.appendChild(card);
+      });
+    }
+    renderExTable();
+
+    $('#addExBtn').addEventListener('click', ()=>{ exerciseRows.push(blankExercise()); renderExTable(); });
+    $('#sessionDate').value = todayISO();
+
+    $('#genLinkBtn').addEventListener('click', ()=>{
+      const baseUrl = window.location.origin + window.location.pathname;
+      const clientName = $('#clientName').value.trim();
+      const date = $('#sessionDate').value || todayISO();
+      const validExercises = exerciseRows.filter(e => e.nom.trim() !== '');
+
+      if(!clientName){ showToast('Indique le nom du client', true); return; }
+      if(validExercises.length === 0){ showToast('Ajoute au moins un exercice', true); return; }
+
+      const payload = {
+        client: clientName, date,
+        exercises: validExercises.map(ex => ({
+          nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge, repos: ex.repos, notes: ex.notes
+        }))
+      };
+      const link = `${baseUrl}?d=${b64uEncode(payload)}`;
+
+      $('#generatedLink').value = link;
+      $('#linkResult').style.display = 'block';
+
+      const phone = $('#clientPhone').value.replace(/\s|\.|-/g,'').trim();
+      const waBtn = $('#waLinkBtn');
+      if(phone){
+        let waPhone = phone.startsWith('0') ? '33' + phone.slice(1) : phone;
+        const msg = encodeURIComponent(`Salut ${clientName} ! Voici ta séance du ${date} : ${link}`);
+        waBtn.style.display = 'inline-block';
+        waBtn.onclick = () => window.open(`https://wa.me/${waPhone}?text=${msg}`, '_blank');
+      } else {
+        waBtn.style.display = 'none';
+      }
+    });
+
+    $('#copyLinkBtn').addEventListener('click', async ()=>{
+      const input = $('#generatedLink');
+      try{ await navigator.clipboard.writeText(input.value); showToast('Lien copié ✓'); }
+      catch(e){ input.select(); showToast('Sélectionné — copie avec Ctrl/Cmd+C'); }
+    });
+  }
+
+  // ===================== MODE CLIENT =====================
+  function initFillMode(plan){
+    $('#fillView').style.display = 'block';
+
+    $('#nomClient').value = plan.client || '';
+    $('#dateSeance').value = plan.date || todayISO();
+
+    let exercices = plan.exercises.map(pe => ({
+      nom: pe.nom || '', seriesCible: pe.series || '', repCible: pe.repetitions || '',
+      chargeCible: pe.charge || '', reposCible: pe.repos || '', notesCible: pe.notes || '',
+      reps:'', charge:'', reussi:'', ressenti:''
+    }));
+
+    function selectOptions(options, current){
+      return options.map(([v,l])=>`<option value="${escapeHtml(v)}" ${v===current?'selected':''}>${escapeHtml(l)}</option>`).join('');
+    }
+    function objectifLine(ex){
+      const parts = [];
+      if(ex.seriesCible) parts.push(`${escapeHtml(ex.seriesCible)} séries`);
+      if(ex.repCible) parts.push(`${escapeHtml(ex.repCible)} répét.`);
+      if(ex.chargeCible) parts.push(`${escapeHtml(ex.chargeCible)}`);
+      if(ex.reposCible) parts.push(`repos ${escapeHtml(ex.reposCible)}`);
+      let line = parts.join(' · ') || 'Objectif libre';
+      if(ex.notesCible) line += `<br><span style="opacity:0.85;">${escapeHtml(ex.notesCible)}</span>`;
+      return line;
+    }
+
+    function renderExercices(){
+      const wrap = $('#exercicesWrap');
+      wrap.innerHTML = '';
+      exercices.forEach((ex, idx)=>{
+        const card = document.createElement('div');
+        card.className = 'ex-card';
+        card.innerHTML = `
+          <div class="ex-head"><span class="ex-title">${escapeHtml(ex.nom)}</span></div>
+          <div class="objectif-box"><b>Objectif :</b> ${objectifLine(ex)}</div>
+          <div class="section-tag">Ce que tu as fait</div>
+          <div class="ex-grid">
+            <div class="field"><label>Répét. faites</label><input type="text" data-field="reps" placeholder="10" value="${escapeHtml(ex.reps)}"></div>
+            <div class="field"><label>Charge utilisée</label><input type="text" data-field="charge" placeholder="42kg" value="${escapeHtml(ex.charge)}"></div>
+            <div class="field">
+              <label>Réussi ?</label>
+              <select data-field="reussi">${selectOptions([['','—'],['Oui','Oui'],['Partiel','Partiel'],['Non','Non']], ex.reussi)}</select>
+            </div>
+            <div class="field">
+              <label>Ressenti</label>
+              <select data-field="ressenti">${selectOptions([['','—'],['😄 Facile','😄 Facile'],['🙂 Correct','🙂 Correct'],['😓 Difficile','😓 Difficile'],['🥵 Très dur','🥵 Très dur']], ex.ressenti)}</select>
+            </div>
+          </div>
+        `;
+        $$('input, select', card).forEach(inp=>{
+          const evt = inp.tagName === 'SELECT' ? 'change' : 'input';
+          inp.addEventListener(evt, ()=>{ exercices[idx][inp.dataset.field] = inp.value; });
+        });
+        wrap.appendChild(card);
+      });
+    }
+    renderExercices();
+
+    const form = $('#crForm');
+    const submitBtn = $('#submitBtn');
+    const btnFill = $('#btnFill');
+    const btnLabel = $('#btnLabel');
+    const errorMsg = $('#errorMsg');
+
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      errorMsg.style.display = 'none';
+
+      const nom = $('#nomClient').value.trim();
+      const date = $('#dateSeance').value;
+      const notesGlobales = $('#notesGlobales').value.trim();
+
+      if(!nom){ errorMsg.textContent = 'Merci d\u2019indiquer ton nom.'; errorMsg.style.display = 'block'; return; }
+
+      submitBtn.disabled = true;
+      btnLabel.textContent = 'ENVOI...';
+      btnFill.style.width = '100%';
+
+      try{
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            nom, date, notesGlobales,
+            exercices: exercices.map(ex => ({
+              nom: ex.nom, seriesCible: ex.seriesCible, repCible: ex.repCible, chargeCible: ex.chargeCible, reposCible: ex.reposCible,
+              reps: ex.reps, charge: ex.charge, reussi: ex.reussi, ressenti: ex.ressenti
+            }))
+          })
+        });
+        setTimeout(()=>{
+          $('#fillView').style.display = 'none';
+          $('#fillSuccess').style.display = 'block';
+        }, 400);
+      } catch(err){
+        submitBtn.disabled = false;
+        btnLabel.textContent = 'SÉANCE TERMINÉE';
+        btnFill.style.width = '0%';
+        errorMsg.textContent = "L'envoi a échoué, vérifie ta connexion et réessaie.";
+        errorMsg.style.display = 'block';
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
