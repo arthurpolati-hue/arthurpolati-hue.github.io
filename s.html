@@ -102,6 +102,13 @@
     </div>
 
     <div class="card">
+      <h2>Échauffement</h2>
+      <div class="field" style="margin-bottom:0;">
+        <textarea id="echauffement" placeholder="Ex: 5min vélo + mobilité épaules/hanches, 2 séries légères sur le 1er exercice..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Exercices</h2>
       <div id="exCardsWrap"></div>
       <button class="btn btn-ghost btn-sm" id="addExBtn" type="button">+ Ajouter un exercice</button>
@@ -133,6 +140,8 @@
           <div class="field"><label>Date</label><input type="date" id="dateSeance" required></div>
         </div>
       </div>
+
+      <div id="echauffementWrap"></div>
 
       <div id="exercicesWrap"></div>
 
@@ -276,8 +285,10 @@
       if(!clientName){ showToast('Indique le nom du client', true); return; }
       if(validExercises.length === 0){ showToast('Ajoute au moins un exercice', true); return; }
 
+      const echauffement = $('#echauffement').value.trim();
+
       const payload = {
-        client: clientName, date,
+        client: clientName, date, echauffement,
         exercises: validExercises.map(ex => ({
           nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge, repos: ex.repos, notes: ex.notes
         }))
@@ -312,6 +323,14 @@
 
     $('#nomClient').value = plan.client || '';
     $('#dateSeance').value = plan.date || todayISO();
+
+    if(plan.echauffement && plan.echauffement.trim()){
+      $('#echauffementWrap').innerHTML = `
+        <div class="card">
+          <h2>Échauffement</h2>
+          <div class="objectif-box">${escapeHtml(plan.echauffement).replace(/\n/g,'<br>')}</div>
+        </div>`;
+    }
 
     let exercices = plan.exercises.map(pe => ({
       nom: pe.nom || '', seriesCible: pe.series || '', repCible: pe.repetitions || '',
