@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="fr">
 <head>
@@ -190,10 +191,21 @@
   }
 
   // ---- détecte le mode : lien avec programme = mode client, sinon mode coach ----
+  // On lit en priorité le paramètre "?d=" (query string), qui survit aux redirections
+  // et aux navigateurs intégrés de WhatsApp/Messages (contrairement au "#d=" en fragment,
+  // qui peut être coupé avant que la page ne charge).
+  // On garde aussi la lecture du "#d=" pour les anciens liens déjà envoyés.
   let plan = null;
-  const hash = window.location.hash;
-  if(hash && hash.indexOf('d=') !== -1){
-    try{ plan = b64uDecode(hash.split('d=')[1]); }catch(e){ plan = null; }
+  const params = new URLSearchParams(window.location.search);
+  const dParam = params.get('d');
+  if(dParam){
+    try{ plan = b64uDecode(dParam); }catch(e){ plan = null; }
+  }
+  if(!plan){
+    const hash = window.location.hash;
+    if(hash && hash.indexOf('d=') !== -1){
+      try{ plan = b64uDecode(hash.split('d=')[1]); }catch(e){ plan = null; }
+    }
   }
 
   if(plan && Array.isArray(plan.exercises) && plan.exercises.length){
@@ -255,7 +267,7 @@
           nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge, repos: ex.repos, notes: ex.notes
         }))
       };
-      const link = `${baseUrl}#d=${b64uEncode(payload)}`;
+      const link = `${baseUrl}?d=${b64uEncode(payload)}`;
 
       $('#generatedLink').value = link;
       $('#linkResult').style.display = 'block';
