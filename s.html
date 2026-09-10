@@ -6,6 +6,9 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0E11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>ARD Coaching — Ta semaine</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,11 +18,12 @@
     --ink:#0B0E11; --steel:#1B1F22; --steel-line:#2C3134;
     --paper:#F6F4EF; --fog:#9AA0A6; --blue:#3E8EFF; --blue-dim:#173A63;
     --ok:#38D97A; --ok-dim:#123B24; --err:#FF6B6B;
+    --safe-b:env(safe-area-inset-bottom,0px);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{background:var(--ink);color:var(--paper);font-family:'Work Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:600px;margin:0 auto;padding:30px 20px 60px;}
+  .wrap{max-width:600px;margin:0 auto;padding:26px 20px calc(120px + var(--safe-b));}
 
   .brand{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
   .brand-dot{width:9px;height:9px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--blue-dim);}
@@ -27,26 +31,37 @@
   h1{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:0.95;margin:6px 0 10px;letter-spacing:0.01em;}
   .sub{color:var(--fog);font-size:0.9rem;line-height:1.5;margin:0 0 20px;}
 
-  .week-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:20px;}
-  .day-pill{flex:0 0 auto;min-width:64px;text-align:center;padding:10px 8px;border-radius:12px;background:var(--steel);border:1.5px solid var(--steel-line);cursor:pointer;}
+  /* ---- Bandeau semaine ---- */
+  .week-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:18px;-webkit-overflow-scrolling:touch;}
+  .day-pill{flex:0 0 auto;min-width:66px;text-align:center;padding:9px 8px;border-radius:12px;background:var(--steel);border:1.5px solid var(--steel-line);cursor:pointer;position:relative;}
   .day-pill .dname{font-size:0.68rem;font-weight:700;text-transform:uppercase;color:var(--fog);letter-spacing:0.03em;}
-  .day-pill .dtag{font-size:0.72rem;margin-top:4px;color:var(--paper);}
+  .day-pill .dnum{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;line-height:1.1;margin-top:1px;}
+  .day-pill .dtag{font-size:0.68rem;margin-top:2px;color:var(--paper);}
   .day-pill.today{border-color:var(--blue);}
   .day-pill.active{background:var(--blue);border-color:var(--blue);}
-  .day-pill.active .dname, .day-pill.active .dtag{color:#071527;}
+  .day-pill.active .dname,.day-pill.active .dtag,.day-pill.active .dnum{color:#071527;}
   .day-pill.rest .dtag{color:var(--fog);}
+  .day-pill .flag{position:absolute;top:-5px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--ok);color:#08240f;font-size:0.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);}
+
+  /* ---- Barre de progression collante ---- */
+  .progress-bar{position:sticky;top:0;z-index:30;background:rgba(11,14,17,0.94);backdrop-filter:blur(8px);margin:0 -20px 14px;padding:10px 20px 11px;border-bottom:1px solid var(--steel-line);display:none;}
+  .progress-bar.show{display:block;}
+  .progress-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px;}
+  .progress-label{font-size:0.78rem;font-weight:700;color:var(--fog);text-transform:uppercase;letter-spacing:0.05em;}
+  .progress-count{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--paper);}
+  .progress-track{height:5px;border-radius:3px;background:var(--steel-line);overflow:hidden;}
+  .progress-fill{height:100%;width:0%;background:var(--blue);border-radius:3px;transition:width .3s ease;}
+  .progress-fill.full{background:var(--ok);}
 
   .card{background:var(--steel);border:1px solid var(--steel-line);border-radius:14px;padding:18px;margin-bottom:16px;}
   .card h2{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;margin:0 0 14px;letter-spacing:0.01em;}
   label{display:block;font-size:0.74rem;font-weight:700;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;}
   .field{margin-bottom:12px;}
-  .row{display:flex;gap:10px;flex-wrap:wrap;}
-  .row .field{flex:1;min-width:130px;}
-  input[type=text], select, textarea{
+  input[type=text],select,textarea{
     width:100%;background:var(--ink);border:1.5px solid var(--steel-line);border-radius:9px;
     padding:11px 12px;color:var(--paper);font-family:'Work Sans',sans-serif;font-size:0.95rem;
   }
-  input:focus, select:focus, textarea:focus{outline:none;border-color:var(--blue);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
   ::placeholder{color:#5c6266;}
   textarea{resize:vertical;min-height:44px;}
 
@@ -56,38 +71,85 @@
   .btn-blue .label{position:relative;}
   .btn-full{width:100%;}
   .btn:disabled{opacity:0.5;cursor:default;}
-  .btn-timer{background:var(--ink);border:1.5px solid var(--blue);color:var(--blue);padding:8px 12px;font-size:0.82rem;border-radius:8px;}
-  .btn-timer.running{background:var(--blue);color:#071527;}
-  .btn-timer.done{background:var(--ok-dim);border-color:var(--ok);color:var(--ok);}
 
-  .ex-card{background:var(--ink);border:1.5px solid var(--steel-line);border-radius:12px;padding:16px 16px 4px;margin-bottom:14px;}
-  .ex-head{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
-  .ex-head .ex-title{flex:1;font-weight:700;font-size:0.98rem;}
-  .ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin-bottom:14px;}
-  .ex-grid .field{margin-bottom:0;min-width:0;}
-  .ex-grid label{font-size:0.68rem;}
-  .timer-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-  .timer-display{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;min-width:52px;}
+  /* ---- Carte exercice ---- */
+  .ex-card{background:var(--ink);border:1.5px solid var(--steel-line);border-radius:12px;padding:16px;margin-bottom:14px;}
+  .ex-card.complete{border-color:rgba(56,217,122,0.5);}
+  .ex-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+  .ex-num{flex:0 0 auto;width:24px;height:24px;border-radius:7px;background:var(--steel);border:1px solid var(--steel-line);font-size:0.74rem;font-weight:800;color:var(--fog);display:flex;align-items:center;justify-content:center;margin-top:1px;}
+  .ex-card.complete .ex-num{background:var(--ok-dim);border-color:var(--ok);color:var(--ok);}
+  .ex-title{flex:1;font-weight:700;font-size:1rem;line-height:1.25;}
 
-  .objectif-box{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.35);border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:0.85rem;color:#CFE3FF;}
+  .objectif-box{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.35);border-radius:9px;padding:10px 12px;margin-bottom:10px;font-size:0.85rem;color:#CFE3FF;line-height:1.45;}
   .objectif-box b{color:#fff;}
+  .lastime{font-size:0.8rem;color:var(--fog);margin-bottom:12px;padding-left:2px;line-height:1.4;}
+  .lastime b{color:var(--paper);font-weight:600;}
   .section-tag{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--fog);margin:0 0 8px;}
+
+  /* ---- Grille des séries ---- */
+  .sets{display:flex;flex-direction:column;gap:7px;margin-bottom:12px;}
+  .set-head{display:grid;grid-template-columns:32px 1fr 1fr 44px;gap:7px;align-items:center;}
+  .set-head span{font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);text-align:center;}
+  .set-head span:first-child{text-align:left;}
+  .set-row{display:grid;grid-template-columns:32px 1fr 1fr 44px;gap:7px;align-items:center;}
+  .set-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--fog);}
+  .set-row input{padding:10px 8px;text-align:center;font-size:1rem;font-weight:600;}
+  .set-row.done .set-label{color:var(--ok);}
+  .set-row.done input{border-color:rgba(56,217,122,0.4);}
+  .set-check{height:100%;min-height:40px;border-radius:9px;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+  .set-check.on{background:var(--ok-dim);border-color:var(--ok);color:var(--ok);}
+  .set-hint{font-size:0.72rem;color:var(--fog);margin:-4px 0 12px;}
+  .add-set{background:none;border:none;color:var(--blue);font-size:0.8rem;font-weight:700;cursor:pointer;padding:0 0 8px;font-family:'Work Sans',sans-serif;}
+
+  /* ---- Ressenti / réussite en boutons ---- */
+  .choice-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .choice{flex:1 1 auto;min-width:64px;padding:9px 10px;border-radius:9px;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.82rem;font-weight:600;cursor:pointer;font-family:'Work Sans',sans-serif;text-align:center;}
+  .choice.on{background:var(--blue-dim);border-color:var(--blue);color:#CFE3FF;}
 
   .preview-ex{padding:10px 0;border-bottom:1px solid var(--steel-line);}
   .preview-ex:last-child{border-bottom:none;}
   .preview-ex .pname{font-weight:700;font-size:0.92rem;margin-bottom:3px;}
   .preview-ex .pmeta{font-size:0.8rem;color:var(--fog);}
 
+  .banner{border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:0.85rem;line-height:1.45;}
+  .banner-ok{background:var(--ok-dim);border:1px solid var(--ok);color:#B8F5CE;}
+  .banner-warn{background:#3B2F12;border:1px solid #C79A2E;color:#FFE3A3;}
+  .banner-draft{background:var(--steel);border:1px solid var(--steel-line);color:var(--fog);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .banner-draft button{background:none;border:none;color:var(--blue);font-weight:700;font-size:0.82rem;cursor:pointer;padding:0;font-family:'Work Sans',sans-serif;}
+
   .error-msg{display:none;background:#3A1F1F;border:1.5px solid var(--err);color:#FFD5D5;font-size:0.85rem;padding:10px 12px;border-radius:10px;margin-top:10px;}
 
-  .success, .state-msg{display:none;text-align:center;padding:50px 10px 10px;}
+  .success,.state-msg{display:none;text-align:center;padding:50px 10px 10px;}
   .success .check{width:64px;height:64px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.8rem;color:#0A1F12;}
-  .success h2, .state-msg h2{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;margin:0 0 10px;}
-  .success p, .state-msg p{color:var(--fog);font-size:0.95rem;line-height:1.5;margin:0 auto;max-width:32ch;}
+  .success h2,.state-msg h2{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;margin:0 0 10px;}
+  .success p,.state-msg p{color:var(--fog);font-size:0.95rem;line-height:1.5;margin:0 auto;max-width:32ch;}
   .state-msg .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--steel-line);border-top-color:var(--blue);margin:0 auto 20px;animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  .recap{margin:22px auto 0;max-width:340px;text-align:left;background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;padding:14px 16px;font-size:0.86rem;color:var(--fog);line-height:1.6;}
+  .recap b{color:var(--paper);}
 
-  #mainView, #fillSuccess, #loadingState, #notFoundState{display:none;}
+  /* ---- Chrono de repos collant ---- */
+  .rest-bar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--steel);border-top:1.5px solid var(--blue);padding:12px 16px calc(12px + var(--safe-b));display:none;box-shadow:0 -8px 24px rgba(0,0,0,0.45);}
+  .rest-bar.show{display:block;}
+  .rest-bar.over{border-top-color:var(--ok);}
+  .rest-inner{max-width:600px;margin:0 auto;display:flex;align-items:center;gap:12px;}
+  .rest-time{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;min-width:76px;color:var(--blue);}
+  .rest-bar.over .rest-time{color:var(--ok);}
+  .rest-meta{flex:1;min-width:0;}
+  .rest-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);}
+  .rest-ex{font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rest-actions{display:flex;gap:6px;flex:0 0 auto;}
+  .rest-actions button{background:var(--ink);border:1.5px solid var(--steel-line);color:var(--paper);border-radius:9px;padding:9px 11px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;}
+  .rest-track{max-width:600px;margin:9px auto 0;height:4px;border-radius:2px;background:var(--steel-line);overflow:hidden;}
+  .rest-progress{height:100%;width:100%;background:var(--blue);}
+  .rest-bar.over .rest-progress{background:var(--ok);}
+
+  .a2hs{background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.84rem;color:var(--fog);line-height:1.5;display:flex;gap:10px;align-items:flex-start;}
+  .a2hs b{color:var(--paper);}
+  .a2hs button{background:none;border:none;color:var(--fog);font-size:1.1rem;cursor:pointer;padding:0 2px;line-height:1;}
+
+  #mainView,#fillSuccess,#loadingState,#notFoundState{display:none;}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;animation-duration:0.01ms !important;}}
 </style>
 </head>
 <body>
@@ -99,7 +161,7 @@
   </div>
 
   <div class="state-msg" id="notFoundState">
-    <div class="check" style="background:var(--err);color:#3a0d0d;">✕</div>
+    <div class="check" style="width:64px;height:64px;border-radius:50%;background:var(--err);color:#3a0d0d;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.8rem;">✕</div>
     <h2>Lien introuvable</h2>
     <p>Ce lien n'est plus valide. Demande à ton coach de te le renvoyer.</p>
   </div>
@@ -107,9 +169,25 @@
   <div id="mainView">
     <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
     <h1 id="greeting">TA SEMAINE</h1>
-    <p class="sub">Ton programme de la semaine. Le jour en cours est sélectionné automatiquement.</p>
+    <p class="sub" id="introLine">Ton programme de la semaine. Le jour en cours est sélectionné automatiquement.</p>
+
+    <div class="a2hs" id="a2hs" style="display:none;">
+      <div style="flex:1;">
+        <b>Garde ce lien sous la main.</b><br>
+        <span id="a2hsHow"></span>
+      </div>
+      <button type="button" id="a2hsClose" aria-label="Fermer">✕</button>
+    </div>
 
     <div class="week-strip" id="weekStrip"></div>
+
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-top">
+        <span class="progress-label" id="progressLabel">Séance en cours</span>
+        <span class="progress-count" id="progressCount">0/0</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
 
     <div id="dayContent"></div>
   </div>
@@ -118,8 +196,24 @@
     <div class="check">✓</div>
     <h2>MERCI ! 💪</h2>
     <p>C'est bien reçu par ton coach. Continue comme ça, les petites habitudes font les grandes transformations.</p>
+    <div class="recap" id="successRecap" style="display:none;"></div>
   </div>
 
+</div>
+
+<div class="rest-bar" id="restBar">
+  <div class="rest-inner">
+    <div class="rest-time" id="restTime">0:00</div>
+    <div class="rest-meta">
+      <div class="rest-title" id="restTitle">Repos</div>
+      <div class="rest-ex" id="restEx"></div>
+    </div>
+    <div class="rest-actions">
+      <button type="button" id="restPlus">+30s</button>
+      <button type="button" id="restStop">Stop</button>
+    </div>
+  </div>
+  <div class="rest-track"><div class="rest-progress" id="restProgress"></div></div>
 </div>
 
 <script type="module">
@@ -140,29 +234,125 @@ const db = getFirestore(app);
 const $ = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 const DAYS = [['lundi','Lun'],['mardi','Mar'],['mercredi','Mer'],['jeudi','Jeu'],['vendredi','Ven'],['samedi','Sam'],['dimanche','Dim']];
-const JS_DAY_TO_KEY = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 
-function todayISO(){ return new Date().toISOString().slice(0,10); }
-function todayKey(){ return JS_DAY_TO_KEY[new Date().getDay()]; }
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function show(id){ $(id).style.display = 'block'; }
 function hide(id){ $(id).style.display = 'none'; }
 
+/* Date locale au format YYYY-MM-DD. `toISOString()` seul renvoie l'heure UTC :
+   passé minuit heure française, il datait la séance de la veille. */
+function isoLocal(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function addDays(d,n){ const c = new Date(d.getTime()); c.setDate(c.getDate()+n); return c; }
+function startOfToday(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+function mondayOfWeek(){
+  const d = startOfToday();
+  const js = d.getDay();
+  return addDays(d, js === 0 ? -6 : 1 - js);
+}
+const TODAY_ISO = isoLocal(startOfToday());
+const YESTERDAY_ISO = isoLocal(addDays(startOfToday(), -1));
+
+// Date réelle de chaque jour de la semaine affichée (lundi -> dimanche).
+const WEEK_DATES = {};
+DAYS.forEach(([key], i)=>{ WEEK_DATES[key] = addDays(mondayOfWeek(), i); });
+
+function isFillable(key){
+  const iso = isoLocal(WEEK_DATES[key]);
+  return iso === TODAY_ISO || iso === YESTERDAY_ISO;
+}
+function todayKey(){
+  const found = DAYS.find(([k]) => isoLocal(WEEK_DATES[k]) === TODAY_ISO);
+  return found ? found[0] : 'lundi';
+}
+
 function parseRestSeconds(str){
   if(!str) return null;
-  const s = str.trim().toLowerCase();
+  const s = String(str).trim().toLowerCase();
   let m = s.match(/(\d+)\s*:\s*(\d+)/); if(m) return (+m[1])*60 + (+m[2]);
   m = s.match(/(\d+(?:[.,]\d+)?)\s*min/); if(m) return Math.round(parseFloat(m[1].replace(',','.'))*60);
   m = s.match(/(\d+)\s*s/); if(m) return +m[1];
   m = s.match(/^(\d+)$/); if(m) return +m[1];
   return null;
 }
+// Nombre de lignes de saisie à générer, d'après le champ "séries" du coach.
+// On prend le PREMIER nombre : "4" -> 4, "3-4" -> 3, "4x10" -> 4 séries (pas 10).
+// Borné à 12 pour qu'une faute de frappe ne génère pas 300 lignes ; le client
+// peut de toute façon ajouter une série à la volée.
+function parseSetCount(str){
+  if(!str) return 1;
+  const m = String(str).match(/\d+/);
+  if(!m) return 1;
+  return Math.min(12, Math.max(1, parseInt(m[0], 10)));
+}
+function fmtClock(sec){
+  const s = Math.max(0, sec);
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
 
 const clientId = new URLSearchParams(window.location.search).get('c');
 let program = {};
 let clientName = '';
 let selectedDay = todayKey();
+let renderToken = 0;
+let lastTimeMap = new Map();   // nom d'exercice -> {date, r} de la dernière séance
 
+/* ---------------------------------------------------------------- Chrono */
+const restBar = $('#restBar');
+let rest = { interval:null, remaining:0, total:0, elapsedOver:0 };
+
+function stopRest(){
+  if(rest.interval){ clearInterval(rest.interval); rest.interval = null; }
+  restBar.classList.remove('show','over');
+}
+function startRest(seconds, exName){
+  stopRest();
+  rest.total = seconds;
+  rest.remaining = seconds;
+  rest.elapsedOver = 0;
+  $('#restEx').textContent = exName || '';
+  $('#restTitle').textContent = 'Repos';
+  restBar.classList.add('show');
+  restBar.classList.remove('over');
+  paintRest();
+  rest.interval = setInterval(()=>{
+    if(rest.remaining > 0){
+      rest.remaining--;
+      if(rest.remaining === 0){
+        restBar.classList.add('over');
+        $('#restTitle').textContent = 'Repos terminé — go !';
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
+      }
+    } else {
+      rest.elapsedOver++;
+      // Au-delà de 2 min de dépassement, on arrête d'encombrer l'écran.
+      if(rest.elapsedOver > 120){ stopRest(); return; }
+    }
+    paintRest();
+  }, 1000);
+}
+function paintRest(){
+  if(rest.remaining > 0){
+    $('#restTime').textContent = fmtClock(rest.remaining);
+    $('#restProgress').style.width = (rest.total ? (rest.remaining/rest.total)*100 : 0) + '%';
+  } else {
+    $('#restTime').textContent = '+' + fmtClock(rest.elapsedOver);
+    $('#restProgress').style.width = '100%';
+  }
+}
+$('#restStop').addEventListener('click', stopRest);
+$('#restPlus').addEventListener('click', ()=>{
+  if(!restBar.classList.contains('show')) return;
+  rest.remaining += 30;
+  rest.total = Math.max(rest.total, rest.remaining);
+  rest.elapsedOver = 0;
+  restBar.classList.remove('over');
+  $('#restTitle').textContent = 'Repos';
+  paintRest();
+});
+
+/* ------------------------------------------------------------ Chargement */
 async function boot(){
   if(!clientId){ hide('#loadingState'); show('#notFoundState'); return; }
   try{
@@ -181,6 +371,8 @@ async function boot(){
     renderWeekStrip();
     renderDay(selectedDay);
     show('#mainView');
+    maybeShowA2HS();
+    loadWeekStatuses();
   } catch(e){
     // Ne jamais avaler l'erreur en silence : une règle Firestore refusée et un ID
     // inexistant donnent le même écran, impossible à distinguer sans ce log.
@@ -192,6 +384,39 @@ async function boot(){
 show('#loadingState');
 boot();
 
+/* ------------------------------------------------- Bandeau écran d'accueil */
+function maybeShowA2HS(){
+  if(localStorage.getItem('ard:a2hs:done')) return;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if(standalone){ localStorage.setItem('ard:a2hs:done','1'); return; }
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  $('#a2hsHow').textContent = isIOS
+    ? "Bouton Partager (en bas de Safari) → « Sur l'écran d'accueil ». Tu retrouveras ton programme en un tap."
+    : "Menu ⋮ du navigateur → « Ajouter à l'écran d'accueil ». Tu retrouveras ton programme en un tap.";
+  $('#a2hs').style.display = 'flex';
+  $('#a2hsClose').addEventListener('click', ()=>{
+    localStorage.setItem('ard:a2hs:done','1');
+    $('#a2hs').style.display = 'none';
+  });
+}
+
+/* --------------------------------------------------------- Bandeau semaine */
+// Jours de la semaine déjà envoyés (rempli après coup, sans bloquer l'affichage).
+const doneDays = new Set();
+
+// Marque d'un ✓ les jours de la semaine déjà envoyés. Les règles Firestore
+// interdisent de lister `sessions` sans être connecté, mais les IDs sont
+// déterministes : 7 lectures directes suffisent. Chargé en tâche de fond.
+async function loadWeekStatuses(){
+  const snaps = await Promise.all(DAYS.map(([key]) =>
+    getDoc(doc(db, 'sessions', `${clientId}_${isoLocal(WEEK_DATES[key])}`)).catch(()=>null)
+  ));
+  let changed = false;
+  snaps.forEach((snap, i)=>{
+    if(snap && snap.exists() && !doneDays.has(DAYS[i][0])){ doneDays.add(DAYS[i][0]); changed = true; }
+  });
+  if(changed) renderWeekStrip();
+}
 function renderWeekStrip(){
   const wrap = $('#weekStrip');
   wrap.innerHTML = '';
@@ -199,20 +424,31 @@ function renderWeekStrip(){
   DAYS.forEach(([key,label])=>{
     const dayData = program[key] || {};
     const isRest = !dayData.exercises || dayData.exercises.length === 0;
-    const pill = document.createElement('div');
+    const pill = document.createElement('button');
+    pill.type = 'button';
     pill.className = 'day-pill' + (key===tk ? ' today' : '') + (key===selectedDay ? ' active' : '') + (isRest ? ' rest' : '');
-    pill.innerHTML = `<div class="dname">${label}</div><div class="dtag">${isRest ? 'Repos' : 'Séance'}</div>`;
+    pill.innerHTML = `<div class="dname">${label}</div>`
+      + `<div class="dnum">${WEEK_DATES[key].getDate()}</div>`
+      + `<div class="dtag">${isRest ? 'Repos' : 'Séance'}</div>`
+      + (doneDays.has(key) ? '<span class="flag">✓</span>' : '');
     pill.addEventListener('click', ()=>{ selectedDay = key; renderWeekStrip(); renderDay(key); });
     wrap.appendChild(pill);
   });
 }
 
+/* ------------------------------------------------------------ Rendu du jour */
 async function renderDay(key){
+  const token = ++renderToken;
+  stopRest();
   const wrap = $('#dayContent');
   wrap.innerHTML = '';
+  $('#progressBar').classList.remove('show');
+
   const dayData = program[key] || {};
   const isRest = !dayData.exercises || dayData.exercises.length === 0;
-  const isToday = key === todayKey();
+  const dateISO = isoLocal(WEEK_DATES[key]);
+  const fillable = isFillable(key);
+  const isYesterday = dateISO === YESTERDAY_ISO;
 
   if(isRest){
     wrap.innerHTML = `<div class="card" style="text-align:center;padding:34px 18px;">
@@ -223,45 +459,71 @@ async function renderDay(key){
     return;
   }
 
-  if(!isToday){
-    let html = `<div class="card"><h2 style="text-transform:capitalize;">${escapeHtml(key)}</h2>`;
+  if(!fillable){
+    const past = dateISO < TODAY_ISO;
+    let html = `<div class="card"><h2 style="text-transform:capitalize;">${escapeHtml(key)} ${WEEK_DATES[key].getDate()}</h2>`;
     if(dayData.echauffement && dayData.echauffement.trim()){
       html += `<div class="objectif-box"><b>Échauffement :</b><br>${escapeHtml(dayData.echauffement).replace(/\n/g,'<br>')}</div>`;
     }
     dayData.exercises.forEach(ex=>{
-      const parts = [];
-      if(ex.series) parts.push(`${escapeHtml(ex.series)} séries`);
-      if(ex.repetitions) parts.push(`${escapeHtml(ex.repetitions)} répét.`);
-      if(ex.charge) parts.push(escapeHtml(ex.charge));
-      if(ex.repos) parts.push(`repos ${escapeHtml(ex.repos)}`);
-      html += `<div class="preview-ex"><div class="pname">${escapeHtml(ex.nom)}</div><div class="pmeta">${parts.join(' · ') || 'Objectif libre'}</div></div>`;
+      html += `<div class="preview-ex"><div class="pname">${escapeHtml(ex.nom)}</div><div class="pmeta">${objectifLine(ex.series, ex.repetitions, ex.charge, ex.repos, '')}</div></div>`;
     });
-    html += `</div><p class="sub">Cette séance sera à remplir le jour même.</p>`;
+    html += `</div><p class="sub">${past ? "Cette séance n'est plus modifiable." : "Cette séance sera à remplir le jour même."}</p>`;
     wrap.innerHTML = html;
     return;
   }
 
-  const sessionId = `${clientId}_${todayISO()}`;
+  /* --- Jour remplissable (aujourd'hui, ou rattrapage de la veille) --- */
+  const sessionId = `${clientId}_${dateISO}`;
   let existing = null;
   try{
     const snap = await getDoc(doc(db, 'sessions', sessionId));
     if(snap.exists()) existing = snap.data();
-  }catch(e){}
+  }catch(e){ console.error('[ARD] Lecture séance du jour impossible :', e && e.code, e); }
+  if(token !== renderToken) return;
 
-  let exercices = dayData.exercises.map(pe => {
-    const prev = existing && existing.results ? existing.results.find(r=>r.nom===pe.nom) : null;
+  if(existing){ doneDays.add(key); renderWeekStrip(); }
+
+  // État de saisie : une ligne par série programmée.
+  const exercices = dayData.exercises.map(pe => {
+    const prev = existing && existing.results ? existing.results.find(r => r.nom === pe.nom) : null;
+    const count = parseSetCount(pe.series);
+    let sets;
+    if(prev && Array.isArray(prev.sets) && prev.sets.length){
+      sets = prev.sets.map(s => ({ reps: s.reps||'', charge: s.charge||'', done: !!s.done }));
+    } else if(prev){
+      // Ancien format (un seul couple reps/charge pour tout l'exercice).
+      sets = Array.from({length:count}, (_,i) => ({
+        reps: i===0 ? (prev.reps||'') : '', charge: i===0 ? (prev.charge||'') : '', done: false
+      }));
+    } else {
+      sets = Array.from({length:count}, ()=>({ reps:'', charge:'', done:false }));
+    }
+    while(sets.length < count) sets.push({ reps:'', charge:'', done:false });
     return {
       nom: pe.nom || '', seriesCible: pe.series || '', repCible: pe.repetitions || '',
       chargeCible: pe.charge || '', reposCible: pe.repos || '', notesCible: pe.notes || '',
-      reps: prev ? prev.reps||'' : '', charge: prev ? prev.charge||'' : '',
-      reussi: prev ? prev.reussi||'' : '', ressenti: prev ? prev.ressenti||'' : ''
+      sets,
+      reussi: prev ? prev.reussi||'' : '',
+      ressenti: prev ? prev.ressenti||'' : ''
     };
   });
 
-  let html = `<form id="crForm">`;
-  if(existing){
-    html += `<div class="objectif-box" style="background:var(--ok-dim);border-color:var(--ok);color:#B8F5CE;">✓ Déjà envoyée aujourd'hui — tu peux la corriger et renvoyer.</div>`;
+  const draftKey = `ard:draft:${sessionId}`;
+  let notesGlobales = existing ? (existing.notesGlobales||'') : '';
+  const draftRestored = restoreDraft(draftKey, exercices, (n)=>{ notesGlobales = n; });
+
+  let html = '';
+  if(isYesterday){
+    html += `<div class="banner banner-warn">⏳ <b>Rattrapage</b> — tu remplis la séance d'hier (${escapeHtml(key)} ${WEEK_DATES[key].getDate()}). Après aujourd'hui, elle ne sera plus modifiable.</div>`;
   }
+  if(existing){
+    html += `<div class="banner banner-ok">✓ Déjà envoyée — tu peux la corriger et la renvoyer.</div>`;
+  }
+  if(draftRestored){
+    html += `<div class="banner banner-draft"><span>Saisie en cours récupérée (elle était enregistrée sur ton téléphone).</span><button type="button" id="clearDraftBtn">Repartir de zéro</button></div>`;
+  }
+  html += `<form id="crForm">`;
   if(dayData.echauffement && dayData.echauffement.trim()){
     html += `<div class="card"><h2>Échauffement</h2><div class="objectif-box">${escapeHtml(dayData.echauffement).replace(/\n/g,'<br>')}</div></div>`;
   }
@@ -269,90 +531,35 @@ async function renderDay(key){
     <div class="card">
       <div class="field" style="margin-bottom:0;">
         <label>Remarques générales (optionnel)</label>
-        <textarea id="notesGlobales" placeholder="Fatigue, douleur, motivation...">${escapeHtml(existing ? existing.notesGlobales||'' : '')}</textarea>
+        <textarea id="notesGlobales" placeholder="Fatigue, douleur, motivation...">${escapeHtml(notesGlobales)}</textarea>
       </div>
     </div>
     <button type="submit" class="btn btn-blue btn-full" id="submitBtn">
       <span class="fill" id="btnFill"></span>
-      <span class="label" id="btnLabel">SÉANCE TERMINÉE</span>
+      <span class="label" id="btnLabel">${existing ? 'RENVOYER MA SÉANCE' : 'SÉANCE TERMINÉE'}</span>
     </button>
     <div class="error-msg" id="errorMsg"></div>
   </form>`;
   wrap.innerHTML = html;
 
-  function selectOptions(options, current){
-    return options.map(([v,l])=>`<option value="${escapeHtml(v)}" ${v===current?'selected':''}>${escapeHtml(l)}</option>`).join('');
-  }
-  function objectifLine(ex){
-    const parts = [];
-    if(ex.seriesCible) parts.push(`${escapeHtml(ex.seriesCible)} séries`);
-    if(ex.repCible) parts.push(`${escapeHtml(ex.repCible)} répét.`);
-    if(ex.chargeCible) parts.push(`${escapeHtml(ex.chargeCible)}`);
-    if(ex.reposCible) parts.push(`repos ${escapeHtml(ex.reposCible)}`);
-    let line = parts.join(' · ') || 'Objectif libre';
-    if(ex.notesCible) line += `<br><span style="opacity:0.85;">${escapeHtml(ex.notesCible)}</span>`;
-    return line;
-  }
-
-  const exWrap = $('#exercicesWrap');
-  exercices.forEach((ex, idx)=>{
-    const card = document.createElement('div');
-    card.className = 'ex-card';
-    const restSec = parseRestSeconds(ex.reposCible);
-    card.innerHTML = `
-      <div class="ex-head"><span class="ex-title">${escapeHtml(ex.nom)}</span></div>
-      <div class="objectif-box"><b>Objectif :</b> ${objectifLine(ex)}</div>
-      ${restSec ? `<div class="timer-row">
-        <button type="button" class="btn-timer" data-timer-btn>Démarrer repos (${escapeHtml(ex.reposCible)})</button>
-        <span class="timer-display" data-timer-display></span>
-      </div>` : ''}
-      <div class="section-tag">Ce que tu as fait</div>
-      <div class="ex-grid">
-        <div class="field"><label>Répét. faites</label><input type="text" data-field="reps" placeholder="10" value="${escapeHtml(ex.reps)}"></div>
-        <div class="field"><label>Charge utilisée</label><input type="text" data-field="charge" placeholder="42kg" value="${escapeHtml(ex.charge)}"></div>
-        <div class="field">
-          <label>Réussi ?</label>
-          <select data-field="reussi">${selectOptions([['','—'],['Oui','Oui'],['Partiel','Partiel'],['Non','Non']], ex.reussi)}</select>
-        </div>
-        <div class="field">
-          <label>Ressenti</label>
-          <select data-field="ressenti">${selectOptions([['','—'],['😄 Facile','😄 Facile'],['🙂 Correct','🙂 Correct'],['😓 Difficile','😓 Difficile'],['🥵 Très dur','🥵 Très dur']], ex.ressenti)}</select>
-        </div>
-      </div>
-    `;
-    $$('input, select', card).forEach(inp=>{
-      const evt = inp.tagName === 'SELECT' ? 'change' : 'input';
-      inp.addEventListener(evt, ()=>{ exercices[idx][inp.dataset.field] = inp.value; });
+  if(draftRestored){
+    $('#clearDraftBtn').addEventListener('click', ()=>{
+      localStorage.removeItem(draftKey);
+      renderDay(key);
     });
+  }
 
-    if(restSec){
-      const btn = $('[data-timer-btn]', card);
-      const disp = $('[data-timer-display]', card);
-      let interval = null;
-      btn.addEventListener('click', ()=>{
-        if(interval){ clearInterval(interval); interval=null; }
-        let remaining = restSec;
-        btn.classList.remove('done');
-        btn.classList.add('running');
-        btn.textContent = 'Repos en cours...';
-        disp.textContent = `${remaining}s`;
-        interval = setInterval(()=>{
-          remaining--;
-          if(remaining <= 0){
-            clearInterval(interval); interval = null;
-            disp.textContent = '';
-            btn.classList.remove('running');
-            btn.classList.add('done');
-            btn.textContent = 'Repos terminé ✓ — relancer';
-            if(navigator.vibrate) navigator.vibrate([200,100,200]);
-          } else {
-            disp.textContent = `${remaining}s`;
-          }
-        }, 1000);
-      });
-    }
-    exWrap.appendChild(card);
-  });
+  lastTimeMap = new Map();
+  const exWrap = $('#exercicesWrap');
+  exercices.forEach((ex, idx)=> exWrap.appendChild(buildExerciseCard(ex, idx, exercices, draftKey)));
+
+  $('#progressBar').classList.add('show');
+  $('#progressLabel').textContent = isYesterday ? 'Rattrapage — séance d\'hier' : 'Séance du jour';
+  updateProgress(exercices);
+
+  $('#notesGlobales').addEventListener('input', ()=> saveDraft(draftKey, exercices, $('#notesGlobales').value));
+
+  loadLastTime(exercices, dateISO, token);
 
   const form = $('#crForm');
   const submitBtn = $('#submitBtn');
@@ -363,13 +570,25 @@ async function renderDay(key){
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
     errorMsg.style.display = 'none';
+
+    const filled = exercices.filter(hasInput).length;
+    if(filled === 0){
+      errorMsg.textContent = "Note au moins une série avant d'envoyer.";
+      errorMsg.style.display = 'block';
+      return;
+    }
+    if(filled < exercices.length && !confirm(`Tu as rempli ${filled} exercice(s) sur ${exercices.length}. Envoyer quand même ?`)){
+      return;
+    }
+
     submitBtn.disabled = true;
     btnLabel.textContent = 'ENVOI...';
     btnFill.style.width = '100%';
+    stopRest();
 
     try{
       await setDoc(doc(db, 'sessions', sessionId), {
-        clientId, clientName, date: todayISO(), day: todayKey(),
+        clientId, clientName, date: dateISO, day: key,
         echauffement: dayData.echauffement || '',
         exercises: dayData.exercises,
         status: 'completed',
@@ -377,20 +596,235 @@ async function renderDay(key){
         notesGlobales: $('#notesGlobales').value.trim(),
         completedAt: serverTimestamp(),
         results: exercices.map(ex => ({
-          nom: ex.nom, seriesCible: ex.seriesCible, repCible: ex.repCible, chargeCible: ex.chargeCible, reposCible: ex.reposCible,
-          reps: ex.reps, charge: ex.charge, reussi: ex.reussi, ressenti: ex.ressenti
+          nom: ex.nom, seriesCible: ex.seriesCible, repCible: ex.repCible,
+          chargeCible: ex.chargeCible, reposCible: ex.reposCible,
+          sets: ex.sets.map(s => ({ reps: s.reps, charge: s.charge, done: !!s.done })),
+          // Résumés lisibles, conservés pour l'affichage côté coach.
+          reps: ex.sets.map(s=>s.reps||'—').join(' / '),
+          charge: ex.sets.map(s=>s.charge||'—').join(' / '),
+          reussi: ex.reussi, ressenti: ex.ressenti
         }))
       }, { merge: true });
-      hide('#mainView');
-      show('#fillSuccess');
+      localStorage.removeItem(draftKey);
+      showSuccess(exercices);
     } catch(err){
+      console.error('[ARD] Envoi de la séance refusé (code:', err && err.code, ')', err);
       submitBtn.disabled = false;
-      btnLabel.textContent = 'SÉANCE TERMINÉE';
+      btnLabel.textContent = existing ? 'RENVOYER MA SÉANCE' : 'SÉANCE TERMINÉE';
       btnFill.style.width = '0%';
-      errorMsg.textContent = "L'envoi a échoué, vérifie ta connexion et réessaie.";
+      errorMsg.textContent = "L'envoi a échoué, vérifie ta connexion et réessaie. Ta saisie est gardée sur ce téléphone.";
       errorMsg.style.display = 'block';
     }
   });
+}
+
+function objectifLine(series, reps, charge, repos, notes){
+  const parts = [];
+  if(series) parts.push(`${escapeHtml(series)} séries`);
+  if(reps) parts.push(`${escapeHtml(reps)} répét.`);
+  if(charge) parts.push(escapeHtml(charge));
+  if(repos) parts.push(`repos ${escapeHtml(repos)}`);
+  let line = parts.join(' · ') || 'Objectif libre';
+  if(notes) line += `<br><span style="opacity:0.85;">${escapeHtml(notes)}</span>`;
+  return line;
+}
+
+function hasInput(ex){
+  return ex.sets.some(s => (s.reps||'').trim() !== '' || (s.charge||'').trim() !== '' || s.done);
+}
+
+function buildExerciseCard(ex, idx, exercices, draftKey){
+  const card = document.createElement('div');
+  card.className = 'ex-card';
+  const restSec = parseRestSeconds(ex.reposCible);
+
+  const setsHtml = ex.sets.map((s,i)=>`
+    <div class="set-row${s.done ? ' done' : ''}" data-set="${i}">
+      <span class="set-label">S${i+1}</span>
+      <input type="text" inputmode="numeric" data-f="reps" placeholder="${escapeHtml(ex.repCible || 'reps')}" value="${escapeHtml(s.reps)}" aria-label="Répétitions série ${i+1}">
+      <input type="text" inputmode="decimal" data-f="charge" placeholder="${escapeHtml(ex.chargeCible || 'charge')}" value="${escapeHtml(s.charge)}" aria-label="Charge série ${i+1}">
+      <button type="button" class="set-check${s.done ? ' on' : ''}" data-check title="Série faite">✓</button>
+    </div>`).join('');
+
+  card.innerHTML = `
+    <div class="ex-head">
+      <span class="ex-num">${idx+1}</span>
+      <span class="ex-title">${escapeHtml(ex.nom)}</span>
+    </div>
+    <div class="objectif-box"><b>Objectif :</b> ${objectifLine(ex.seriesCible, ex.repCible, ex.chargeCible, ex.reposCible, ex.notesCible)}</div>
+    <div class="lastime" data-lastime style="display:none;"></div>
+    <div class="section-tag">Ce que tu as fait</div>
+    <div class="set-head"><span></span><span>Répét.</span><span>Charge</span><span></span></div>
+    <div class="sets">${setsHtml}</div>
+    <button type="button" class="add-set" data-addset>+ une série de plus</button>
+    <div class="set-hint">${restSec ? 'Coche ✓ à la fin de chaque série : le chrono de repos part tout seul.' : 'Coche ✓ à la fin de chaque série.'}</div>
+    <div class="section-tag">Objectif atteint ?</div>
+    <div class="choice-row" data-group="reussi">
+      ${['Oui','Partiel','Non'].map(v=>`<button type="button" class="choice${ex.reussi===v?' on':''}" data-v="${v}">${v}</button>`).join('')}
+    </div>
+    <div class="section-tag">Ressenti</div>
+    <div class="choice-row" data-group="ressenti">
+      ${['😄 Facile','🙂 Correct','😓 Difficile','🥵 Très dur'].map(v=>`<button type="button" class="choice${ex.ressenti===v?' on':''}" data-v="${v}">${v}</button>`).join('')}
+    </div>
+  `;
+
+  const sync = ()=>{
+    card.classList.toggle('complete', hasInput(ex));
+    saveDraft(draftKey, exercices, $('#notesGlobales') ? $('#notesGlobales').value : '');
+    updateProgress(exercices);
+  };
+
+  $$('.set-row', card).forEach(row=>{
+    const i = +row.dataset.set;
+    $$('input', row).forEach(inp=>{
+      inp.addEventListener('input', ()=>{ ex.sets[i][inp.dataset.f] = inp.value; sync(); });
+    });
+    $('[data-check]', row).addEventListener('click', ()=>{
+      const now = !ex.sets[i].done;
+      ex.sets[i].done = now;
+      row.classList.toggle('done', now);
+      $('[data-check]', row).classList.toggle('on', now);
+      // Report automatique de la charge sur la série suivante encore vide :
+      // en salle, on garde presque toujours le même poids d'une série à l'autre.
+      if(now && ex.sets[i+1] && !ex.sets[i+1].charge && ex.sets[i].charge){
+        ex.sets[i+1].charge = ex.sets[i].charge;
+        const nextRow = $(`.set-row[data-set="${i+1}"]`, card);
+        if(nextRow) $('[data-f="charge"]', nextRow).value = ex.sets[i].charge;
+      }
+      if(now && restSec) startRest(restSec, ex.nom + ' — série ' + (i+1));
+      else if(!now) stopRest();
+      sync();
+    });
+  });
+
+  $$('.choice-row', card).forEach(group=>{
+    const field = group.dataset.group;
+    $$('.choice', group).forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const v = btn.dataset.v;
+        ex[field] = (ex[field] === v) ? '' : v;   // re-tap = désélection
+        $$('.choice', group).forEach(b => b.classList.toggle('on', b.dataset.v === ex[field]));
+        sync();
+      });
+    });
+  });
+
+  $('[data-addset]', card).addEventListener('click', ()=>{
+    ex.sets.push({ reps:'', charge:'', done:false });
+    card.replaceWith(buildExerciseCard(ex, idx, exercices, draftKey));
+    sync();
+  });
+
+  applyLastTime(card, ex);
+  card.classList.toggle('complete', hasInput(ex));
+  return card;
+}
+
+function applyLastTime(card, ex){
+  const hit = lastTimeMap.get(ex.nom);
+  const el = $('[data-lastime]', card);
+  if(!hit || !el) return;
+  const parts = hit.date.split('-');
+  el.innerHTML = `↩ La dernière fois (${parts[2]}/${parts[1]}) : <b>${escapeHtml(summarise(hit.r))}</b>`;
+  el.style.display = 'block';
+}
+
+function updateProgress(exercices){
+  const done = exercices.filter(hasInput).length;
+  const total = exercices.length;
+  $('#progressCount').textContent = `${done}/${total} exercices`;
+  const pct = total ? (done/total)*100 : 0;
+  $('#progressFill').style.width = pct + '%';
+  $('#progressFill').classList.toggle('full', done === total && total > 0);
+}
+
+/* ------------------------------------------------- Brouillon local (salle) */
+let draftTimer = null;
+function saveDraft(key, exercices, notes){
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(()=>{
+    try{
+      localStorage.setItem(key, JSON.stringify({
+        savedAt: Date.now(), notes,
+        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets, reussi:e.reussi, ressenti:e.ressenti }))
+      }));
+    }catch(e){ /* quota plein / navigation privée : on continue sans brouillon */ }
+  }, 400);
+}
+function restoreDraft(key, exercices, setNotes){
+  let raw;
+  try{ raw = localStorage.getItem(key); }catch(e){ return false; }
+  if(!raw) return false;
+  let d;
+  try{ d = JSON.parse(raw); }catch(e){ return false; }
+  if(!d || !Array.isArray(d.ex)) return false;
+  let touched = false;
+  d.ex.forEach(saved=>{
+    const target = exercices.find(e => e.nom === saved.nom);
+    if(!target || !Array.isArray(saved.sets)) return;
+    saved.sets.forEach((s,i)=>{
+      if(!target.sets[i]) return;
+      if(s.reps || s.charge || s.done){
+        target.sets[i] = { reps: s.reps||'', charge: s.charge||'', done: !!s.done };
+        touched = true;
+      }
+    });
+    if(saved.reussi){ target.reussi = saved.reussi; touched = true; }
+    if(saved.ressenti){ target.ressenti = saved.ressenti; touched = true; }
+  });
+  if(typeof d.notes === 'string' && d.notes.trim()){ setNotes(d.notes); touched = true; }
+  return touched;
+}
+
+/* ------------------------------------- "La dernière fois" (progression) */
+// Les règles Firestore interdisent de lister `sessions` sans être connecté :
+// on interroge donc les IDs déterministes des 21 derniers jours, un par un.
+// Chargé après le rendu pour ne jamais retarder l'affichage de la séance.
+async function loadLastTime(exercices, dateISO, token){
+  const base = new Date(dateISO + 'T12:00:00');
+  const days = Array.from({length:21}, (_,i)=> isoLocal(addDays(base, -(i+1))));
+  const snaps = await Promise.all(days.map(d =>
+    getDoc(doc(db, 'sessions', `${clientId}_${d}`)).catch(()=>null)
+  ));
+  if(token !== renderToken) return;
+
+  snaps.forEach((snap, i)=>{                       // du plus récent au plus ancien
+    if(!snap || !snap.exists()) return;
+    const data = snap.data();
+    (data.results||[]).forEach(r=>{
+      if(!r.nom || lastTimeMap.has(r.nom)) return;
+      lastTimeMap.set(r.nom, { date: days[i], r });
+    });
+  });
+
+  $$('.ex-card').forEach((card, idx)=>{
+    if(exercices[idx]) applyLastTime(card, exercices[idx]);
+  });
+}
+function summarise(r){
+  if(Array.isArray(r.sets) && r.sets.length){
+    const parts = r.sets
+      .filter(s => (s.reps||'').trim() || (s.charge||'').trim())
+      .map(s => `${(s.reps||'?')}×${(s.charge||'?')}`);
+    if(parts.length) return parts.join('  ·  ');
+  }
+  const reps = (r.reps||'').trim(), charge = (r.charge||'').trim();
+  if(reps || charge) return `${reps||'?'} rép. · ${charge||'?'}`;
+  return 'séance notée';
+}
+
+/* ------------------------------------------------------------- Confirmation */
+function showSuccess(exercices){
+  const totalSets = exercices.reduce((n,e)=> n + e.sets.filter(s=>(s.reps||'').trim()||s.done).length, 0);
+  const lines = exercices.filter(hasInput).map(e => `• <b>${escapeHtml(e.nom)}</b> — ${escapeHtml(summarise({sets:e.sets}))}`);
+  const recap = $('#successRecap');
+  if(lines.length){
+    recap.innerHTML = `<div style="margin-bottom:8px;"><b>${lines.length}</b> exercice(s), <b>${totalSets}</b> série(s) notée(s).</div>` + lines.join('<br>');
+    recap.style.display = 'block';
+  }
+  hide('#mainView');
+  show('#fillSuccess');
+  window.scrollTo(0,0);
 }
 </script>
 </body>

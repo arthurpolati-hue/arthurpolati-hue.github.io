@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0E11">
 <title>ARD Coaching — Espace Coach</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,12 +13,13 @@
   :root{
     --ink:#0B0E11; --steel:#1B1F22; --steel-line:#2C3134;
     --paper:#F6F4EF; --fog:#9AA0A6; --blue:#3E8EFF; --blue-dim:#173A63;
-    --ok:#38D97A; --err:#FF6B6B;
+    --ok:#38D97A; --ok-dim:#123B24; --err:#FF6B6B;
+    --safe-b:env(safe-area-inset-bottom,0px);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{background:var(--ink);color:var(--paper);font-family:'Work Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:760px;margin:0 auto;padding:30px 20px 80px;}
+  .wrap{max-width:760px;margin:0 auto;padding:30px 20px calc(110px + var(--safe-b));}
 
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
   .brand{display:flex;align-items:center;gap:8px;}
@@ -26,15 +28,17 @@
   h1{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;line-height:0.95;margin:6px 0 10px;letter-spacing:0.01em;}
   h1.sm{font-size:1.6rem;}
   .sub{color:var(--fog);font-size:0.9rem;line-height:1.5;margin:0 0 20px;}
-  .backlink{color:var(--blue);font-size:0.85rem;text-decoration:none;font-weight:700;cursor:pointer;background:none;border:none;padding:0;}
+  .backlink{color:var(--blue);font-size:0.85rem;text-decoration:none;font-weight:700;cursor:pointer;background:none;border:none;padding:0;font-family:'Work Sans',sans-serif;}
 
   .card{background:var(--steel);border:1px solid var(--steel-line);border-radius:14px;padding:18px;margin-bottom:16px;}
   .card h2{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;margin:0 0 14px;letter-spacing:0.01em;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
+  .card-head h2{margin:0;}
   label{display:block;font-size:0.74rem;font-weight:700;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;}
   .field{margin-bottom:12px;}
   .row{display:flex;gap:10px;flex-wrap:wrap;}
   .row .field{flex:1;min-width:130px;}
-  input[type=text], input[type=email], input[type=password], input[type=tel], input[type=date], select, textarea{
+  input[type=text], input[type=email], input[type=password], input[type=tel], input[type=date], input[type=search], select, textarea{
     width:100%;background:var(--ink);border:1.5px solid var(--steel-line);border-radius:9px;
     padding:11px 12px;color:var(--paper);font-family:'Work Sans',sans-serif;font-size:0.95rem;
   }
@@ -45,46 +49,90 @@
   .btn{border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Work Sans',sans-serif;}
   .btn-blue{background:var(--blue);color:#071527;}
   .btn-ghost{background:transparent;color:var(--paper);border:1.5px solid var(--steel-line);}
+  .btn-danger{background:transparent;color:var(--err);border:1.5px solid rgba(255,107,107,0.4);}
   .btn-full{width:100%;}
   .btn-sm{padding:8px 14px;font-size:0.82rem;border-radius:8px;}
   .btn:disabled{opacity:0.5;cursor:default;}
-  .rm-btn{background:none;border:none;color:var(--err);font-size:1.2rem;cursor:pointer;padding:6px;}
+  .rm-btn{background:none;border:none;color:var(--err);font-size:1.1rem;cursor:pointer;padding:6px;line-height:1;}
+  .icon-btn{background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);border-radius:8px;width:32px;height:32px;font-size:0.9rem;cursor:pointer;padding:0;line-height:1;}
+  .icon-btn:disabled{opacity:0.3;cursor:default;}
 
+  /* ---- Exercices (éditeur) ---- */
   .ex-card{background:var(--ink);border:1.5px solid var(--steel-line);border-radius:12px;padding:16px 16px 4px;margin-bottom:14px;}
-  .ex-head{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
-  .ex-head input{flex:1;font-weight:700;}
+  .ex-head{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
+  .ex-head input{flex:1;font-weight:700;min-width:0;}
+  .ex-order{display:flex;gap:4px;flex:0 0 auto;}
   .ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin-bottom:14px;}
   .ex-grid .field{margin-bottom:0;min-width:0;}
   .ex-grid label{font-size:0.68rem;}
+  .empty-ex{border:1.5px dashed var(--steel-line);border-radius:12px;padding:22px 16px;text-align:center;color:var(--fog);font-size:0.88rem;margin-bottom:14px;}
 
-  .client-list{list-style:none;margin:0;padding:0;}
-  .client-list li{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;margin-bottom:10px;cursor:pointer;}
+  /* ---- Liste clients ---- */
+  .client-list{list-style:none;margin:0 0 14px;padding:0;}
+  .client-list li{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;margin-bottom:10px;cursor:pointer;}
   .client-list li:hover{border-color:var(--blue);}
-  .client-list .name{font-weight:700;}
-  .client-list .arrow{color:var(--fog);}
+  .client-list .name{font-weight:700;display:block;}
+  .client-list .cmeta{font-size:0.78rem;color:var(--fog);margin-top:2px;}
+  .client-list .arrow{color:var(--fog);flex:0 0 auto;}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--steel-line);}
+  .dot.done{background:var(--ok);box-shadow:0 0 0 3px rgba(56,217,122,0.16);}
+  .dot.todo{background:var(--blue);box-shadow:0 0 0 3px var(--blue-dim);}
+  .dot.rest{background:var(--steel-line);}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:0.76rem;color:var(--fog);margin:0 0 16px;}
+  .legend span{display:flex;align-items:center;gap:6px;}
 
-  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
-  .tab{padding:8px 14px;border-radius:20px;background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.82rem;font-weight:700;cursor:pointer;}
+  /* ---- Onglets jours ---- */
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+  .tab{position:relative;padding:8px 14px;border-radius:20px;background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;}
+  .tab.filled{color:var(--paper);border-color:#3d4448;}
+  .tab.today{box-shadow:0 0 0 1.5px var(--blue-dim);}
   .tab.active{background:var(--blue);border-color:var(--blue);color:#071527;}
+  .tab .cnt{display:inline-block;margin-left:6px;font-size:0.7rem;opacity:0.8;}
+  .tab .unsaved{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--err);border:2px solid var(--ink);display:none;}
+  .tab.dirty .unsaved{display:block;}
+  .tabs-hint{font-size:0.76rem;color:var(--fog);margin:0 0 16px;}
 
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ok);color:#08240f;padding:12px 22px;border-radius:10px;font-weight:700;font-size:0.9rem;display:none;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.35);}
+  .toast{position:fixed;bottom:calc(20px + var(--safe-b));left:50%;transform:translateX(-50%);background:var(--ok);color:#08240f;padding:12px 22px;border-radius:10px;font-weight:700;font-size:0.9rem;display:none;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,0.35);max-width:90vw;text-align:center;}
   .toast.show{display:block;}
   .toast.err{background:var(--err);color:#3a0d0d;}
 
   #generatedLink{width:100%;background:var(--ink);border:1.5px solid var(--steel-line);border-radius:9px;padding:11px 12px;color:var(--paper);font-size:0.82rem;margin-bottom:12px;}
   .link-actions{display:flex;gap:10px;flex-wrap:wrap;}
 
-  .session-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;margin-bottom:8px;}
+  /* ---- Historique ---- */
+  .session-row{padding:12px 14px;background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;margin-bottom:8px;}
+  .session-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .session-row .meta{font-size:0.85rem;}
-  .session-row .status{font-size:0.72rem;font-weight:700;padding:4px 10px;border-radius:20px;text-transform:uppercase;}
+  .session-row .submeta{font-size:0.76rem;color:var(--fog);margin-top:2px;}
+  .session-row .status{font-size:0.72rem;font-weight:700;padding:4px 10px;border-radius:20px;text-transform:uppercase;flex:0 0 auto;}
   .status.pending{background:var(--blue-dim);color:#CFE3FF;}
-  .status.completed{background:#123B24;color:#8FF0B4;}
-  .results-detail{display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--steel-line);font-size:0.85rem;color:var(--fog);}
+  .status.completed{background:var(--ok-dim);color:#8FF0B4;}
+  .results-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--steel-line);font-size:0.85rem;color:var(--fog);}
   .results-detail.show{display:block;}
+  .res-ex{margin-bottom:10px;}
+  .res-ex .rname{color:var(--paper);font-weight:700;font-size:0.88rem;}
+  .res-ex .rgoal{font-size:0.78rem;color:var(--fog);margin:1px 0 4px;}
+  .res-sets{display:flex;gap:6px;flex-wrap:wrap;}
+  .res-set{background:var(--steel);border:1px solid var(--steel-line);border-radius:7px;padding:3px 8px;font-size:0.78rem;color:var(--paper);}
+  .res-set.done{border-color:rgba(56,217,122,0.45);}
+  .res-tags{margin-top:4px;font-size:0.78rem;}
+  .stat-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat{flex:1 1 120px;background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;padding:12px 14px;}
+  .stat .v{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;}
+  .stat .k{font-size:0.72rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;margin-top:4px;}
+
+  /* ---- Barre d'enregistrement collante ---- */
+  .savebar{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--steel);border-top:1px solid var(--steel-line);padding:12px 20px calc(12px + var(--safe-b));display:none;box-shadow:0 -8px 24px rgba(0,0,0,0.45);}
+  .savebar.show{display:block;}
+  .savebar-inner{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:12px;}
+  .savebar-state{flex:1;font-size:0.82rem;color:var(--fog);min-width:0;}
+  .savebar-state.dirty{color:#FFD9A3;}
 
   #loginView, #appView{display:none;}
   .spinner{width:28px;height:28px;border-radius:50%;border:3px solid var(--steel-line);border-top-color:var(--blue);margin:40px auto;animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  .error-msg{color:var(--err);font-size:0.85rem;margin-top:10px;}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;}}
 </style>
 </head>
 <body>
@@ -93,13 +141,13 @@
   <div id="loginView">
     <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
     <h1>Espace coach</h1>
-    <p class="sub">Connecte-toi pour gérer tes clients et envoyer des séances.</p>
+    <p class="sub">Connecte-toi pour gérer tes clients et leurs programmes.</p>
     <form id="loginForm" class="card">
-      <div class="field"><label>Email</label><input type="email" id="loginEmail" required></div>
-      <div class="field" style="margin-bottom:0;"><label>Mot de passe</label><input type="password" id="loginPassword" required></div>
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username" required></div>
+      <div class="field" style="margin-bottom:0;"><label>Mot de passe</label><input type="password" id="loginPassword" autocomplete="current-password" required></div>
     </form>
     <button class="btn btn-blue btn-full" id="loginBtn" type="submit" form="loginForm">Se connecter</button>
-    <div class="error-msg" id="loginError" style="display:none;color:var(--err);font-size:0.85rem;margin-top:10px;"></div>
+    <div class="error-msg" id="loginError" style="display:none;"></div>
   </div>
 
   <div id="appView">
@@ -110,14 +158,27 @@
 
     <div id="viewClients">
       <h1>Tes clients</h1>
+      <p class="sub" id="clientsSummary">Chargement...</p>
+
+      <div class="field" id="searchField" style="display:none;">
+        <input type="search" id="clientSearch" placeholder="Rechercher un client...">
+      </div>
+
+      <div class="legend">
+        <span><i class="dot done"></i> Séance du jour envoyée</span>
+        <span><i class="dot todo"></i> Séance prévue, pas encore reçue</span>
+        <span><i class="dot rest"></i> Repos aujourd'hui</span>
+      </div>
+
       <ul class="client-list" id="clientList"></ul>
+
       <form id="addClientForm" class="card">
         <h2>Ajouter un client</h2>
         <div class="row">
           <div class="field"><label>Nom</label><input type="text" id="newClientName" required placeholder="Prénom Nom"></div>
           <div class="field"><label>Téléphone (optionnel)</label><input type="tel" id="newClientPhone" placeholder="06 12 34 56 78"></div>
         </div>
-        <button type="submit" class="btn btn-blue">+ Ajouter</button>
+        <button type="submit" class="btn btn-blue" id="addClientBtn">+ Ajouter</button>
       </form>
     </div>
 
@@ -133,32 +194,62 @@
         <div class="link-actions">
           <button class="btn btn-ghost btn-sm" id="copyLinkBtn" type="button">Copier le lien</button>
           <button class="btn btn-blue btn-sm" id="waLinkBtn" type="button" style="display:none;">Envoyer sur WhatsApp</button>
+          <button class="btn btn-ghost btn-sm" id="previewLinkBtn" type="button">Voir comme le client</button>
         </div>
       </div>
 
-      <div class="tabs" id="dayTabs"></div>
-
       <div class="card">
-        <h2>Échauffement</h2>
-        <textarea id="dayEchauffement" placeholder="Ex: 5min vélo + mobilité épaules/hanches..."></textarea>
-      </div>
+        <div class="card-head">
+          <h2>Programme de la semaine</h2>
+          <button class="btn btn-ghost btn-sm" id="copyDayBtn" type="button">Copier ce jour vers…</button>
+        </div>
+        <div class="tabs" id="dayTabs"></div>
+        <p class="tabs-hint" id="tabsHint"></p>
 
-      <div class="card">
-        <h2>Exercices</h2>
+        <div class="field">
+          <label>Échauffement</label>
+          <textarea id="dayEchauffement" placeholder="Ex: 5min vélo + mobilité épaules/hanches..."></textarea>
+        </div>
+
+        <label>Exercices</label>
         <div id="exCardsWrap"></div>
-        <button class="btn btn-ghost btn-sm" id="addExBtn" type="button">+ Ajouter un exercice</button>
+        <div class="row">
+          <button class="btn btn-ghost btn-sm" id="addExBtn" type="button">+ Ajouter un exercice</button>
+          <button class="btn btn-danger btn-sm" id="clearDayBtn" type="button">Vider ce jour (repos)</button>
+        </div>
       </div>
 
-      <button class="btn btn-blue btn-full" id="saveTemplateBtn" style="margin-bottom:16px;">Enregistrer ce programme</button>
+      <div class="card">
+        <div class="card-head">
+          <h2>Historique des séances</h2>
+          <button class="btn btn-ghost btn-sm" id="reloadHistoryBtn" type="button">Actualiser</button>
+        </div>
+        <div id="historyStats"></div>
+        <div id="historyWrap"><p class="sub" style="margin:0;">Chargement...</p></div>
+      </div>
 
       <div class="card">
-        <h2>Historique des séances</h2>
-        <div id="historyWrap"><p class="sub" style="margin:0;">Aucune séance envoyée pour l'instant.</p></div>
+        <h2>Fiche client</h2>
+        <div class="row">
+          <div class="field"><label>Nom</label><input type="text" id="editClientName"></div>
+          <div class="field"><label>Téléphone</label><input type="tel" id="editClientPhone" placeholder="06 12 34 56 78"></div>
+        </div>
+        <div class="row">
+          <button class="btn btn-ghost btn-sm" id="saveClientBtn" type="button">Enregistrer la fiche</button>
+          <button class="btn btn-danger btn-sm" id="deleteClientBtn" type="button">Supprimer ce client</button>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="spinner" id="globalSpinner" style="display:none;"></div>
+</div>
+
+<div class="savebar" id="savebar">
+  <div class="savebar-inner">
+    <span class="savebar-state" id="savebarState">Programme à jour</span>
+    <button class="btn btn-blue" id="saveTemplateBtn" type="button">Enregistrer</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -169,7 +260,8 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, query, where, serverTimestamp
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -187,19 +279,34 @@ const db = getFirestore(app);
 const $ = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 const DAYS = [['lundi','Lundi'],['mardi','Mardi'],['mercredi','Mercredi'],['jeudi','Jeudi'],['vendredi','Vendredi'],['samedi','Samedi'],['dimanche','Dimanche']];
+const JS_DAY_TO_KEY = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+// Date locale : `toISOString()` renvoie l'heure UTC et décalait la date d'un jour
+// en soirée/nuit heure française.
+function isoLocal(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function todayISO(){ return isoLocal(new Date()); }
+function todayKey(){ return JS_DAY_TO_KEY[new Date().getDay()]; }
+function cap(s){ return (s||'').charAt(0).toUpperCase() + (s||'').slice(1); }
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}`;
+}
 function showToast(msg, isErr){
   const t = $('#toast');
   t.textContent = msg;
   t.classList.toggle('err', !!isErr);
   t.classList.add('show');
-  setTimeout(()=> t.classList.remove('show'), 2200);
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> t.classList.remove('show'), 2600);
 }
 function spinner(on){ $('#globalSpinner').style.display = on ? 'block' : 'none'; }
 
+/* --------------------------------------------------------------- Auth */
 onAuthStateChanged(auth, (user)=>{
   if(user){
     $('#loginView').style.display = 'none';
@@ -216,71 +323,187 @@ $('#loginForm').addEventListener('submit', async (e)=>{
   const email = $('#loginEmail').value.trim();
   const password = $('#loginPassword').value;
   $('#loginError').style.display = 'none';
+  $('#loginBtn').disabled = true;
+  $('#loginBtn').textContent = 'Connexion...';
   try{
     await signInWithEmailAndPassword(auth, email, password);
   } catch(err){
-    $('#loginError').textContent = "Connexion refusée — vérifie ton email et mot de passe.";
+    console.error('[ARD] Connexion refusée (code:', err && err.code, ')', err);
+    $('#loginError').textContent = (err && err.code === 'auth/network-request-failed')
+      ? "Pas de connexion réseau. Réessaie."
+      : "Connexion refusée — vérifie ton email et mot de passe.";
     $('#loginError').style.display = 'block';
+  } finally {
+    $('#loginBtn').disabled = false;
+    $('#loginBtn').textContent = 'Se connecter';
   }
 });
 
-$('#logoutBtn').addEventListener('click', ()=> signOut(auth));
+$('#logoutBtn').addEventListener('click', ()=>{
+  if(isDirty && !confirm("Le programme en cours n'est pas enregistré. Se déconnecter quand même ?")) return;
+  signOut(auth);
+});
+
+/* ------------------------------------------------------- Liste clients */
+let allClients = [];
 
 async function loadClients(){
   spinner(true);
-  const snap = await getDocs(collection(db, 'clients'));
+  let snap;
+  try{
+    snap = await getDocs(collection(db, 'clients'));
+  } catch(e){
+    spinner(false);
+    console.error('[ARD] Lecture des clients refusée (code:', e && e.code, ')', e);
+    $('#clientsSummary').textContent = "Impossible de charger les clients (règles Firestore ?). Voir la console.";
+    return;
+  }
   spinner(false);
+  allClients = [];
+  snap.forEach(d => allClients.push({ id: d.id, ...d.data() }));
+  allClients.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+  $('#searchField').style.display = allClients.length > 6 ? 'block' : 'none';
+  renderClientList();
+  loadTodayStatuses();
+}
+
+// Statut du jour par client. On interroge l'ID déterministe de la séance du jour
+// (`{clientId}_{date}`) plutôt qu'une requête sur la collection : ça reste un
+// `get`, donc ça marche même si `list` est fermé sur `sessions`.
+const todayStatus = new Map();   // clientId -> 'done' | 'todo' | 'rest'
+
+async function loadTodayStatuses(){
+  const tk = todayKey(), iso = todayISO();
+  await Promise.all(allClients.map(async c => {
+    try{
+      const [prog, sess] = await Promise.all([
+        getDoc(doc(db, 'programs', c.id)),
+        getDoc(doc(db, 'sessions', `${c.id}_${iso}`))
+      ]);
+      const day = prog.exists() ? (prog.data()[tk] || {}) : {};
+      const hasSession = day.exercises && day.exercises.length > 0;
+      todayStatus.set(c.id, sess.exists() ? 'done' : (hasSession ? 'todo' : 'rest'));
+    }catch(e){ /* statut simplement absent */ }
+  }));
+  renderClientList();
+  const done = [...todayStatus.values()].filter(v=>v==='done').length;
+  const todo = [...todayStatus.values()].filter(v=>v==='todo').length;
+  $('#clientsSummary').textContent = allClients.length === 0
+    ? "Aucun client pour l'instant — ajoute-en un ci-dessous."
+    : `${allClients.length} client(s) · ${done} séance(s) reçue(s) aujourd'hui · ${todo} en attente.`;
+}
+
+$('#clientSearch').addEventListener('input', renderClientList);
+
+function renderClientList(){
   const list = $('#clientList');
+  const q = ($('#clientSearch').value||'').trim().toLowerCase();
+  const shown = allClients.filter(c => !q || (c.name||'').toLowerCase().includes(q));
   list.innerHTML = '';
-  const clients = [];
-  snap.forEach(d => clients.push({ id: d.id, ...d.data() }));
-  clients.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
-  clients.forEach(c=>{
+  if(allClients.length === 0){
+    list.innerHTML = '<p class="sub" style="margin:0;">Aucun client pour l\'instant, ajoute-en un ci-dessous.</p>';
+    return;
+  }
+  if(shown.length === 0){
+    list.innerHTML = '<p class="sub" style="margin:0;">Aucun client ne correspond à cette recherche.</p>';
+    return;
+  }
+  shown.forEach(c=>{
+    const st = todayStatus.get(c.id);
+    const labels = { done:"Séance du jour reçue ✓", todo:"Séance prévue aujourd'hui", rest:"Repos aujourd'hui" };
     const li = document.createElement('li');
-    li.innerHTML = `<span class="name">${escapeHtml(c.name)}</span><span class="arrow">→</span>`;
+    li.innerHTML = `<i class="dot ${st||''}"></i>
+      <span style="flex:1;min-width:0;">
+        <span class="name">${escapeHtml(c.name)}</span>
+        <span class="cmeta">${st ? labels[st] : '…'}</span>
+      </span>
+      <span class="arrow">→</span>`;
     li.addEventListener('click', ()=> openClient(c));
     list.appendChild(li);
   });
-  if(clients.length === 0){
-    list.innerHTML = '<p class="sub" style="margin:0;">Aucun client pour l\'instant, ajoute-en un ci-dessous.</p>';
-  }
 }
 
 $('#addClientForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const name = $('#newClientName').value.trim();
   const phone = $('#newClientPhone').value.trim();
-  if(!name){ return; }
+  if(!name) return;
+  $('#addClientBtn').disabled = true;
   spinner(true);
-  const ref = await addDoc(collection(db, 'clients'), { name, phone, createdAt: serverTimestamp() });
-  await setDoc(doc(db, 'programs', ref.id), {});
-  spinner(false);
-  $('#newClientName').value = '';
-  $('#newClientPhone').value = '';
-  showToast('Client ajouté ✓');
-  loadClients();
+  try{
+    const ref = await addDoc(collection(db, 'clients'), { name, phone, createdAt: serverTimestamp() });
+    await setDoc(doc(db, 'programs', ref.id), {});
+    $('#newClientName').value = '';
+    $('#newClientPhone').value = '';
+    showToast('Client ajouté ✓');
+    await loadClients();
+  } catch(err){
+    console.error('[ARD] Ajout client refusé (code:', err && err.code, ')', err);
+    showToast("Ajout impossible — voir la console.", true);
+  } finally {
+    spinner(false);
+    $('#addClientBtn').disabled = false;
+  }
 });
 
+/* ------------------------------------------------------- Fiche client */
 let currentClient = null;
 let currentProgram = {};
 let currentDay = 'lundi';
 let exerciseRows = [];
+let isDirty = false;
+const dirtyDays = new Set();   // jours modifiés depuis le dernier enregistrement
 
 function blankExercise(){ return { id: uid(), nom:'', series:'', repetitions:'', charge:'', repos:'', notes:'' }; }
+
+function markDirty(){
+  isDirty = true;
+  dirtyDays.add(currentDay);
+  $('#savebar').classList.add('show');
+  $('#savebarState').textContent = 'Modifications non enregistrées';
+  $('#savebarState').classList.add('dirty');
+  renderDayTabs();
+}
+function markClean(){
+  isDirty = false;
+  dirtyDays.clear();
+  $('#savebarState').textContent = 'Programme à jour';
+  $('#savebarState').classList.remove('dirty');
+  renderDayTabs();
+}
+
+// Filet de sécurité navigateur : la saisie d'un programme n'est jamais
+// sauvegardée automatiquement côté Firestore.
+window.addEventListener('beforeunload', (e)=>{
+  if(!isDirty) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
 
 async function openClient(client){
   currentClient = client;
   $('#viewClients').style.display = 'none';
   $('#viewClient').style.display = 'block';
   $('#clientTitle').textContent = client.name;
+  $('#editClientName').value = client.name || '';
+  $('#editClientPhone').value = client.phone || '';
+  window.scrollTo(0,0);
 
   spinner(true);
-  const progSnap = await getDoc(doc(db, 'programs', client.id));
-  currentProgram = progSnap.exists() ? progSnap.data() : {};
+  try{
+    const progSnap = await getDoc(doc(db, 'programs', client.id));
+    currentProgram = progSnap.exists() ? progSnap.data() : {};
+  } catch(e){
+    console.error('[ARD] Lecture du programme refusée (code:', e && e.code, ')', e);
+    currentProgram = {};
+    showToast("Programme illisible — voir la console.", true);
+  }
   spinner(false);
 
-  renderDayTabs();
-  loadDay('lundi');
+  markClean();
+  $('#savebar').classList.add('show');
+  currentDay = todayKey();
+  loadDay(currentDay);
   loadHistory();
   showFixedLink();
 }
@@ -293,12 +516,17 @@ const IS_LOCAL = !window.location.origin.startsWith(SITE_ORIGIN);
 
 function showFixedLink(){
   const link = `${SITE_ORIGIN}/s.html?c=${currentClient.id}`;
+  // Réaffiché explicitement : le retour à la liste masque cette carte, et sans ça
+  // elle restait invisible pour tous les clients ouverts ensuite.
+  $('#linkResult').style.display = 'block';
   $('#generatedLink').value = link;
   $('#localNotice').style.display = IS_LOCAL ? 'block' : 'none';
-  const phone = (currentClient.phone||'').replace(/\s|\.|-/g,'').trim();
+  // En local, l'aperçu doit pointer vers le fichier local, sinon on teste le site en ligne.
+  $('#previewLinkBtn').onclick = ()=> window.open(`s.html?c=${currentClient.id}`, '_blank');
+  const phone = (currentClient.phone||'').replace(/[\s.\-()]/g,'').trim();
   const waBtn = $('#waLinkBtn');
   if(phone){
-    let waPhone = phone.startsWith('0') ? '33' + phone.slice(1) : phone;
+    let waPhone = phone.startsWith('0') ? '33' + phone.slice(1) : phone.replace(/^\+/,'');
     const msg = encodeURIComponent(`Salut ${currentClient.name} ! Voici le lien vers ton programme de la semaine, il ne change jamais : ${link}`);
     waBtn.style.display = 'inline-block';
     waBtn.onclick = () => window.open(`https://wa.me/${waPhone}?text=${msg}`, '_blank');
@@ -308,28 +536,50 @@ function showFixedLink(){
 }
 
 $('#backToClients').addEventListener('click', ()=>{
+  if(isDirty && !confirm("Le programme n'est pas enregistré. Quitter la fiche quand même ?")) return;
+  isDirty = false;
   $('#viewClient').style.display = 'none';
   $('#viewClients').style.display = 'block';
-  $('#linkResult').style.display = 'none';
+  $('#savebar').classList.remove('show');
+  loadTodayStatuses();
+  window.scrollTo(0,0);
 });
+
+/* ----------------------------------------------------- Onglets par jour */
+function dayExerciseCount(key){
+  if(key === currentDay) return exerciseRows.filter(e => (e.nom||'').trim() !== '').length;
+  const d = currentProgram[key];
+  return (d && d.exercises) ? d.exercises.length : 0;
+}
 
 function renderDayTabs(){
   const wrap = $('#dayTabs');
   wrap.innerHTML = '';
+  const tk = todayKey();
   DAYS.forEach(([key,label])=>{
+    const n = dayExerciseCount(key);
     const tab = document.createElement('button');
     tab.type = 'button';
-    tab.className = 'tab' + (key===currentDay ? ' active' : '');
-    tab.textContent = label;
+    tab.className = 'tab'
+      + (key===currentDay ? ' active' : '')
+      + (n > 0 ? ' filled' : '')
+      + (key===tk ? ' today' : '')
+      + (dirtyDays.has(key) ? ' dirty' : '');
+    tab.innerHTML = `${escapeHtml(label)}<span class="cnt">${n > 0 ? n : '—'}</span><span class="unsaved"></span>`;
+    tab.title = n > 0 ? `${n} exercice(s)` : 'Jour de repos';
     tab.addEventListener('click', ()=>{ saveCurrentDayToMemory(); loadDay(key); });
     wrap.appendChild(tab);
   });
+  const filledDays = DAYS.filter(([k]) => dayExerciseCount(k) > 0).length;
+  $('#tabsHint').textContent = filledDays === 0
+    ? "Aucun jour programmé : le client verra « repos » toute la semaine."
+    : `${filledDays} jour(s) programmé(s) · le chiffre indique le nombre d'exercices. Aujourd'hui : ${cap(tk)}.`;
 }
 
 function saveCurrentDayToMemory(){
   currentProgram[currentDay] = {
     echauffement: $('#dayEchauffement').value.trim(),
-    exercises: exerciseRows.filter(e=>e.nom.trim()!=='').map(ex=>({
+    exercises: exerciseRows.filter(e => (e.nom||'').trim() !== '').map(ex=>({
       nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge, repos: ex.repos, notes: ex.notes
     }))
   };
@@ -337,25 +587,38 @@ function saveCurrentDayToMemory(){
 
 function loadDay(key){
   currentDay = key;
-  renderDayTabs();
   const dayData = currentProgram[key] || {};
   $('#dayEchauffement').value = dayData.echauffement || '';
-  exerciseRows = (dayData.exercises && dayData.exercises.length ? dayData.exercises : [{}]).map(ex => ({
-    id: uid(), nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'', charge: ex.charge||'', repos: ex.repos||'', notes: ex.notes||''
+  exerciseRows = (dayData.exercises && dayData.exercises.length ? dayData.exercises : []).map(ex => ({
+    id: uid(), nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'',
+    charge: ex.charge||'', repos: ex.repos||'', notes: ex.notes||''
   }));
   renderExCards();
+  renderDayTabs();
 }
+
+$('#dayEchauffement').addEventListener('input', ()=>{ markDirty(); });
 
 function renderExCards(){
   const body = $('#exCardsWrap');
   body.innerHTML = '';
+  if(exerciseRows.length === 0){
+    body.innerHTML = `<div class="empty-ex">Aucun exercice ce jour-là → le client verra <b>« Jour de repos »</b>.<br>Ajoute un exercice ci-dessous pour programmer une séance.</div>`;
+    return;
+  }
   exerciseRows.forEach((ex, idx)=>{
     const card = document.createElement('div');
     card.className = 'ex-card';
     card.innerHTML = `
       <div class="ex-head">
+        <span style="color:var(--fog);font-weight:800;font-size:0.8rem;flex:0 0 auto;">${idx+1}</span>
         <input type="text" data-field="nom" placeholder="Nom de l'exercice (ex: Développé couché)" value="${escapeHtml(ex.nom)}">
-        <button class="rm-btn" type="button" title="Supprimer">✕</button>
+        <span class="ex-order">
+          <button class="icon-btn" type="button" data-up title="Monter" ${idx===0?'disabled':''}>↑</button>
+          <button class="icon-btn" type="button" data-down title="Descendre" ${idx===exerciseRows.length-1?'disabled':''}>↓</button>
+          <button class="icon-btn" type="button" data-dup title="Dupliquer">⧉</button>
+        </span>
+        <button class="rm-btn" type="button" data-rm title="Supprimer">✕</button>
       </div>
       <div class="ex-grid">
         <div class="field"><label>Séries</label><input type="text" data-field="series" placeholder="4" value="${escapeHtml(ex.series)}"></div>
@@ -365,36 +628,162 @@ function renderExCards(){
       </div>
       <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
     `;
-    $$('input, textarea', card).forEach(inp=>{
-      inp.addEventListener('input', ()=>{ exerciseRows[idx][inp.dataset.field] = inp.value; });
+    $$('input[data-field], textarea[data-field]', card).forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        exerciseRows[idx][inp.dataset.field] = inp.value;
+        markDirty();
+        // Le compteur de l'onglet dépend du nom : on rafraîchit à la volée.
+        if(inp.dataset.field === 'nom') renderDayTabs();
+      });
     });
-    $('.rm-btn', card).addEventListener('click', ()=>{ exerciseRows.splice(idx,1); renderExCards(); });
+    $('[data-rm]', card).addEventListener('click', ()=>{
+      exerciseRows.splice(idx,1); renderExCards(); markDirty();
+    });
+    $('[data-up]', card).addEventListener('click', ()=>{
+      if(idx===0) return;
+      [exerciseRows[idx-1], exerciseRows[idx]] = [exerciseRows[idx], exerciseRows[idx-1]];
+      renderExCards(); markDirty();
+    });
+    $('[data-down]', card).addEventListener('click', ()=>{
+      if(idx===exerciseRows.length-1) return;
+      [exerciseRows[idx+1], exerciseRows[idx]] = [exerciseRows[idx], exerciseRows[idx+1]];
+      renderExCards(); markDirty();
+    });
+    $('[data-dup]', card).addEventListener('click', ()=>{
+      exerciseRows.splice(idx+1, 0, { ...exerciseRows[idx], id: uid() });
+      renderExCards(); markDirty();
+    });
     body.appendChild(card);
   });
 }
-$('#addExBtn').addEventListener('click', ()=>{ exerciseRows.push(blankExercise()); renderExCards(); });
+
+$('#addExBtn').addEventListener('click', ()=>{
+  exerciseRows.push(blankExercise());
+  renderExCards();
+  markDirty();
+  const last = $('#exCardsWrap').lastElementChild;
+  if(last){ const inp = $('input[data-field="nom"]', last); if(inp) inp.focus(); }
+});
+
+$('#clearDayBtn').addEventListener('click', ()=>{
+  if(exerciseRows.length === 0 && !$('#dayEchauffement').value.trim()) return;
+  if(!confirm(`Vider ${cap(currentDay)} ? Le client verra « Jour de repos ».`)) return;
+  exerciseRows = [];
+  $('#dayEchauffement').value = '';
+  renderExCards();
+  markDirty();
+});
+
+$('#copyDayBtn').addEventListener('click', ()=>{
+  saveCurrentDayToMemory();
+  const src = currentProgram[currentDay] || {};
+  if(!src.exercises || src.exercises.length === 0){
+    showToast("Ce jour est vide, rien à copier.", true);
+    return;
+  }
+  const choices = DAYS.filter(([k]) => k !== currentDay);
+  const prompt_ = `Copier ${cap(currentDay)} (${src.exercises.length} exercice(s)) vers quel jour ?\n\n`
+    + choices.map(([k,l],i)=> `${i+1}. ${l}`).join('\n')
+    + `\n\nTape le numéro (ou plusieurs séparés par une virgule) :`;
+  const answer = window.prompt(prompt_, '');
+  if(!answer) return;
+  const targets = answer.split(',')
+    .map(s => choices[parseInt(s.trim(),10) - 1])
+    .filter(Boolean);
+  if(targets.length === 0){ showToast("Numéro non reconnu.", true); return; }
+  targets.forEach(([k])=>{
+    currentProgram[k] = JSON.parse(JSON.stringify(src));
+    dirtyDays.add(k);
+  });
+  markDirty();
+  showToast(`Copié vers ${targets.map(t=>t[1]).join(', ')} — pense à enregistrer`);
+});
 
 $('#saveTemplateBtn').addEventListener('click', async ()=>{
   saveCurrentDayToMemory();
+  $('#saveTemplateBtn').disabled = true;
   spinner(true);
-  await setDoc(doc(db, 'programs', currentClient.id), currentProgram);
-  spinner(false);
-  showToast('Programme enregistré ✓');
+  try{
+    await setDoc(doc(db, 'programs', currentClient.id), currentProgram);
+    markClean();
+    showToast('Programme enregistré ✓');
+  } catch(err){
+    console.error('[ARD] Enregistrement du programme refusé (code:', err && err.code, ')', err);
+    showToast("Enregistrement échoué — voir la console.", true);
+  } finally {
+    spinner(false);
+    $('#saveTemplateBtn').disabled = false;
+  }
 });
 
 $('#copyLinkBtn').addEventListener('click', async ()=>{
   const input = $('#generatedLink');
   try{ await navigator.clipboard.writeText(input.value); showToast('Lien copié ✓'); }
-  catch(e){ input.select(); showToast('Sélectionné — copie avec Ctrl/Cmd+C'); }
+  catch(e){ input.select(); showToast('Sélectionné — copie avec Cmd/Ctrl+C'); }
 });
+
+/* -------------------------------------------------- Fiche client (édition) */
+$('#saveClientBtn').addEventListener('click', async ()=>{
+  const name = $('#editClientName').value.trim();
+  const phone = $('#editClientPhone').value.trim();
+  if(!name){ showToast("Le nom ne peut pas être vide.", true); return; }
+  spinner(true);
+  try{
+    await updateDoc(doc(db, 'clients', currentClient.id), { name, phone });
+    currentClient.name = name;
+    currentClient.phone = phone;
+    const inList = allClients.find(c => c.id === currentClient.id);
+    if(inList){ inList.name = name; inList.phone = phone; }
+    $('#clientTitle').textContent = name;
+    showFixedLink();
+    showToast('Fiche enregistrée ✓');
+  } catch(err){
+    console.error('[ARD] Mise à jour du client refusée (code:', err && err.code, ')', err);
+    showToast("Enregistrement échoué — voir la console.", true);
+  } finally { spinner(false); }
+});
+
+$('#deleteClientBtn').addEventListener('click', async ()=>{
+  const name = currentClient.name || '';
+  if(!confirm(`Supprimer définitivement ${name} ?\n\nSon programme est effacé et son lien cesse de fonctionner. L'historique de ses séances déjà envoyées, lui, est conservé.`)) return;
+  const typed = window.prompt(`Pour confirmer, retape le nom exact du client :`, '');
+  if((typed||'').trim() !== name.trim()){ showToast("Nom non confirmé — rien n'a été supprimé.", true); return; }
+  spinner(true);
+  try{
+    await deleteDoc(doc(db, 'programs', currentClient.id));
+    await deleteDoc(doc(db, 'clients', currentClient.id));
+    isDirty = false;
+    showToast('Client supprimé');
+    $('#viewClient').style.display = 'none';
+    $('#viewClients').style.display = 'block';
+    $('#savebar').classList.remove('show');
+    await loadClients();
+  } catch(err){
+    console.error('[ARD] Suppression refusée (code:', err && err.code, ')', err);
+    showToast("Suppression échouée — voir la console.", true);
+  } finally { spinner(false); }
+});
+
+/* ------------------------------------------------------------ Historique */
+$('#reloadHistoryBtn').addEventListener('click', ()=> loadHistory());
 
 async function loadHistory(){
   const wrap = $('#historyWrap');
+  const stats = $('#historyStats');
   wrap.innerHTML = '<p class="sub" style="margin:0;">Chargement...</p>';
-  const q = query(collection(db, 'sessions'), where('clientId', '==', currentClient.id));
-  const snap = await getDocs(q);
+  stats.innerHTML = '';
+
   let sessions = [];
-  snap.forEach(d => sessions.push({ id: d.id, ...d.data() }));
+  try{
+    const q = query(collection(db, 'sessions'), where('clientId', '==', currentClient.id));
+    const snap = await getDocs(q);
+    snap.forEach(d => sessions.push({ id: d.id, ...d.data() }));
+  } catch(e){
+    // `list` sur `sessions` est refusé par les règles publiées : on retombe sur
+    // une lecture document par document des 30 derniers jours (IDs déterministes).
+    console.error('[ARD] Requête historique refusée (code:', e && e.code, ') — repli sur les IDs de dates.', e);
+    sessions = await historyFallback(currentClient.id, 30);
+  }
   sessions.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 
   if(sessions.length === 0){
@@ -402,30 +791,31 @@ async function loadHistory(){
     return;
   }
 
+  renderHistoryStats(stats, sessions);
+
   wrap.innerHTML = '';
   sessions.forEach(s=>{
     const row = document.createElement('div');
     row.className = 'session-row';
     const statusLabel = s.status === 'completed' ? 'Terminée' : 'En attente';
+    const nbEx = (s.results||[]).length;
     row.innerHTML = `
-      <div style="flex:1;">
-        <div class="meta"><b>${escapeHtml(s.date||'')}</b> — ${escapeHtml((s.day||'').charAt(0).toUpperCase()+(s.day||'').slice(1))}</div>
-        <div class="results-detail" id="detail-${s.id}"></div>
+      <div class="session-top">
+        <div style="flex:1;min-width:0;">
+          <div class="meta"><b>${escapeHtml(fmtDate(s.date))}</b> — ${escapeHtml(cap(s.day||''))}</div>
+          <div class="submeta">${nbEx} exercice(s)${s.notesGlobales ? ' · remarque du client' : ''}${s.status==='completed' ? ' · touche pour le détail' : ''}</div>
+        </div>
+        <span class="status ${escapeHtml(s.status||'pending')}">${statusLabel}</span>
       </div>
-      <span class="status ${s.status}">${statusLabel}</span>
+      <div class="results-detail" id="detail-${escapeHtml(s.id)}"></div>
     `;
     if(s.status === 'completed'){
       row.style.cursor = 'pointer';
       row.addEventListener('click', ()=>{
-        const detail = $('#detail-'+s.id, row);
+        const detail = $('.results-detail', row);
         if(detail.classList.contains('show')){ detail.classList.remove('show'); return; }
         if(!detail.dataset.filled){
-          let html = '';
-          if(s.notesGlobales) html += `<div style="margin-bottom:6px;"><b>Remarques :</b> ${escapeHtml(s.notesGlobales)}</div>`;
-          (s.results||[]).forEach(r=>{
-            html += `<div style="margin-bottom:4px;">• <b>${escapeHtml(r.nom)}</b> — ${escapeHtml(r.reps||'?')} rép., ${escapeHtml(r.charge||'?')}, ${escapeHtml(r.reussi||'—')}, ${escapeHtml(r.ressenti||'—')}</div>`;
-          });
-          detail.innerHTML = html || '<i>Pas de détail</i>';
+          detail.innerHTML = renderSessionDetail(s);
           detail.dataset.filled = '1';
         }
         detail.classList.add('show');
@@ -433,6 +823,77 @@ async function loadHistory(){
     }
     wrap.appendChild(row);
   });
+}
+
+// Repli quand `list` est fermé sur `sessions` : les IDs sont déterministes
+// (`{clientId}_{YYYY-MM-DD}`), donc on peut les lire un par un avec `get`.
+async function historyFallback(clientId, nbDays){
+  const out = [];
+  const base = new Date();
+  const dates = Array.from({length:nbDays}, (_,i)=>{
+    const d = new Date(base.getTime());
+    d.setDate(d.getDate() - i);
+    return isoLocal(d);
+  });
+  const snaps = await Promise.all(dates.map(d =>
+    getDoc(doc(db, 'sessions', `${clientId}_${d}`)).catch(()=>null)
+  ));
+  snaps.forEach(s => { if(s && s.exists()) out.push({ id: s.id, ...s.data() }); });
+  return out;
+}
+
+function renderHistoryStats(el, sessions){
+  const done = sessions.filter(s => s.status === 'completed');
+  const last = done[0];
+  // Nombre de séances sur les 7 derniers jours.
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+  const weekISO = isoLocal(weekAgo);
+  const thisWeek = done.filter(s => (s.date||'') >= weekISO).length;
+  el.innerHTML = `<div class="stat-strip">
+    <div class="stat"><div class="v">${done.length}</div><div class="k">séances reçues</div></div>
+    <div class="stat"><div class="v">${thisWeek}</div><div class="k">ces 7 jours</div></div>
+    <div class="stat"><div class="v">${last ? escapeHtml(fmtDate(last.date)) : '—'}</div><div class="k">dernière séance</div></div>
+  </div>`;
+}
+
+function renderSessionDetail(s){
+  let html = '';
+  if(s.notesGlobales){
+    html += `<div style="margin-bottom:12px;color:var(--paper);"><b>Remarques du client :</b> ${escapeHtml(s.notesGlobales)}</div>`;
+  }
+  if(s.echauffement){
+    html += `<div style="margin-bottom:12px;"><b>Échauffement prévu :</b> ${escapeHtml(s.echauffement)}</div>`;
+  }
+  (s.results||[]).forEach(r=>{
+    const goal = [
+      r.seriesCible ? `${escapeHtml(r.seriesCible)} séries` : '',
+      r.repCible ? `${escapeHtml(r.repCible)} rép.` : '',
+      r.chargeCible ? escapeHtml(r.chargeCible) : ''
+    ].filter(Boolean).join(' · ');
+
+    let setsHtml;
+    if(Array.isArray(r.sets) && r.sets.length){
+      setsHtml = r.sets.map((st,i)=>
+        `<span class="res-set${st.done ? ' done' : ''}">S${i+1} · ${escapeHtml(st.reps||'—')} × ${escapeHtml(st.charge||'—')}</span>`
+      ).join('');
+    } else {
+      // Ancien format : un seul couple reps/charge pour tout l'exercice.
+      setsHtml = `<span class="res-set">${escapeHtml(r.reps||'—')} rép. × ${escapeHtml(r.charge||'—')}</span>`;
+    }
+
+    const tags = [
+      r.reussi ? `Objectif : <b style="color:var(--paper);">${escapeHtml(r.reussi)}</b>` : '',
+      r.ressenti ? `Ressenti : <b style="color:var(--paper);">${escapeHtml(r.ressenti)}</b>` : ''
+    ].filter(Boolean).join(' · ');
+
+    html += `<div class="res-ex">
+      <div class="rname">${escapeHtml(r.nom||'')}</div>
+      ${goal ? `<div class="rgoal">Objectif : ${goal}</div>` : ''}
+      <div class="res-sets">${setsHtml}</div>
+      ${tags ? `<div class="res-tags">${tags}</div>` : ''}
+    </div>`;
+  });
+  return html || '<i>Pas de détail enregistré.</i>';
 }
 </script>
 </body>
