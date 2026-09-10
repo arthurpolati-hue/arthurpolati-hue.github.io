@@ -418,7 +418,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, serverTimestamp
+  query, where, orderBy, limit, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { EXERCICES } from "./exercices.js";
 import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
@@ -626,15 +626,23 @@ $$('.subtab').forEach(b => b.addEventListener('click', ()=> switchPane(b.dataset
 // à dater la dernière séance de chaque client. Si les règles refusent le `list`,
 // on retombe sur les IDs déterministes des 21 derniers jours.
 // ⚠️ À revoir si `sessions` dépasse quelques milliers de documents.
-const SEUIL_INACTIF = 5;   // jours sans séance avant alerte
+const SEUIL_INACTIF = 5;    // jours sans séance avant alerte
+// On ne lit QUE les séances les plus récentes, pas toute la collection : à
+// 20 clients × 200 séances, un `getDocs` complet coûtait 4 000 lectures à chaque
+// ouverture de la page, soit le quota gratuit journalier en une douzaine d'ouvertures.
+// Trier par date décroissante et s'arrêter à 150 suffit largement pour savoir qui
+// s'est entraîné récemment. `orderBy` sur un seul champ ne demande aucun index.
+const FENETRE_SEANCES = 150;
 
 async function loadInactivity(){
   const derniere = new Map();
+  let plusAncienneVue = null;
   try{
-    const snap = await getDocs(collection(db, 'sessions'));
+    const snap = await getDocs(query(collection(db, 'sessions'), orderBy('date', 'desc'), limit(FENETRE_SEANCES)));
     snap.forEach(d=>{
       const s = d.data();
       if(!s.clientId || !s.date) return;
+      if(!plusAncienneVue || s.date < plusAncienneVue) plusAncienneVue = s.date;
       const prec = derniere.get(s.clientId);
       if(!prec || s.date > prec) derniere.set(s.clientId, s.date);
     });
@@ -653,15 +661,21 @@ async function loadInactivity(){
   }
 
   const aujourdhui = new Date(todayISO() + 'T12:00:00');
+  // Hors de la fenêtre, on ne peut pas dater précisément : on dit « plus de N jours »
+  // plutôt que « jamais », qui serait faux pour un ancien client revenu de loin.
+  const bornage = plusAncienneVue
+    ? Math.round((aujourdhui - new Date(plusAncienneVue + 'T12:00:00')) / 86400000)
+    : null;
+
   const alertes = [];
   allClients.forEach(c=>{
     const d = derniere.get(c.id);
     const jours = d ? Math.round((aujourdhui - new Date(d + 'T12:00:00')) / 86400000) : null;
     if(jours === null || jours >= SEUIL_INACTIF){
-      alertes.push({ client:c, jours, date:d });
+      alertes.push({ client:c, jours, date:d, borne: jours === null ? bornage : null });
     }
   });
-  alertes.sort((a,b)=> (b.jours === null ? 9999 : b.jours) - (a.jours === null ? 9999 : a.jours));
+  alertes.sort((a,b)=> (b.jours === null ? 99999 : b.jours) - (a.jours === null ? 99999 : a.jours));
 
   const wrap = $('#alertWrap');
   if(alertes.length === 0){ wrap.innerHTML = ''; return; }
@@ -669,7 +683,8 @@ async function loadInactivity(){
     <h2>À relancer (${alertes.length})</h2>
     ${alertes.map(a=>`<div class="alert-row" data-cid="${escapeHtml(a.client.id)}">
       <span><b>${escapeHtml(a.client.name)}</b></span>
-      <span class="days">${a.jours === null ? 'jamais de séance' : `${a.jours} jours sans séance`}</span>
+      <span class="days">${a.jours !== null ? `${a.jours} jours sans séance`
+        : (a.borne ? `plus de ${a.borne} jours sans séance` : 'jamais de séance')}</span>
     </div>`).join('')}
   </div>`;
   $$('.alert-row', wrap).forEach(row=>{
@@ -1592,7 +1607,19 @@ async function loadHistory(){
   renderHistoryStats(stats, sessions);
 
   wrap.innerHTML = '';
-  sessions.forEach(s=>{
+  historyAffichees = HISTORY_LOT;
+  renderHistoryRows(sessions);
+}
+
+// 45 séances faisaient 3 100 px, soit plus de la moitié de la page. On en montre
+// un lot, le reste à la demande.
+const HISTORY_LOT = 12;
+let historyAffichees = HISTORY_LOT;
+
+function renderHistoryRows(sessions){
+  const wrap = $('#historyWrap');
+  wrap.innerHTML = '';
+  sessions.slice(0, historyAffichees).forEach(s=>{
     const row = document.createElement('div');
     row.className = 'session-row';
     const statusLabel = s.status === 'completed' ? 'Terminée' : 'En attente';
@@ -1621,6 +1648,25 @@ async function loadHistory(){
     }
     wrap.appendChild(row);
   });
+
+  const reste = sessions.length - historyAffichees;
+  if(reste > 0){
+    const plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'btn btn-ghost btn-sm';
+    plus.style.marginTop = '4px';
+    plus.textContent = `Voir ${Math.min(reste, HISTORY_LOT)} séances plus anciennes (${reste} restantes)`;
+    plus.addEventListener('click', ()=>{
+      historyAffichees += HISTORY_LOT;
+      renderHistoryRows(sessions);
+    });
+    wrap.appendChild(plus);
+  } else if(sessions.length > HISTORY_LOT){
+    const info = document.createElement('p');
+    info.className = 'viz-note';
+    info.textContent = `${sessions.length} séances au total.`;
+    wrap.appendChild(info);
+  }
 }
 
 // Repli quand `list` est fermé sur `sessions` : les IDs sont déterministes

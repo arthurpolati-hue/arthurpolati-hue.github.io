@@ -1139,23 +1139,25 @@ $('#saveMesureBtn').addEventListener('click', async ()=>{
   btn.disabled = true;
   btn.textContent = 'ENVOI...';
   try{
+    // Le document `measures` est mis à jour dès qu'il y a QUELQUE CHOSE à écrire —
+    // une mesure, des photos, ou les deux.
+    // ⚠️ `photoDates` doit être écrit même sans aucune mesure saisie : c'est cet
+    //    index que le coach lit pour savoir quelles photos existent. Sans lui, des
+    //    photos envoyées seules restaient invisibles côté coach.
+    const entries = (mesures && Array.isArray(mesures.entries) ? mesures.entries : []).slice();
     if(auMoinsUne){
-      // Lecture-modification-écriture : une mesure du jour écrase celle du jour,
-      // pas de doublon si le client corrige sa saisie.
-      const entries = (mesures && Array.isArray(mesures.entries) ? mesures.entries : [])
-        .filter(e => e && e.date !== TODAY_ISO);
-      entries.push(entree);
+      // Une mesure du jour écrase celle du jour : pas de doublon si le client corrige.
+      const i = entries.findIndex(e => e && e.date === TODAY_ISO);
+      if(i >= 0) entries[i] = entree; else entries.push(entree);
       entries.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
-      const maj = { clientId, entries };
-      if(photos.length){
-        const dates = new Set([...(mesures && mesures.photoDates || []), TODAY_ISO]);
-        maj.photoDates = [...dates].sort();
-      } else if(mesures && mesures.photoDates){
-        maj.photoDates = mesures.photoDates;
-      }
-      await setDoc(doc(db, 'measures', clientId), maj, { merge:true });
-      mesures = maj;
     }
+    const photoDates = new Set(mesures && Array.isArray(mesures.photoDates) ? mesures.photoDates : []);
+    if(photos.length) photoDates.add(TODAY_ISO);
+
+    const maj = { clientId, entries, photoDates: [...photoDates].sort() };
+    await setDoc(doc(db, 'measures', clientId), maj, { merge:true });
+    mesures = maj;
+
     if(photos.length){
       await setDoc(doc(db, 'photos', `${clientId}_${TODAY_ISO}`),
                    { clientId, date: TODAY_ISO, items: photos }, { merge:true });
