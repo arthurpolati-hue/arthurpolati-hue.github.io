@@ -228,6 +228,26 @@
     padding:11px 13px;margin-bottom:16px;font-size:0.82rem;color:var(--blue-soft);line-height:1.5;}
   .optionnel b{color:#fff;}
 
+  /* --- suivi en pause --- */
+  .pause-view{display:none;padding:26px 0 10px;}
+  .pause-view.show{display:block;}
+  .pause-card{background:linear-gradient(160deg,#16233A,var(--steel) 65%);
+    border:1px solid rgba(62,142,255,0.45);border-radius:18px;padding:28px 22px;text-align:center;}
+  .pause-card .ic{font-size:2.4rem;line-height:1;margin-bottom:14px;}
+  .pause-card h2{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;margin:0 0 12px;line-height:1;}
+  .pause-card p{color:var(--fog);font-size:0.95rem;line-height:1.6;margin:0 auto 10px;max-width:34ch;}
+  .pause-card p.hi{color:var(--blue-soft);}
+  .pause-cta{width:100%;border:none;border-radius:14px;padding:17px;background:var(--blue);
+    color:#071527;font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.03em;
+    cursor:pointer;margin-top:20px;transition:transform .1s ease;}
+  .pause-cta:active{transform:scale(0.98);}
+  .pause-cta:disabled{opacity:0.6;cursor:default;}
+  .pause-done{background:var(--blue-dim);border:1px solid var(--blue);border-radius:12px;
+    padding:15px;margin-top:18px;font-size:0.92rem;color:var(--blue-soft);line-height:1.55;}
+  .pause-done b{color:#fff;}
+  .pause-wa{display:inline-block;margin-top:12px;color:var(--blue);font-weight:700;
+    font-size:0.88rem;text-decoration:none;}
+
   #mainView,#fillSuccess,#loadingState,#notFoundState{display:none;}
   @media (prefers-reduced-motion: reduce){*{transition:none !important;animation-duration:0.01ms !important;}}
 </style>
@@ -358,6 +378,20 @@
         <button class="btn btn-blue btn-full" id="saveMesureBtn" type="button">Enregistrer ma mesure</button>
         <div class="error-msg" id="mesureError"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="pause-view" id="pauseView">
+    <div class="brand" style="justify-content:center;margin-bottom:18px;">
+      <span class="brand-dot"></span><span class="brand-text">ARD Coaching</span>
+    </div>
+    <div class="pause-card">
+      <div class="ic">👋</div>
+      <h2 id="pauseTitle">À BIENTÔT !</h2>
+      <p>Ton suivi avec Arthur est en pause pour le moment — ton programme n'est donc plus affiché ici.</p>
+      <p class="hi">Tout ce que tu as accompli est gardé au chaud. Si tu reprends, tu ne repars pas de zéro : tes séances, tes charges et tes mesures sont toujours là.</p>
+      <button class="pause-cta" id="repriseBtn" type="button">JE VEUX REPRENDRE 💪</button>
+      <div class="pause-done" id="repriseDone" style="display:none;"></div>
     </div>
   </div>
 
@@ -543,6 +577,11 @@ async function boot(){
     clientName = cd.name || '';
     clientObjectif = cd.objectif || 'forme';
     clientCycle = cd.cycleStart || null;
+
+    // Suivi en pause : on n'affiche ni la semaine ni les résultats, seulement une
+    // invitation à reprendre. `actif` absent = actif (aucune migration nécessaire).
+    if(cd.actif === false){ montrerPause(); return; }
+
     program = progSnap.exists() ? progSnap.data() : {};
     $('#greeting').textContent = clientName ? `SALUT ${clientName.split(' ')[0].toUpperCase()}` : 'TA SEMAINE';
     renderWeekStrip();
@@ -1043,6 +1082,51 @@ function majEncouragement(){
   }
   $('#cheer').innerHTML = msg;
   $('#cheer').style.display = 'block';
+}
+
+/* -------------------------------------------------------- Suivi en pause */
+// Numéro WhatsApp du coach, figé ici comme SITE_ORIGIN dans coach.html : c'est
+// le seul canal qui prévient Arthur immédiatement, sans serveur ni notification push.
+const COACH_WA = '33786066317';
+
+async function montrerPause(){
+  const prenom = (clientName || '').split(' ')[0];
+  if(prenom) $('#pauseTitle').textContent = `À BIENTÔT ${prenom.toUpperCase()} !`;
+  $('#pauseView').classList.add('show');
+
+  // Demande déjà envoyée ? On le dit, au lieu de laisser cliquer dans le vide.
+  try{
+    const dejaSnap = await getDoc(doc(db, 'reprises', clientId));
+    if(dejaSnap.exists()) afficherRepriseEnvoyee(dejaSnap.data().date, prenom);
+  }catch(e){ /* règle absente ou refus : le bouton reste proposé */ }
+
+  $('#repriseBtn').addEventListener('click', async ()=>{
+    const btn = $('#repriseBtn');
+    btn.disabled = true;
+    btn.textContent = 'ENVOI...';
+    try{
+      await setDoc(doc(db, 'reprises', clientId), {
+        clientId, clientName, date: TODAY_ISO, source: 'lien client'
+      }, { merge:true });
+      afficherRepriseEnvoyee(TODAY_ISO, prenom);
+    } catch(e){
+      console.error('[ARD] Demande de reprise refusée (code:', e && e.code, ')', e);
+      // Même si l'écriture échoue, WhatsApp reste un chemin qui marche toujours.
+      afficherRepriseEnvoyee(null, prenom);
+    }
+  });
+}
+
+function afficherRepriseEnvoyee(date, prenom){
+  const msg = encodeURIComponent(
+    `Salut Arthur ! C'est ${clientName || prenom || 'moi'}, je viens de cliquer sur « Je veux reprendre » depuis mon lien. On en parle quand tu veux !`);
+  $('#repriseBtn').style.display = 'none';
+  $('#repriseDone').style.display = 'block';
+  $('#repriseDone').innerHTML = (date
+      ? `<b>C'est envoyé 🎉</b><br>Arthur voit ta demande dans son espace. Il revient vers toi très vite.`
+      : `<b>Presque !</b><br>L'envoi automatique n'a pas fonctionné. Préviens Arthur directement, ça marchera :`)
+    + `<br><a class="pause-wa" href="https://wa.me/${COACH_WA}?text=${msg}" target="_blank" rel="noopener">`
+    + `Le prévenir aussi sur WhatsApp →</a>`;
 }
 
 /* ------------------------------------------------------ Bilan de cycle */

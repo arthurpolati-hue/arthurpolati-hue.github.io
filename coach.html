@@ -184,6 +184,27 @@
   .mini-card .mv small{font-size:0.8rem;color:var(--fog);margin-left:2px;}
   .mini-card .md{font-size:0.72rem;font-variant-numeric:tabular-nums;}
 
+  /* --- clients en pause / demandes de reprise --- */
+  .pause-title{font-size:0.76rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--fog);margin:22px 0 10px;}
+  .client-list li.pause{opacity:0.55;}
+  .client-list li.pause:hover{opacity:0.85;}
+  .badge-pause{font-size:0.66rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;
+    padding:2px 8px;border-radius:20px;border:1px solid var(--steel-line);color:var(--fog);}
+  .reprise-card{background:#0F2C1C;border:1px solid var(--blue);border-radius:14px;
+    padding:15px 16px;margin-bottom:16px;background:linear-gradient(150deg,#16233A,var(--steel));}
+  .reprise-card h2{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;margin:0 0 4px;color:#fff;}
+  .reprise-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 0;font-size:0.88rem;}
+  .reprise-row + .reprise-row{border-top:1px solid rgba(62,142,255,0.25);}
+  .reprise-row b{color:#fff;}
+  .reprise-row .quand{font-size:0.76rem;color:var(--blue-soft);}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--ink);border:1px solid var(--steel-line);border-radius:11px;
+    padding:13px 15px;margin-bottom:12px;}
+  .switch-row .lbl{font-size:0.9rem;font-weight:600;}
+  .switch-row .desc{font-size:0.78rem;color:var(--fog);margin-top:2px;line-height:1.4;}
+
   /* --- bilan de cycle --- */
   .bilan-fait{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--steel-line);}
   .bilan-fait:last-of-type{border-bottom:none;}
@@ -249,6 +270,7 @@
         <input type="search" id="clientSearch" placeholder="Rechercher un client...">
       </div>
 
+      <div id="repriseWrap"></div>
       <div id="alertWrap"></div>
 
       <div class="legend">
@@ -419,6 +441,14 @@
           <div class="row" style="margin-bottom:12px;">
             <button class="btn btn-ghost btn-sm" id="newCycleBtn" type="button">Démarrer un nouveau cycle aujourd'hui</button>
           </div>
+
+          <div class="switch-row">
+            <div>
+              <div class="lbl" id="actifLabel">Suivi actif</div>
+              <div class="desc" id="actifDesc"></div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="toggleActifBtn" type="button">Mettre en pause</button>
+          </div>
           <div class="row">
             <button class="btn btn-ghost btn-sm" id="saveClientBtn" type="button">Enregistrer la fiche</button>
             <button class="btn btn-danger btn-sm" id="deleteClientBtn" type="button">Supprimer ce client</button>
@@ -541,6 +571,8 @@ $('#logoutBtn').addEventListener('click', ()=>{
 
 /* ------------------------------------------------------- Liste clients */
 let allClients = [];
+// `actif` absent = actif. Aucune migration à faire sur les fiches existantes.
+const estActif = c => c && c.actif !== false;
 
 async function loadClients(){
   spinner(true);
@@ -561,6 +593,7 @@ async function loadClients(){
   renderClientList();
   loadTodayStatuses();
   loadInactivity();
+  loadReprises();
 }
 
 // Statut du jour par client. On interroge l'ID déterministe de la séance du jour
@@ -570,7 +603,7 @@ const todayStatus = new Map();   // clientId -> 'done' | 'todo' | 'rest'
 
 async function loadTodayStatuses(){
   const tk = todayKey(), iso = todayISO();
-  await Promise.all(allClients.map(async c => {
+  await Promise.all(allClients.filter(estActif).map(async c => {
     try{
       const [prog, sess] = await Promise.all([
         getDoc(doc(db, 'programs', c.id)),
@@ -585,9 +618,11 @@ async function loadTodayStatuses(){
   renderClientList();
   const done = [...todayStatus.values()].filter(v=>v==='done').length;
   const todo = [...todayStatus.values()].filter(v=>v==='todo').length;
+  const actifs = allClients.filter(estActif).length;
+  const pause = allClients.length - actifs;
   $('#clientsSummary').textContent = allClients.length === 0
     ? "Aucun client pour l'instant — ajoute-en un ci-dessous."
-    : `${allClients.length} client(s) · ${done} séance(s) reçue(s) aujourd'hui · ${todo} en attente.`;
+    : `${actifs} client(s) actif(s)${pause ? ` · ${pause} en pause` : ''} · ${done} séance(s) reçue(s) aujourd'hui · ${todo} en attente.`;
 }
 
 $('#clientSearch').addEventListener('input', renderClientList);
@@ -605,19 +640,36 @@ function renderClientList(){
     list.innerHTML = '<p class="sub" style="margin:0;">Aucun client ne correspond à cette recherche.</p>';
     return;
   }
-  shown.forEach(c=>{
+  const ligne = (c, enPause)=>{
     const st = todayStatus.get(c.id);
     const labels = { done:"Séance du jour reçue ✓", todo:"Séance prévue aujourd'hui", rest:"Repos aujourd'hui" };
     const li = document.createElement('li');
-    li.innerHTML = `<i class="dot ${st||''}"></i>
-      <span style="flex:1;min-width:0;">
-        <span class="name">${escapeHtml(c.name)}</span>
-        <span class="cmeta">${st ? labels[st] : '…'}</span>
-      </span>
-      <span class="arrow">→</span>`;
+    if(enPause) li.className = 'pause';
+    li.innerHTML = enPause
+      ? `<span style="flex:1;min-width:0;">
+           <span class="name">${escapeHtml(c.name)}</span>
+           <span class="cmeta">Suivi en pause — son lien affiche un message d'invitation à reprendre</span>
+         </span>
+         <span class="badge-pause">En pause</span>`
+      : `<i class="dot ${st||''}"></i>
+         <span style="flex:1;min-width:0;">
+           <span class="name">${escapeHtml(c.name)}</span>
+           <span class="cmeta">${st ? labels[st] : '…'}</span>
+         </span>
+         <span class="arrow">→</span>`;
     li.addEventListener('click', ()=> openClient(c));
-    list.appendChild(li);
-  });
+    return li;
+  };
+
+  shown.filter(estActif).forEach(c => list.appendChild(ligne(c, false)));
+  const enPause = shown.filter(c => !estActif(c));
+  if(enPause.length){
+    const t = document.createElement('p');
+    t.className = 'pause-title';
+    t.textContent = `En pause (${enPause.length})`;
+    list.appendChild(t);
+    enPause.forEach(c => list.appendChild(ligne(c, true)));
+  }
 }
 
 $('#addClientForm').addEventListener('submit', async (e)=>{
@@ -703,7 +755,9 @@ async function loadInactivity(){
     : null;
 
   const alertes = [];
-  allClients.forEach(c=>{
+  // ⚠️ Un client en pause ne doit JAMAIS apparaître ici : sinon l'alerte se remplit
+  // définitivement de gens qui ont arrêté, et devient inutilisable.
+  allClients.filter(estActif).forEach(c=>{
     const d = derniere.get(c.id);
     const jours = d ? Math.round((aujourdhui - new Date(d + 'T12:00:00')) / 86400000) : null;
     if(jours === null || jours >= SEUIL_INACTIF){
@@ -1076,6 +1130,7 @@ async function openClient(client){
   }
   $('#editClientObjectif').value = client.objectif || 'forme';
   $('#editClientCycle').value = client.cycleStart || debutCycleParDefaut(client);
+  majBoutonActif();
   window.scrollTo(0,0);
 
   spinner(true);
@@ -1515,6 +1570,83 @@ function renderMensurations(){
     </div>`;
   }).join('');
   cartes.forEach((c,i)=> mini($('#mini-'+i), c.pts, VIZ_COLORS.ligne));
+}
+
+/* --------------------------------------------- Suivi actif / en pause */
+function majBoutonActif(){
+  const actif = estActif(currentClient);
+  $('#actifLabel').textContent = actif ? 'Suivi actif' : 'Suivi en pause';
+  $('#actifDesc').textContent = actif
+    ? "Son lien affiche son programme normalement."
+    : "Son lien n'affiche plus le programme, mais un message l'invitant à reprendre. Ses données sont conservées.";
+  $('#toggleActifBtn').textContent = actif ? 'Mettre en pause' : 'Réactiver le suivi';
+  $('#toggleActifBtn').className = 'btn btn-sm ' + (actif ? 'btn-ghost' : 'btn-blue');
+}
+
+$('#toggleActifBtn').addEventListener('click', async ()=>{
+  const actif = estActif(currentClient);
+  const prenom = (currentClient.name || '').split(' ')[0];
+  if(actif && !confirm(`Mettre le suivi de ${prenom} en pause ?\n\nSon programme disparaît de son lien, remplacé par un message l'invitant à reprendre. Rien n'est supprimé : historique, mesures et photos sont conservés, et tout revient si tu le réactives.`)) return;
+  spinner(true);
+  try{
+    await updateDoc(doc(db, 'clients', currentClient.id), { actif: !actif });
+    currentClient.actif = !actif;
+    const inList = allClients.find(c => c.id === currentClient.id);
+    if(inList) inList.actif = !actif;
+    // Réactiver efface la demande de reprise en attente : elle est traitée.
+    if(!actif) await deleteDoc(doc(db, 'reprises', currentClient.id)).catch(()=>{});
+    majBoutonActif();
+    showToast(actif ? 'Suivi mis en pause' : 'Suivi réactivé ✓');
+    loadReprises();
+  } catch(err){
+    console.error('[ARD] Changement de statut refusé (code:', err && err.code, ')', err);
+    showToast("Changement refusé — voir la console.", true);
+  } finally { spinner(false); }
+});
+
+/* ------------------------------------------- Demandes de reprise */
+async function loadReprises(){
+  const wrap = $('#repriseWrap');
+  let demandes = [];
+  try{
+    const snap = await getDocs(collection(db, 'reprises'));
+    snap.forEach(d => demandes.push({ id:d.id, ...d.data() }));
+  } catch(e){
+    // Règle `reprises` pas encore publiée : on n'affiche rien, sans casser la page.
+    console.error('[ARD] Lecture des demandes de reprise refusée (code:', e && e.code, ')', e);
+    wrap.innerHTML = ''; return;
+  }
+  if(demandes.length === 0){ wrap.innerHTML = ''; return; }
+  demandes.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  wrap.innerHTML = `<div class="reprise-card">
+    <h2>${demandes.length === 1 ? 'Une personne veut reprendre' : `${demandes.length} personnes veulent reprendre`} 🎉</h2>
+    ${demandes.map(d=>`<div class="reprise-row" data-rep="${escapeHtml(d.id)}">
+      <span><b>${escapeHtml(d.clientName || d.id)}</b><br><span class="quand">a cliqué « Je veux reprendre » le ${escapeHtml(fmtDate(d.date))}</span></span>
+      <span style="display:flex;gap:8px;flex:0 0 auto;">
+        <button class="btn btn-blue btn-sm" data-repwa="${escapeHtml(d.id)}" type="button">Répondre</button>
+        <button class="btn btn-ghost btn-sm" data-repok="${escapeHtml(d.id)}" type="button">Traité</button>
+      </span>
+    </div>`).join('')}
+  </div>`;
+
+  $$('[data-repwa]', wrap).forEach(b => b.addEventListener('click', ()=>{
+    const c = allClients.find(x => x.id === b.dataset.repwa);
+    const tel = ((c && c.phone) || '').replace(/[\s.\-()]/g, '');
+    if(!tel){ showToast("Pas de téléphone sur cette fiche.", true); return; }
+    const num = tel.startsWith('0') ? '33' + tel.slice(1) : tel.replace(/^\+/, '');
+    const prenom = ((c && c.name) || '').split(' ')[0];
+    const msg = encodeURIComponent(`Salut ${prenom} ! J'ai bien vu que tu voulais reprendre, ça me fait très plaisir. On se cale un point cette semaine pour repartir ?`);
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+  }));
+  $$('[data-repok]', wrap).forEach(b => b.addEventListener('click', async ()=>{
+    spinner(true);
+    try{
+      await deleteDoc(doc(db, 'reprises', b.dataset.repok));
+      showToast('Demande archivée');
+      loadReprises();
+    } catch(e){ showToast('Suppression refusée.', true); }
+    finally { spinner(false); }
+  }));
 }
 
 /* ------------------------------------------------------ Bilan de cycle */

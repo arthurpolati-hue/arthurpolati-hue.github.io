@@ -56,6 +56,16 @@ service cloud.firestore {
       allow delete: if coach();
     }
 
+    // Demande de reprise : un client mis en pause peut se signaler lui-même.
+    // Il peut relire sa propre demande (pour savoir qu'elle est bien partie),
+    // mais seul le coach peut lister et supprimer.
+    match /reprises/{clientId} {
+      allow get:  if true;
+      allow list: if coach();
+      allow create, update: if coach() || clientExiste(clientId);
+      allow delete: if coach();
+    }
+
     // Photos de suivi : le client les ENVOIE mais ne peut jamais les relire.
     // C'est volontaire : son lien est public dès qu'il est transféré ou retrouvé
     // dans un historique de navigation, et des photos de corps ne doivent pas
