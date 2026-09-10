@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bilan gratuit</title>
+<title>Bilan offert</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -41,7 +41,6 @@
     padding:36px 20px 48px;
     position:relative;
   }
-  /* texture: faint diagonal lane lines like a track */
   .wrap::before{
     content:"";
     position:absolute;
@@ -100,7 +99,6 @@
     gap:8px;
   }
 
-  /* format tiles */
   .tiles{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -127,7 +125,6 @@
   }
   .tile:focus-visible{outline:2px solid var(--volt);outline-offset:2px;}
 
-  /* inputs */
   .row{display:flex;gap:10px;}
   .field{margin-bottom:12px;flex:1;}
   label.flabel{
@@ -152,7 +149,6 @@
   input:focus{outline:none;border-color:var(--volt);}
   input:focus-visible{outline:2px solid var(--volt);outline-offset:1px;}
 
-  /* textarea objectif */
   textarea{
     width:100%;
     background:var(--steel);
@@ -172,7 +168,6 @@
 
   .hint{font-size:0.78rem;color:var(--fog);margin-top:6px;}
 
-  /* submit button w/ built-in progress fill */
   .submit-btn{
     position:relative;
     width:100%;
@@ -211,7 +206,6 @@
     margin-top:10px;
   }
 
-  /* success state */
   .success{
     display:none;
     text-align:center;
@@ -257,7 +251,7 @@
   <div class="content">
 
     <div id="formView">
-      <div class="eyebrow">Bilan gratuit</div>
+      <div class="eyebrow">Bilan offert</div>
       <h1>ON FAIT<br><span>LE POINT&nbsp;?</span></h1>
       <p class="sub">3 infos, 30 secondes. Je te recontacte sous 24h pour caler ton bilan offert.</p>
 
@@ -323,7 +317,7 @@
     <div class="success" id="successView">
       <div class="check">✓</div>
       <h2>C'EST ENVOYÉ 💪</h2>
-      <p>Je reviens vers toi sous 24h pour lancer ton bilan gratuit. À très vite !</p>
+      <p>Je reviens vers toi sous 24h pour lancer ton bilan offert. À très vite !</p>
     </div>
 
   </div>
@@ -386,10 +380,6 @@
     btnLabel.textContent = 'ENVOI...';
     btnFill.style.width = '100%';
 
-    // === À CONFIGURER : remplace l'URL ci-dessous par ton endpoint Formspree ===
-    // 1) Crée un compte gratuit sur https://formspree.io
-    // 2) Crée un formulaire, récupère l'URL du type https://formspree.io/f/xxxxxxx
-    // 3) Colle-la ici à la place de FORMSPREE_ENDPOINT
     const FORMSPREE_ENDPOINT = "https://formspree.io/f/mlgyplrr";
 
     try{
