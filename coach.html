@@ -296,8 +296,9 @@
           <div class="viz-filters">
             <select id="progExercice"></select>
             <select id="progMesure">
-              <option value="chargeMax">Charge maximale</option>
-              <option value="volume">Volume total (séries × répét. × charge)</option>
+              <option value="e1rm">Charge max estimée (1RM)</option>
+              <option value="chargeMax">Charge soulevée (brute)</option>
+              <option value="volume">Tonnage total</option>
               <option value="repsTotal">Répétitions totales</option>
             </select>
           </div>
@@ -420,7 +421,7 @@ import {
   query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { EXERCICES } from "./exercices.js";
-import { courbe, mini, verdict, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
+import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -697,17 +698,24 @@ function construirePerfIndex(sessions){
       const series = Array.isArray(r.sets) && r.sets.length
         ? r.sets
         : [{ reps:r.reps, charge:r.charge }];
-      let chargeMax = null, volume = 0, repsTotal = 0, vu = false;
+      let chargeMax = null, repsAuMax = null, volume = 0, repsTotal = 0, nbSeries = 0;
+      let e1rm = null, serie1rm = null, vu = false;
       series.forEach(st=>{
         const ch = nombreDe(st.charge), rp = nombreDe(st.reps);
         if(ch === null && rp === null) return;
-        vu = true;
-        if(ch !== null && (chargeMax === null || ch > chargeMax)) chargeMax = ch;
+        vu = true; nbSeries++;
+        // Charge brute la plus lourde, ET sur combien de répétitions elle a été faite :
+        // une charge sans son nombre de répétitions ne veut rien dire.
+        if(ch !== null && (chargeMax === null || ch > chargeMax || (ch === chargeMax && rp > repsAuMax))){
+          chargeMax = ch; repsAuMax = rp;
+        }
         if(rp !== null){ repsTotal += rp; volume += rp * (ch || 0); }
+        const est = estim1RM(ch, rp);
+        if(est !== null && (e1rm === null || est > e1rm)){ e1rm = est; serie1rm = { reps:rp, charge:ch }; }
       });
       if(!vu) return;
       if(!idx.has(r.nom)) idx.set(r.nom, []);
-      idx.get(r.nom).push({ x:s.date, chargeMax, volume, repsTotal });
+      idx.get(r.nom).push({ x:s.date, chargeMax, repsAuMax, volume, repsTotal, nbSeries, e1rm, serie1rm });
     });
   });
   idx.forEach(arr=>{
@@ -727,8 +735,10 @@ function injecterDernieresPerfs(){
     if(!hist || hist.length === 0){ cible.textContent = ''; return; }
     const d = hist[hist.length - 1];
     const bouts = [];
-    if(d.chargeMax !== null) bouts.push(`<b>${d.chargeMax}kg</b>`);
-    if(d.repsTotal) bouts.push(`${d.repsTotal} répét. au total`);
+    // Toujours la charge AVEC ses répétitions : l'une sans l'autre ne dit rien.
+    if(d.chargeMax !== null) bouts.push(`<b>${d.chargeMax}kg × ${d.repsAuMax || '?'}</b>`);
+    else if(d.repsTotal) bouts.push(`<b>${d.repsTotal} répét.</b>`);
+    if(d.e1rm) bouts.push(`1RM est. ${d.e1rm}kg`);
     cible.innerHTML = `Dernière fois (${fmtDate(d.x)}) : ${bouts.join(' · ') || '—'}`;
   });
 }
@@ -743,33 +753,61 @@ function remplirSelectExercices(){
   return noms.length;
 }
 
-function renderProgression(){
+function renderProgression(auto){
   const zone = $('#progContenu');
   const nom = $('#progExercice').value;
-  const mesure = $('#progMesure').value;
+  let mesure = $('#progMesure').value;
   const hist = perfIndex.get(nom) || [];
+
+  // Un exercice au poids du corps n'a pas de 1RM : on bascule sur les répétitions
+  // plutôt que d'afficher un graphique vide.
+  if(auto !== false && hist.length && !hist.some(d => d[mesure] !== null && d[mesure] !== undefined && !isNaN(d[mesure]))){
+    const secours = ['e1rm','chargeMax','repsTotal','volume']
+      .find(k => hist.some(d => d[k] !== null && d[k] !== undefined && !isNaN(d[k])));
+    if(secours){ mesure = secours; $('#progMesure').value = secours; }
+  }
 
   if(!nom || hist.length === 0){
     zone.innerHTML = '<p class="sub" style="margin:0;">Aucune séance terminée pour l\'instant — les courbes apparaîtront dès que ton client aura renvoyé ses premières séances.</p>';
     return;
   }
 
-  const unites = { chargeMax:'kg', volume:'', repsTotal:'' };
-  const libelles = { chargeMax:'Charge max', volume:'Volume', repsTotal:'Répétitions' };
+  const M = {
+    e1rm:      { u:'kg', l:'Charge max estimée', c:'Meilleure série',
+                 note: d => d.serie1rm ? `${d.serie1rm.reps} × ${d.serie1rm.charge}kg` : '',
+                 aide: "Formule d'Epley : charge × (1 + répét./30). C'est la seule mesure qui bouge dans le bon sens quand la charge monte mais que les répétitions tombent. Peu fiable au-delà d'une douzaine de répétitions." },
+    chargeMax: { u:'kg', l:'Charge soulevée', c:'Répétitions',
+                 note: d => d.repsAuMax ? `${d.repsAuMax} répét. à cette charge` : '',
+                 aide: "⚠️ La charge brute seule est trompeuse : +2 kg pour −5 répétitions s'affiche ici comme une hausse. Regarde la colonne « Répétitions », ou passe sur la charge max estimée." },
+    volume:    { u:' kg', l:'Tonnage total', c:'Détail',
+                 note: d => `${d.nbSeries} séries · ${d.repsTotal} répét.`,
+                 aide: "Répétitions × charge, additionné sur toute la séance. Bon indicateur de charge de travail, mais moins lisible : il monte aussi quand on ajoute une série sans progresser." },
+    repsTotal: { u:'', l:'Répétitions totales', c:'Charge',
+                 note: d => d.chargeMax ? `à ${d.chargeMax}kg max` : 'poids du corps',
+                 aide: "Utile pour les exercices au poids du corps et le travail d'endurance." }
+  };
+  const m = M[mesure];
   const points = hist
     .filter(d => d[mesure] !== null && d[mesure] !== undefined && !isNaN(d[mesure]))
-    .map(d => ({ x:d.x, y:d[mesure] }));
+    .map(d => ({ x:d.x, y:d[mesure], note:m.note(d) }));
+
+  if(points.length === 0){
+    zone.innerHTML = `<p class="sub" style="margin:0;">Pas de données pour « ${escapeHtml(m.l)} » sur cet exercice`
+      + `${mesure === 'e1rm' ? " — il se fait sans charge, essaie « Répétitions totales »." : '.'}</p>`;
+    return;
+  }
 
   const v = verdict(points, { sensPositif:1, semaines:5, seuilPct:2 });
   zone.innerHTML = `<div class="viz-headline">
-      <span class="vh-name">${escapeHtml(libelles[mesure])} — ${escapeHtml(nom)}</span>
+      <span class="vh-name">${escapeHtml(m.l)} — ${escapeHtml(nom)}</span>
       <span class="viz-badge" style="color:${v.couleur};border-color:${v.couleur};">${v.icone} ${escapeHtml(v.libelle)}</span>
     </div>
     <div class="viz-holder" id="progChart"></div>
-    <p class="viz-note">${escapeHtml(v.detail || '')}${points.length < 2 ? '' : ` · ${points.length} séances`}</p>`;
+    <p class="viz-note">${escapeHtml(v.detail || '')}${points.length < 2 ? '' : ` · ${points.length} séances`}</p>
+    <p class="viz-note" style="margin-top:6px;opacity:0.85;">${escapeHtml(m.aide)}</p>`;
 
   courbe($('#progChart'), {
-    points, unite:unites[mesure], libelle:libelles[mesure],
+    points, unite:m.u, libelle:m.l, colonneNote:m.c,
     couleur:VIZ_COLORS.ligne, fond:'#1B1F22', hauteur:150
   });
 }

@@ -78,7 +78,11 @@ function bornes(valeurs){
 export function courbe(hote, opts){
   const {
     points = [], unite = '', libelle = 'Valeur',
-    couleur = VIZ_COLORS.ligne, fond = '#1B1F22', hauteur = 150
+    couleur = VIZ_COLORS.ligne, fond = '#1B1F22', hauteur = 150,
+    // `points[i].note` : contexte affiché dans l'infobulle et le tableau.
+    // Sert à ne jamais montrer une charge sans dire sur combien de répétitions
+    // elle a été faite — une charge seule est trompeuse.
+    colonneNote = ''
   } = opts;
 
   hote.innerHTML = '';
@@ -168,7 +172,8 @@ export function courbe(hote, opts){
     points.forEach((p,k)=>{ const dd = Math.abs(px(k) - xRel); if(dd < dmin){ dmin = dd; i = k; } });
     viseur.setAttribute('x1', px(i)); viseur.setAttribute('x2', px(i)); viseur.setAttribute('opacity', 1);
     actif.setAttribute('cx', px(i)); actif.setAttribute('cy', py(points[i].y)); actif.setAttribute('opacity', 1);
-    bulle.innerHTML = `<b>${fmtNombre(points[i].y)}${unite}</b><span>${fmtDateCourte(points[i].x)}</span>`;
+    bulle.innerHTML = `<b>${fmtNombre(points[i].y)}${unite}</b><span>${fmtDateCourte(points[i].x)}</span>`
+      + (points[i].note ? `<span class="viz-tip-note">${points[i].note}</span>` : '');
     bulle.hidden = false;
     const gauche = (px(i) / L) * hote.clientWidth;
     bulle.style.left = Math.min(Math.max(gauche, 40), hote.clientWidth - 40) + 'px';
@@ -189,8 +194,11 @@ export function courbe(hote, opts){
   const tbl = document.createElement('div');
   tbl.className = 'viz-table';
   tbl.hidden = true;
-  tbl.innerHTML = `<table><thead><tr><th>Date</th><th>${libelle}</th></tr></thead><tbody>`
-    + points.slice().reverse().map(p => `<tr><td>${fmtDateCourte(p.x)}</td><td>${fmtNombre(p.y)}${unite}</td></tr>`).join('')
+  const avecNote = colonneNote && points.some(p => p.note);
+  tbl.innerHTML = `<table><thead><tr><th>Date</th><th>${libelle}</th>`
+    + (avecNote ? `<th>${colonneNote}</th>` : '') + `</tr></thead><tbody>`
+    + points.slice().reverse().map(p => `<tr><td>${fmtDateCourte(p.x)}</td><td>${fmtNombre(p.y)}${unite}</td>`
+        + (avecNote ? `<td>${p.note || '—'}</td>` : '') + `</tr>`).join('')
     + `</tbody></table>`;
   bascule.addEventListener('click', ()=>{
     tbl.hidden = !tbl.hidden;
@@ -220,6 +228,19 @@ export function mini(hote, points, couleur = VIZ_COLORS.ligne){
   svg.appendChild(el('circle', { cx:px(points.length-1), cy:py(ys[ys.length-1]), r:3.5,
                                  fill:couleur }));
   hote.appendChild(svg);
+}
+
+/**
+ * Charge maximale estimée sur une répétition (formule d'Epley) : w × (1 + r/30).
+ * C'est le seul moyen honnête de comparer deux séances où la charge ET le nombre
+ * de répétitions ont bougé : 40kg × 10 (≈53kg) vaut mieux que 42kg × 5 (≈49kg),
+ * alors que la charge seule dirait l'inverse.
+ * ⚠️ L'estimation se dégrade au-delà d'une douzaine de répétitions : au-delà, elle
+ * mesure surtout l'endurance. Renvoie null s'il n'y a pas de charge (poids du corps).
+ */
+export function estim1RM(charge, reps){
+  if(!charge || charge <= 0 || !reps || reps <= 0) return null;
+  return Math.round(charge * (1 + reps / 30) * 2) / 2;
 }
 
 /**
@@ -275,7 +296,8 @@ export function injecterStylesViz(){
     border-radius:8px;padding:5px 9px;pointer-events:none;white-space:nowrap;z-index:5;
     box-shadow:0 6px 18px rgba(0,0,0,0.5);}
   .viz-tip b{display:block;font-size:0.88rem;color:#F6F4EF;font-variant-numeric:tabular-nums;}
-  .viz-tip span{font-size:0.72rem;color:#9AA0A6;}
+  .viz-tip span{font-size:0.72rem;color:#9AA0A6;display:block;}
+  .viz-tip .viz-tip-note{color:#CFE3FF;margin-top:2px;}
   .viz-tablebtn{background:none;border:none;color:#3E8EFF;font-size:0.78rem;font-weight:700;
     cursor:pointer;padding:4px 0 0;font-family:'Work Sans',sans-serif;}
   .viz-table{margin-top:6px;max-height:190px;overflow-y:auto;}
