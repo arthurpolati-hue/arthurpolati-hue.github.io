@@ -129,6 +129,7 @@
         <h2>Lien fixe du client</h2>
         <p class="sub" style="margin:0 0 12px;">Ce lien ne change jamais. Il affiche toujours la semaine à jour — envoie-le une seule fois.</p>
         <input type="text" id="generatedLink" readonly>
+        <p class="sub" id="localNotice" style="display:none;margin:10px 0 0;color:var(--blue);">Tu es sur une version locale (test). Le lien ci-dessus pointe bien vers le site en ligne, il est donc valable pour le client.</p>
         <div class="link-actions">
           <button class="btn btn-ghost btn-sm" id="copyLinkBtn" type="button">Copier le lien</button>
           <button class="btn btn-blue btn-sm" id="waLinkBtn" type="button" style="display:none;">Envoyer sur WhatsApp</button>
@@ -284,9 +285,16 @@ async function openClient(client){
   showFixedLink();
 }
 
+// Domaine de production, figé volontairement : le lien envoyé au client doit
+// toujours pointer vers GitHub Pages, y compris quand le coach travaille en local
+// (sinon la fiche affiche un lien localhost, inutilisable pour le client).
+const SITE_ORIGIN = 'https://arthurpolati-hue.github.io';
+const IS_LOCAL = !window.location.origin.startsWith(SITE_ORIGIN);
+
 function showFixedLink(){
-  const link = `${window.location.origin}${window.location.pathname.replace('coach.html','s.html')}?c=${currentClient.id}`;
+  const link = `${SITE_ORIGIN}/s.html?c=${currentClient.id}`;
   $('#generatedLink').value = link;
+  $('#localNotice').style.display = IS_LOCAL ? 'block' : 'none';
   const phone = (currentClient.phone||'').replace(/\s|\.|-/g,'').trim();
   const waBtn = $('#waLinkBtn');
   if(phone){

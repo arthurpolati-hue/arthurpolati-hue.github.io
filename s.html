@@ -171,7 +171,10 @@ async function boot(){
       getDoc(doc(db, 'programs', clientId))
     ]);
     hide('#loadingState');
-    if(!clientSnap.exists()){ show('#notFoundState'); return; }
+    if(!clientSnap.exists()){
+      console.error('[ARD] Aucun client avec cet ID :', clientId);
+      show('#notFoundState'); return;
+    }
     clientName = clientSnap.data().name || '';
     program = progSnap.exists() ? progSnap.data() : {};
     $('#greeting').textContent = clientName ? `SALUT ${clientName.split(' ')[0].toUpperCase()}` : 'TA SEMAINE';
@@ -179,6 +182,9 @@ async function boot(){
     renderDay(selectedDay);
     show('#mainView');
   } catch(e){
+    // Ne jamais avaler l'erreur en silence : une règle Firestore refusée et un ID
+    // inexistant donnent le même écran, impossible à distinguer sans ce log.
+    console.error('[ARD] Echec du chargement (code:', e && e.code, ')', e);
     hide('#loadingState');
     show('#notFoundState');
   }
