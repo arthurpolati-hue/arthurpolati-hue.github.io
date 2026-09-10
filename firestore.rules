@@ -1,0 +1,69 @@
+// ⚠️ COPIE DE RÉFÉRENCE — la console Firebase reste la seule source de vérité.
+// Ce fichier n'est pas déployé automatiquement (pas de Firebase CLI sur le projet).
+// Pour l'appliquer : Firebase Console > Firestore Database > Règles > coller > Publier.
+//
+// Modèle de sécurité, en une phrase : le client n'est JAMAIS connecté, il s'identifie
+// par l'ID contenu dans son lien. On ne peut donc pas l'authentifier, mais on peut
+// exiger que l'ID visé corresponde à un client qui existe vraiment, et lui interdire
+// tout ce qui n'est pas strictement nécessaire (lister, supprimer, relire les photos).
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function coach() {
+      return request.auth != null;
+    }
+    // Le client existe-t-il ? Coûte une lecture, mais empêche d'écrire en masse
+    // des documents rattachés à des ID inventés.
+    function clientExiste(cid) {
+      return exists(/databases/$(database)/documents/clients/$(cid));
+    }
+    // Les ID sont de la forme "{clientId}_{YYYY-MM-DD}".
+    function clientDeLId(docId) {
+      return docId.split('_')[0];
+    }
+
+    match /clients/{clientId} {
+      allow get:   if true;                 // le lien client lit son propre nom
+      allow list:  if coach();
+      allow write: if coach();
+    }
+
+    match /programs/{clientId} {
+      allow get:   if true;                 // le lien client lit sa semaine
+      allow list:  if coach();
+      allow write: if coach();
+    }
+
+    match /sessions/{sessionId} {
+      allow get:  if true;
+      // Autorisé au coach : supprime le repli à 30 lectures dans l'historique
+      // et permet l'alerte « client inactif » en une seule requête.
+      allow list: if coach();
+      // Le client doit pouvoir renvoyer sa séance sans être connecté, mais
+      // uniquement sur un ID rattaché à un client réel.
+      allow create, update: if coach() || clientExiste(clientDeLId(sessionId));
+      // Avant, c'était `if true` : n'importe qui pouvait effacer des séances.
+      allow delete: if coach();
+    }
+
+    // Poids et mensurations : un seul document par client, tout l'historique dedans.
+    match /measures/{clientId} {
+      allow get:  if true;                  // le client voit sa propre courbe de poids
+      allow list: if coach();
+      allow create, update: if coach() || clientExiste(clientId);
+      allow delete: if coach();
+    }
+
+    // Photos de suivi : le client les ENVOIE mais ne peut jamais les relire.
+    // C'est volontaire : son lien est public dès qu'il est transféré ou retrouvé
+    // dans un historique de navigation, et des photos de corps ne doivent pas
+    // être accessibles derrière une simple URL.
+    match /photos/{photoId} {
+      allow get, list: if coach();
+      allow create, update: if coach() || clientExiste(clientDeLId(photoId));
+      allow delete: if coach();
+    }
+  }
+}

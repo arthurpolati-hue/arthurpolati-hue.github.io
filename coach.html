@@ -148,6 +148,57 @@
   .savebar-state{flex:1;font-size:0.82rem;color:var(--fog);min-width:0;}
   .savebar-state.dirty{color:#FFD9A3;}
 
+  /* --- onglets de la fiche client --- */
+  .subtabs{display:flex;gap:6px;margin:14px 0 18px;border-bottom:1px solid var(--steel-line);}
+  .subtab{background:none;border:none;border-bottom:2px solid transparent;color:var(--fog);
+    font-family:'Work Sans',sans-serif;font-size:0.92rem;font-weight:700;padding:9px 4px 10px;
+    margin-right:14px;cursor:pointer;}
+  .subtab.active{color:var(--paper);border-bottom-color:var(--blue);}
+
+  /* --- alerte clients inactifs --- */
+  .alert-card{background:#2A2313;border:1px solid #B8862F;border-radius:14px;padding:14px 16px;margin-bottom:16px;}
+  .alert-card h2{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;margin:0 0 8px;color:#F2D9A6;letter-spacing:0.01em;}
+  .alert-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;
+    font-size:0.86rem;cursor:pointer;}
+  .alert-row + .alert-row{border-top:1px solid rgba(184,134,47,0.3);}
+  .alert-row b{color:var(--paper);}
+  .alert-row .days{color:#E0B968;font-weight:700;font-size:0.8rem;white-space:nowrap;}
+
+  /* --- dernière perf sous un champ de l'éditeur --- */
+  .lastperf{font-size:0.72rem;color:var(--fog);margin-top:5px;line-height:1.3;}
+  .lastperf b{color:var(--blue);font-weight:700;}
+
+  /* --- bloc progression --- */
+  .viz-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .viz-filters select{flex:1 1 160px;min-width:0;}
+  .viz-headline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+  .viz-headline .vh-name{font-weight:700;font-size:0.95rem;}
+  .viz-note{font-size:0.78rem;color:var(--fog);margin:8px 0 0;}
+  .viz-holder{margin-top:6px;}
+
+  /* --- mensurations en petits multiples --- */
+  .mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  .mini-card{background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;padding:11px 12px;}
+  .mini-card .mk{font-size:0.7rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;}
+  .mini-card .mv{font-family:'Bebas Neue',sans-serif;font-size:1.45rem;line-height:1.1;margin:2px 0 1px;}
+  .mini-card .mv small{font-size:0.8rem;color:var(--fog);margin-left:2px;}
+  .mini-card .md{font-size:0.72rem;font-variant-numeric:tabular-nums;}
+
+  /* --- galerie photos --- */
+  .photo-group{margin-bottom:16px;}
+  .photo-group h3{font-size:0.8rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;font-weight:700;}
+  .photo-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .photo-row figure{margin:0;flex:0 0 auto;width:104px;}
+  .photo-row img{width:104px;height:139px;object-fit:cover;border-radius:9px;border:1px solid var(--steel-line);
+    background:var(--ink);cursor:zoom-in;display:block;}
+  .photo-row figcaption{font-size:0.68rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;margin-top:4px;text-align:center;}
+  .lightbox{position:fixed;inset:0;background:rgba(5,7,9,0.94);z-index:100;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  .lightbox.show{display:flex;}
+  .lightbox img{max-width:100%;max-height:88vh;border-radius:10px;}
+  .lightbox button{position:absolute;top:16px;right:18px;background:var(--steel);border:1px solid var(--steel-line);
+    color:var(--paper);border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;}
+
   #loginView, #appView{display:none;}
   .spinner{width:28px;height:28px;border-radius:50%;border:3px solid var(--steel-line);border-top-color:var(--blue);margin:40px auto;animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
@@ -184,6 +235,8 @@
         <input type="search" id="clientSearch" placeholder="Rechercher un client...">
       </div>
 
+      <div id="alertWrap"></div>
+
       <div class="legend">
         <span><i class="dot done"></i> Séance du jour envoyée</span>
         <span><i class="dot todo"></i> Séance prévue, pas encore reçue</span>
@@ -206,57 +259,108 @@
       <button class="backlink" id="backToClients">← Tous les clients</button>
       <h1 class="sm" id="clientTitle"></h1>
 
-      <div class="card" id="linkResult">
-        <h2>Lien fixe du client</h2>
-        <p class="sub" style="margin:0 0 12px;">Ce lien ne change jamais. Il affiche toujours la semaine à jour — envoie-le une seule fois.</p>
-        <input type="text" id="generatedLink" readonly>
-        <p class="sub" id="localNotice" style="display:none;margin:10px 0 0;color:var(--blue);">Tu es sur une version locale (test). Le lien ci-dessus pointe bien vers le site en ligne, il est donc valable pour le client.</p>
-        <div class="link-actions">
-          <button class="btn btn-ghost btn-sm" id="copyLinkBtn" type="button">Copier le lien</button>
-          <button class="btn btn-blue btn-sm" id="waLinkBtn" type="button" style="display:none;">Envoyer sur WhatsApp</button>
-          <button class="btn btn-ghost btn-sm" id="previewLinkBtn" type="button">Voir comme le client</button>
+      <div class="subtabs" id="subtabs">
+        <button class="subtab active" type="button" data-pane="entrainement">Entraînement</button>
+        <button class="subtab" type="button" data-pane="resultats">Résultats</button>
+        <button class="subtab" type="button" data-pane="fiche">Fiche &amp; lien</button>
+      </div>
+
+      <!-- ======================= ENTRAÎNEMENT ======================= -->
+      <div id="paneEntrainement">
+        <div class="card">
+          <div class="card-head">
+            <h2>Programme de la semaine</h2>
+            <button class="btn btn-ghost btn-sm" id="copyDayBtn" type="button">Copier ce jour vers…</button>
+          </div>
+          <div class="tabs" id="dayTabs"></div>
+          <p class="tabs-hint" id="tabsHint"></p>
+
+          <div class="field">
+            <label>Échauffement</label>
+            <textarea id="dayEchauffement" placeholder="Ex: 5min vélo + mobilité épaules/hanches..."></textarea>
+          </div>
+
+          <label>Exercices</label>
+          <div id="exCardsWrap"></div>
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" id="addExBtn" type="button">+ Ajouter un exercice</button>
+            <button class="btn btn-danger btn-sm" id="clearDayBtn" type="button">Vider ce jour (repos)</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Progression par exercice</h2>
+          <div class="viz-filters">
+            <select id="progExercice"></select>
+            <select id="progMesure">
+              <option value="chargeMax">Charge maximale</option>
+              <option value="volume">Volume total (séries × répét. × charge)</option>
+              <option value="repsTotal">Répétitions totales</option>
+            </select>
+          </div>
+          <div id="progContenu"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Historique des séances</h2>
+            <button class="btn btn-ghost btn-sm" id="reloadHistoryBtn" type="button">Actualiser</button>
+          </div>
+          <div id="historyStats"></div>
+          <div id="historyWrap"><p class="sub" style="margin:0;">Chargement...</p></div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-head">
-          <h2>Programme de la semaine</h2>
-          <button class="btn btn-ghost btn-sm" id="copyDayBtn" type="button">Copier ce jour vers…</button>
-        </div>
-        <div class="tabs" id="dayTabs"></div>
-        <p class="tabs-hint" id="tabsHint"></p>
-
-        <div class="field">
-          <label>Échauffement</label>
-          <textarea id="dayEchauffement" placeholder="Ex: 5min vélo + mobilité épaules/hanches..."></textarea>
+      <!-- ========================= RÉSULTATS ========================= -->
+      <div id="paneResultats" style="display:none;">
+        <div class="card">
+          <div class="card-head">
+            <h2>Poids</h2>
+            <span class="sub" style="margin:0;font-size:0.78rem;" id="poidsResume"></span>
+          </div>
+          <div id="poidsChart" class="viz-holder"></div>
+          <p class="viz-note" id="poidsNote"></p>
         </div>
 
-        <label>Exercices</label>
-        <div id="exCardsWrap"></div>
-        <div class="row">
-          <button class="btn btn-ghost btn-sm" id="addExBtn" type="button">+ Ajouter un exercice</button>
-          <button class="btn btn-danger btn-sm" id="clearDayBtn" type="button">Vider ce jour (repos)</button>
+        <div class="card">
+          <h2>Mensurations</h2>
+          <div class="mini-grid" id="mensuGrid"></div>
+          <p class="viz-note" id="mensuNote"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Photos de suivi</h2>
+            <button class="btn btn-ghost btn-sm" id="reloadPhotosBtn" type="button">Actualiser</button>
+          </div>
+          <div id="photosWrap"><p class="sub" style="margin:0;">Chargement...</p></div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-head">
-          <h2>Historique des séances</h2>
-          <button class="btn btn-ghost btn-sm" id="reloadHistoryBtn" type="button">Actualiser</button>
+      <!-- ======================= FICHE & LIEN ======================= -->
+      <div id="paneFiche" style="display:none;">
+        <div class="card" id="linkResult">
+          <h2>Lien fixe du client</h2>
+          <p class="sub" style="margin:0 0 12px;">Ce lien ne change jamais. Il affiche toujours la semaine à jour — envoie-le une seule fois.</p>
+          <input type="text" id="generatedLink" readonly>
+          <p class="sub" id="localNotice" style="display:none;margin:10px 0 0;color:var(--blue);">Tu es sur une version locale (test). Le lien ci-dessus pointe bien vers le site en ligne, il est donc valable pour le client.</p>
+          <div class="link-actions">
+            <button class="btn btn-ghost btn-sm" id="copyLinkBtn" type="button">Copier le lien</button>
+            <button class="btn btn-blue btn-sm" id="waLinkBtn" type="button" style="display:none;">Envoyer sur WhatsApp</button>
+            <button class="btn btn-ghost btn-sm" id="previewLinkBtn" type="button">Voir comme le client</button>
+          </div>
         </div>
-        <div id="historyStats"></div>
-        <div id="historyWrap"><p class="sub" style="margin:0;">Chargement...</p></div>
-      </div>
 
-      <div class="card">
-        <h2>Fiche client</h2>
-        <div class="row">
-          <div class="field"><label>Nom</label><input type="text" id="editClientName"></div>
-          <div class="field"><label>Téléphone</label><input type="tel" id="editClientPhone" placeholder="06 12 34 56 78"></div>
-        </div>
-        <div class="row">
-          <button class="btn btn-ghost btn-sm" id="saveClientBtn" type="button">Enregistrer la fiche</button>
-          <button class="btn btn-danger btn-sm" id="deleteClientBtn" type="button">Supprimer ce client</button>
+        <div class="card">
+          <h2>Coordonnées</h2>
+          <div class="row">
+            <div class="field"><label>Nom</label><input type="text" id="editClientName"></div>
+            <div class="field"><label>Téléphone</label><input type="tel" id="editClientPhone" placeholder="06 12 34 56 78"></div>
+          </div>
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" id="saveClientBtn" type="button">Enregistrer la fiche</button>
+            <button class="btn btn-danger btn-sm" id="deleteClientBtn" type="button">Supprimer ce client</button>
+          </div>
         </div>
       </div>
     </div>
@@ -274,6 +378,11 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="lightbox" id="lightbox">
+  <button type="button" id="lightboxClose">Fermer</button>
+  <img id="lightboxImg" alt="Photo de suivi">
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
@@ -284,6 +393,8 @@ import {
   query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { EXERCICES } from "./exercices.js";
+import { courbe, mini, verdict, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
+injecterStylesViz();
 
 const firebaseConfig = {
   apiKey: "AIzaSyA94ynktcOetPJuxjU9nsdLxSsX9VFXA4c",
@@ -386,6 +497,7 @@ async function loadClients(){
   $('#searchField').style.display = allClients.length > 6 ? 'block' : 'none';
   renderClientList();
   loadTodayStatuses();
+  loadInactivity();
 }
 
 // Statut du jour par client. On interroge l'ID déterministe de la séance du jour
@@ -467,6 +579,175 @@ $('#addClientForm').addEventListener('submit', async (e)=>{
     $('#addClientBtn').disabled = false;
   }
 });
+
+/* ---------------------------------------------- Onglets de la fiche */
+function switchPane(nom){
+  $$('.subtab').forEach(b => b.classList.toggle('active', b.dataset.pane === nom));
+  $('#paneEntrainement').style.display = nom === 'entrainement' ? 'block' : 'none';
+  $('#paneResultats').style.display    = nom === 'resultats'    ? 'block' : 'none';
+  $('#paneFiche').style.display        = nom === 'fiche'        ? 'block' : 'none';
+  // La barre d'enregistrement ne concerne que le programme.
+  $('#savebar').classList.toggle('show', nom === 'entrainement');
+  if(nom === 'resultats') loadResultats();
+  window.scrollTo(0, 0);
+}
+$$('.subtab').forEach(b => b.addEventListener('click', ()=> switchPane(b.dataset.pane)));
+
+/* ------------------------------------------------ Clients inactifs */
+// Une requête sur toute la collection `sessions` (une lecture par document) suffit
+// à dater la dernière séance de chaque client. Si les règles refusent le `list`,
+// on retombe sur les IDs déterministes des 21 derniers jours.
+// ⚠️ À revoir si `sessions` dépasse quelques milliers de documents.
+const SEUIL_INACTIF = 5;   // jours sans séance avant alerte
+
+async function loadInactivity(){
+  const derniere = new Map();
+  try{
+    const snap = await getDocs(collection(db, 'sessions'));
+    snap.forEach(d=>{
+      const s = d.data();
+      if(!s.clientId || !s.date) return;
+      const prec = derniere.get(s.clientId);
+      if(!prec || s.date > prec) derniere.set(s.clientId, s.date);
+    });
+  } catch(e){
+    console.error('[ARD] Liste des séances refusée (code:', e && e.code, ') — repli par dates.', e);
+    const jours = Array.from({length:21}, (_,i)=>{
+      const d = new Date(); d.setDate(d.getDate() - i); return isoLocal(d);
+    });
+    await Promise.all(allClients.map(async c=>{
+      const snaps = await Promise.all(jours.map(j =>
+        getDoc(doc(db, 'sessions', `${c.id}_${j}`)).catch(()=>null)
+      ));
+      const trouve = jours.find((j,i) => snaps[i] && snaps[i].exists());
+      if(trouve) derniere.set(c.id, trouve);
+    }));
+  }
+
+  const aujourdhui = new Date(todayISO() + 'T12:00:00');
+  const alertes = [];
+  allClients.forEach(c=>{
+    const d = derniere.get(c.id);
+    const jours = d ? Math.round((aujourdhui - new Date(d + 'T12:00:00')) / 86400000) : null;
+    if(jours === null || jours >= SEUIL_INACTIF){
+      alertes.push({ client:c, jours, date:d });
+    }
+  });
+  alertes.sort((a,b)=> (b.jours === null ? 9999 : b.jours) - (a.jours === null ? 9999 : a.jours));
+
+  const wrap = $('#alertWrap');
+  if(alertes.length === 0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `<div class="alert-card">
+    <h2>À relancer (${alertes.length})</h2>
+    ${alertes.map(a=>`<div class="alert-row" data-cid="${escapeHtml(a.client.id)}">
+      <span><b>${escapeHtml(a.client.name)}</b></span>
+      <span class="days">${a.jours === null ? 'jamais de séance' : `${a.jours} jours sans séance`}</span>
+    </div>`).join('')}
+  </div>`;
+  $$('.alert-row', wrap).forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const c = allClients.find(x => x.id === row.dataset.cid);
+      if(c) openClient(c);
+    });
+  });
+}
+
+/* --------------------------------- Index des performances par exercice */
+let currentSessions = [];
+let perfIndex = new Map();   // nom d'exercice -> [{x:date, chargeMax, volume, repsTotal}]
+
+function nombreDe(str){
+  if(str === null || str === undefined) return null;
+  const m = String(str).replace(',', '.').match(/\d+(?:\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+
+function construirePerfIndex(sessions){
+  const idx = new Map();
+  sessions.filter(s => s.status === 'completed').forEach(s=>{
+    (s.results || []).forEach(r=>{
+      if(!r.nom) return;
+      const series = Array.isArray(r.sets) && r.sets.length
+        ? r.sets
+        : [{ reps:r.reps, charge:r.charge }];
+      let chargeMax = null, volume = 0, repsTotal = 0, vu = false;
+      series.forEach(st=>{
+        const ch = nombreDe(st.charge), rp = nombreDe(st.reps);
+        if(ch === null && rp === null) return;
+        vu = true;
+        if(ch !== null && (chargeMax === null || ch > chargeMax)) chargeMax = ch;
+        if(rp !== null){ repsTotal += rp; volume += rp * (ch || 0); }
+      });
+      if(!vu) return;
+      if(!idx.has(r.nom)) idx.set(r.nom, []);
+      idx.get(r.nom).push({ x:s.date, chargeMax, volume, repsTotal });
+    });
+  });
+  idx.forEach(arr=>{
+    arr.sort((a,b)=> (a.x||'').localeCompare(b.x||''));
+  });
+  perfIndex = idx;
+}
+
+// Rappel de la dernière perf réelle sous le champ « charge cible » de l'éditeur :
+// sans ça, ajuster un objectif oblige à descendre dans l'historique et à remonter.
+function injecterDernieresPerfs(){
+  $$('#exCardsWrap .ex-card').forEach(card=>{
+    const nom = ($('input[data-field="nom"]', card) || {}).value || '';
+    const cible = $('[data-lastperf]', card);
+    if(!cible) return;
+    const hist = perfIndex.get(nom.trim());
+    if(!hist || hist.length === 0){ cible.textContent = ''; return; }
+    const d = hist[hist.length - 1];
+    const bouts = [];
+    if(d.chargeMax !== null) bouts.push(`<b>${d.chargeMax}kg</b>`);
+    if(d.repsTotal) bouts.push(`${d.repsTotal} répét. au total`);
+    cible.innerHTML = `Dernière fois (${fmtDate(d.x)}) : ${bouts.join(' · ') || '—'}`;
+  });
+}
+
+/* -------------------------------------- Graphique de progression */
+function remplirSelectExercices(){
+  const sel = $('#progExercice');
+  const noms = [...perfIndex.keys()].filter(n => perfIndex.get(n).length >= 1).sort((a,b)=>a.localeCompare(b));
+  const avant = sel.value;
+  sel.innerHTML = noms.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  if(noms.includes(avant)) sel.value = avant;
+  return noms.length;
+}
+
+function renderProgression(){
+  const zone = $('#progContenu');
+  const nom = $('#progExercice').value;
+  const mesure = $('#progMesure').value;
+  const hist = perfIndex.get(nom) || [];
+
+  if(!nom || hist.length === 0){
+    zone.innerHTML = '<p class="sub" style="margin:0;">Aucune séance terminée pour l\'instant — les courbes apparaîtront dès que ton client aura renvoyé ses premières séances.</p>';
+    return;
+  }
+
+  const unites = { chargeMax:'kg', volume:'', repsTotal:'' };
+  const libelles = { chargeMax:'Charge max', volume:'Volume', repsTotal:'Répétitions' };
+  const points = hist
+    .filter(d => d[mesure] !== null && d[mesure] !== undefined && !isNaN(d[mesure]))
+    .map(d => ({ x:d.x, y:d[mesure] }));
+
+  const v = verdict(points, { sensPositif:1, semaines:5, seuilPct:2 });
+  zone.innerHTML = `<div class="viz-headline">
+      <span class="vh-name">${escapeHtml(libelles[mesure])} — ${escapeHtml(nom)}</span>
+      <span class="viz-badge" style="color:${v.couleur};border-color:${v.couleur};">${v.icone} ${escapeHtml(v.libelle)}</span>
+    </div>
+    <div class="viz-holder" id="progChart"></div>
+    <p class="viz-note">${escapeHtml(v.detail || '')}${points.length < 2 ? '' : ` · ${points.length} séances`}</p>`;
+
+  courbe($('#progChart'), {
+    points, unite:unites[mesure], libelle:libelles[mesure],
+    couleur:VIZ_COLORS.ligne, fond:'#1B1F22', hauteur:150
+  });
+}
+$('#progExercice').addEventListener('change', renderProgression);
+$('#progMesure').addEventListener('change', renderProgression);
 
 /* ------------------------------------------- Catalogue & autocomplétion */
 // Le catalogue de `exercices.js` sert de base ; on y ajoute les exercices déjà
@@ -670,11 +951,14 @@ async function openClient(client){
   spinner(false);
 
   markClean();
-  $('#savebar').classList.add('show');
   currentDay = todayKey();
+  resultatsCharges = false;
+  perfIndex = new Map();
+  currentSessions = [];
   loadDay(currentDay);
   loadHistory();
   showFixedLink();
+  switchPane('entrainement');
 }
 
 // Domaine de production, figé volontairement : le lien envoyé au client doit
@@ -795,7 +1079,7 @@ function renderExCards(){
       <div class="ex-grid">
         <div class="field"><label>Séries</label><input type="text" data-field="series" placeholder="4" value="${escapeHtml(ex.series)}"></div>
         <div class="field"><label>Répét. cible</label><input type="text" data-field="repetitions" placeholder="8-12" value="${escapeHtml(ex.repetitions)}"></div>
-        <div class="field"><label>Charge cible</label><input type="text" data-field="charge" placeholder="40kg" value="${escapeHtml(ex.charge)}"></div>
+        <div class="field"><label>Charge cible</label><input type="text" data-field="charge" placeholder="40kg" value="${escapeHtml(ex.charge)}"><div class="lastperf" data-lastperf></div></div>
         <div class="field"><label>Repos</label><input type="text" data-field="repos" placeholder="90s" value="${escapeHtml(ex.repos)}"></div>
       </div>
       <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
@@ -806,7 +1090,7 @@ function renderExCards(){
         exerciseRows[idx][inp.dataset.field] = inp.value;
         markDirty();
         // Le compteur de l'onglet dépend du nom : on rafraîchit à la volée.
-        if(inp.dataset.field === 'nom') renderDayTabs();
+        if(inp.dataset.field === 'nom'){ renderDayTabs(); injecterDernieresPerfs(); }
       });
     });
     $('[data-rm]', card).addEventListener('click', ()=>{
@@ -828,6 +1112,7 @@ function renderExCards(){
     });
     body.appendChild(card);
   });
+  injecterDernieresPerfs();
 }
 
 $('#addExBtn').addEventListener('click', ()=>{
@@ -937,6 +1222,128 @@ $('#deleteClientBtn').addEventListener('click', async ()=>{
   } finally { spinner(false); }
 });
 
+/* ------------------------------------------------------------- Résultats */
+// Les mensurations vivent dans UN document par client (`measures/{clientId}`),
+// avec tout l'historique dans un tableau : une seule lecture suffit à tracer une
+// courbe. Un document par pesée aurait imposé de lister la collection, ce que les
+// règles interdisent au client non connecté.
+let resultatsCharges = false;
+let currentMeasures = null;
+
+async function loadResultats(force){
+  if(resultatsCharges && !force) return;
+  resultatsCharges = true;
+  try{
+    const snap = await getDoc(doc(db, 'measures', currentClient.id));
+    currentMeasures = snap.exists() ? snap.data() : { entries: [] };
+  } catch(e){
+    console.error('[ARD] Lecture des mensurations refusée (code:', e && e.code, ')', e);
+    currentMeasures = { entries: [] };
+  }
+  renderPoids();
+  renderMensurations();
+  loadPhotos();
+}
+
+function entreesTriees(){
+  return (currentMeasures && Array.isArray(currentMeasures.entries) ? currentMeasures.entries : [])
+    .filter(e => e && e.date)
+    .slice()
+    .sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+}
+
+function renderPoids(){
+  const entries = entreesTriees();
+  const points = entries.filter(e => typeof e.poids === 'number').map(e => ({ x:e.date, y:e.poids }));
+  courbe($('#poidsChart'), { points, unite:'kg', libelle:'Poids',
+                             couleur:VIZ_COLORS.ligne, fond:'#1B1F22', hauteur:160 });
+  const resume = $('#poidsResume'), note = $('#poidsNote');
+  if(points.length < 2){
+    resume.textContent = '';
+    note.textContent = points.length === 0
+      ? "Ton client note son poids depuis son lien, onglet « Mes résultats »."
+      : "Une seule pesée pour l'instant.";
+    return;
+  }
+  const ecart = points[points.length-1].y - points[0].y;
+  const signe = ecart > 0 ? '+' : '';
+  resume.textContent = `${signe}${Math.round(ecart*10)/10} kg depuis le début`.replace('.', ',');
+  const jours = Math.round((new Date(points[points.length-1].x) - new Date(points[0].x)) / 86400000);
+  note.textContent = `${points.length} pesées sur ${jours} jours. L'interprétation te revient — l'app ne commente pas.`;
+}
+
+function renderMensurations(){
+  const entries = entreesTriees();
+  const grid = $('#mensuGrid');
+  const cartes = MESURES.filter(m => m.k !== 'poids').map(m=>{
+    const pts = entries.filter(e => typeof e[m.k] === 'number').map(e => ({ x:e.date, y:e[m.k] }));
+    return { m, pts };
+  }).filter(c => c.pts.length > 0);
+
+  if(cartes.length === 0){
+    grid.innerHTML = '';
+    $('#mensuNote').textContent = "Aucune mensuration enregistrée. Ton client les saisit depuis son lien, onglet « Mes résultats ».";
+    return;
+  }
+  $('#mensuNote').textContent = "Chaque mesure garde sa propre échelle : superposer un tour de bras et un tour de taille sur un même axe n'aurait aucun sens.";
+  grid.innerHTML = cartes.map((c,i)=>{
+    const dernier = c.pts[c.pts.length-1].y;
+    const ecart = c.pts.length > 1 ? dernier - c.pts[0].y : null;
+    const txt = ecart === null ? 'première mesure'
+      : `${ecart > 0 ? '+' : ''}${String(Math.round(ecart*10)/10).replace('.', ',')} ${c.m.u} depuis le début`;
+    return `<div class="mini-card">
+      <div class="mk">${escapeHtml(c.m.l)}</div>
+      <div class="mv">${String(dernier).replace('.', ',')}<small>${c.m.u}</small></div>
+      <div class="md" style="color:var(--fog);">${escapeHtml(txt)}</div>
+      <div id="mini-${i}" style="margin-top:6px;"></div>
+    </div>`;
+  }).join('');
+  cartes.forEach((c,i)=> mini($('#mini-'+i), c.pts, VIZ_COLORS.ligne));
+}
+
+/* ---------------------------------------------------------- Photos */
+// Les photos sont refusées en lecture au client (règles Firestore) : seul le compte
+// coach peut les lister. Le lien client, lui, est public dès qu'il est transféré.
+$('#reloadPhotosBtn').addEventListener('click', ()=> loadPhotos(true));
+
+async function loadPhotos(){
+  const wrap = $('#photosWrap');
+  wrap.innerHTML = '<p class="sub" style="margin:0;">Chargement...</p>';
+  let docs = [];
+  try{
+    const q = query(collection(db, 'photos'), where('clientId', '==', currentClient.id));
+    const snap = await getDocs(q);
+    snap.forEach(d => docs.push({ id:d.id, ...d.data() }));
+  } catch(e){
+    console.error('[ARD] Lecture des photos refusée (code:', e && e.code, ')', e);
+    wrap.innerHTML = `<p class="sub" style="margin:0;">Impossible de charger les photos. Si le code est <code>permission-denied</code>, la règle <code>photos</code> n'est pas encore publiée (voir le doc projet, §1).</p>`;
+    return;
+  }
+  if(docs.length === 0){
+    wrap.innerHTML = '<p class="sub" style="margin:0;">Aucune photo. Ton client les envoie depuis son lien, onglet « Mes résultats ».</p>';
+    return;
+  }
+  docs.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  wrap.innerHTML = docs.map(d=>`
+    <div class="photo-group">
+      <h3>${escapeHtml(fmtDate(d.date))}</h3>
+      <div class="photo-row">
+        ${(d.items||[]).map(it=>`<figure>
+          <img src="${escapeHtml(it.dataUrl||'')}" alt="${escapeHtml(it.label||'photo')} du ${escapeHtml(d.date||'')}" loading="lazy">
+          <figcaption>${escapeHtml(it.label||'')}</figcaption>
+        </figure>`).join('')}
+      </div>
+    </div>`).join('');
+  $$('#photosWrap img').forEach(img=>{
+    img.addEventListener('click', ()=>{
+      $('#lightboxImg').src = img.src;
+      $('#lightbox').classList.add('show');
+    });
+  });
+}
+$('#lightboxClose').addEventListener('click', ()=> $('#lightbox').classList.remove('show'));
+$('#lightbox').addEventListener('click', (e)=>{ if(e.target.id === 'lightbox') $('#lightbox').classList.remove('show'); });
+
 /* ------------------------------------------------------------ Historique */
 $('#reloadHistoryBtn').addEventListener('click', ()=> loadHistory());
 
@@ -958,6 +1365,11 @@ async function loadHistory(){
     sessions = await historyFallback(currentClient.id, 30);
   }
   sessions.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  currentSessions = sessions;
+  construirePerfIndex(sessions);
+  injecterDernieresPerfs();
+  remplirSelectExercices();
+  renderProgression();
 
   if(sessions.length === 0){
     wrap.innerHTML = '<p class="sub" style="margin:0;">Aucune séance envoyée pour l\'instant.</p>';

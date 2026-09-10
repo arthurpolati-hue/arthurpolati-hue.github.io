@@ -159,6 +159,34 @@
   .a2hs b{color:var(--paper);}
   .a2hs button{background:none;border:none;color:var(--fog);font-size:1.1rem;cursor:pointer;padding:0 2px;line-height:1;}
 
+  /* --- onglets Séance / Mes résultats --- */
+  .maintabs{display:flex;gap:0;margin:0 0 18px;border-bottom:1px solid var(--steel-line);}
+  .maintab{background:none;border:none;border-bottom:2px solid transparent;color:var(--fog);
+    font-family:'Work Sans',sans-serif;font-size:0.95rem;font-weight:700;padding:9px 4px 10px;
+    margin-right:18px;cursor:pointer;}
+  .maintab.active{color:var(--paper);border-bottom-color:var(--blue);}
+
+  /* --- encouragement (constat factuel, jamais d'analyse) --- */
+  .cheer{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.4);border-radius:12px;
+    padding:12px 14px;margin-bottom:16px;font-size:0.88rem;color:var(--blue-soft);line-height:1.45;}
+  .cheer b{color:#fff;}
+
+  .mesure-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;margin-bottom:14px;}
+  .mesure-grid .field{margin-bottom:0;min-width:0;}
+  .mesure-grid label{font-size:0.68rem;}
+  .mesure-grid input{text-align:center;font-weight:600;}
+
+  .photo-slots{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .photo-slot{flex:1 1 92px;min-width:92px;}
+  .photo-slot label{display:block;font-size:0.66rem;margin-bottom:5px;text-align:center;}
+  .photo-drop{position:relative;width:100%;aspect-ratio:3/4;border:1.5px dashed var(--steel-line);
+    border-radius:10px;background:var(--ink);display:flex;align-items:center;justify-content:center;
+    color:var(--fog);font-size:1.5rem;cursor:pointer;overflow:hidden;}
+  .photo-drop.filled{border-style:solid;border-color:var(--blue);}
+  .photo-drop img{width:100%;height:100%;object-fit:cover;}
+  .photo-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .photo-note{font-size:0.76rem;color:var(--fog);line-height:1.45;margin:0 0 12px;}
+
   #mainView,#fillSuccess,#loadingState,#notFoundState{display:none;}
   @media (prefers-reduced-motion: reduce){*{transition:none !important;animation-duration:0.01ms !important;}}
 </style>
@@ -190,6 +218,14 @@
       <button type="button" id="a2hsClose" aria-label="Fermer">✕</button>
     </div>
 
+    <div class="maintabs" id="mainTabs">
+      <button class="maintab active" type="button" data-pane="seance">Ma séance</button>
+      <button class="maintab" type="button" data-pane="resultats">Mes résultats</button>
+    </div>
+
+    <div id="paneSeance">
+    <div class="cheer" id="cheer" style="display:none;"></div>
+
     <div class="week-strip" id="weekStrip"></div>
 
     <div class="progress-bar" id="progressBar">
@@ -201,6 +237,28 @@
     </div>
 
     <div id="dayContent"></div>
+    </div>
+
+    <div id="paneResultats" style="display:none;">
+      <div class="card">
+        <h2>Ta courbe de poids</h2>
+        <div id="poidsChart" class="viz-holder"></div>
+        <p class="photo-note" id="poidsNote" style="margin-top:10px;"></p>
+      </div>
+
+      <div class="card">
+        <h2>Nouvelle mesure</h2>
+        <p class="photo-note">Remplis ce que tu veux, laisse le reste vide. Une fois par semaine suffit, toujours dans les mêmes conditions (le matin, à jeun).</p>
+        <div class="mesure-grid" id="mesureGrid"></div>
+
+        <label>Photos (optionnel)</label>
+        <div class="photo-slots" id="photoSlots"></div>
+        <p class="photo-note">Tes photos sont envoyées à ton coach et ne sont visibles que par lui. Elles ne s'afficheront pas ici, même pour toi.</p>
+
+        <button class="btn btn-blue btn-full" id="saveMesureBtn" type="button">Enregistrer ma mesure</button>
+        <div class="error-msg" id="mesureError"></div>
+      </div>
+    </div>
   </div>
 
   <div class="success" id="fillSuccess">
@@ -230,6 +288,8 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
+injecterStylesViz();
 
 const firebaseConfig = {
   apiKey: "AIzaSyA94ynktcOetPJuxjU9nsdLxSsX9VFXA4c",
@@ -427,6 +487,7 @@ async function loadWeekStatuses(){
     if(snap && snap.exists() && !doneDays.has(DAYS[i][0])){ doneDays.add(DAYS[i][0]); changed = true; }
   });
   if(changed) renderWeekStrip();
+  majEncouragement();
 }
 function renderWeekStrip(){
   const wrap = $('#weekStrip');
@@ -831,6 +892,219 @@ function summarise(r){
   if(reps || charge) return `${reps||'?'} rép. · ${charge||'?'}`;
   return 'séance notée';
 }
+
+/* -------------------------------------------- Onglets Séance / Résultats */
+$$('.maintab').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const nom = b.dataset.pane;
+    $$('.maintab').forEach(x => x.classList.toggle('active', x === b));
+    $('#paneSeance').style.display    = nom === 'seance'    ? 'block' : 'none';
+    $('#paneResultats').style.display = nom === 'resultats' ? 'block' : 'none';
+    if(nom === 'resultats') ouvrirResultats();
+    if(nom !== 'seance') stopRest();
+    window.scrollTo(0, 0);
+  });
+});
+
+/* ------------------------------------------------------- Encouragement */
+// Constat factuel et positif uniquement : combien de séances prévues, combien
+// envoyées. Aucune analyse de performance — c'est le travail du coach.
+function majEncouragement(){
+  const prevus = DAYS.filter(([k])=>{
+    const d = program[k] || {};
+    return d.exercises && d.exercises.length > 0;
+  });
+  if(prevus.length === 0) return;
+
+  // On ne compte que les jours déjà passés (ou aujourd'hui) : reprocher un jeudi
+  // le vendredi qui n'est pas arrivé n'aurait aucun sens.
+  const echus = prevus.filter(([k]) => isoLocal(WEEK_DATES[k]) <= TODAY_ISO);
+  const faits = echus.filter(([k]) => doneDays.has(k)).length;
+  const rates = echus.length - faits;
+
+  let msg;
+  if(echus.length === 0){
+    msg = `Nouvelle semaine : <b>${prevus.length} séance(s)</b> au programme. C'est parti.`;
+  } else if(rates === 0 && faits > 0){
+    msg = faits === prevus.length
+      ? `Semaine complète : <b>${faits}/${prevus.length} séances</b>. Rien loupé, c'est exactement comme ça qu'on construit.`
+      : `<b>${faits}/${echus.length}</b> séance(s) envoyée(s), <b>zéro loupée</b>. Continue sur cette lancée.`;
+  } else if(faits > 0){
+    msg = `<b>${faits}</b> séance(s) envoyée(s) cette semaine. Il reste ${prevus.length - faits} séance(s) pour finir la semaine en beauté.`;
+  } else {
+    msg = `<b>${prevus.length} séance(s)</b> au programme cette semaine. La première est la plus dure — après, ça roule.`;
+  }
+  $('#cheer').innerHTML = msg;
+  $('#cheer').style.display = 'block';
+}
+
+/* ---------------------------------------------------- Mes résultats */
+let mesures = null;          // document measures/{clientId}
+let resultatsCharges = false;
+const photosEnAttente = {};  // label -> dataUrl compressé
+const PHOTO_LABELS = ['Face', 'Profil', 'Dos'];
+
+async function ouvrirResultats(){
+  construireFormulaireMesures();
+  if(resultatsCharges) return;
+  resultatsCharges = true;
+  try{
+    const snap = await getDoc(doc(db, 'measures', clientId));
+    mesures = snap.exists() ? snap.data() : { clientId, entries: [] };
+  } catch(e){
+    console.error('[ARD] Lecture des mesures impossible (code:', e && e.code, ')', e);
+    mesures = { clientId, entries: [] };
+  }
+  renderPoidsClient();
+}
+
+function renderPoidsClient(){
+  const entries = (mesures && Array.isArray(mesures.entries) ? mesures.entries : [])
+    .filter(e => e && e.date && typeof e.poids === 'number')
+    .sort((a,b)=> a.date.localeCompare(b.date))
+    .map(e => ({ x:e.date, y:e.poids }));
+  courbe($('#poidsChart'), { points:entries, unite:'kg', libelle:'Poids',
+                             couleur:VIZ_COLORS.ligne, fond:'#1B1F22', hauteur:160 });
+  $('#poidsNote').textContent = entries.length >= 2
+    ? "Le poids bouge d'un jour à l'autre pour des tas de raisons. C'est la tendance sur plusieurs semaines qui compte."
+    : "Note ton poids ci-dessous : la courbe apparaîtra dès la deuxième mesure.";
+}
+
+function construireFormulaireMesures(){
+  if($('#mesureGrid').dataset.pret) return;
+  $('#mesureGrid').dataset.pret = '1';
+  $('#mesureGrid').innerHTML = MESURES.map(m=>`
+    <div class="field">
+      <label for="m-${m.k}">${escapeHtml(m.l)} (${m.u})</label>
+      <input type="number" inputmode="decimal" id="m-${m.k}" step="${m.pas}" min="${m.min}" max="${m.max}" placeholder="—">
+    </div>`).join('');
+  $('#photoSlots').innerHTML = PHOTO_LABELS.map(l=>`
+    <div class="photo-slot">
+      <label>${l}</label>
+      <div class="photo-drop" data-label="${l}"><span>+</span><input type="file" accept="image/*" data-photo="${l}"></div>
+    </div>`).join('');
+  $$('[data-photo]').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const f = inp.files && inp.files[0];
+      if(!f) return;
+      const zone = inp.closest('.photo-drop');
+      zone.innerHTML = '<span>…</span>';
+      zone.appendChild(inp);
+      try{
+        const url = await compresserImage(f);
+        photosEnAttente[inp.dataset.photo] = url;
+        zone.innerHTML = `<img alt="">`;
+        $('img', zone).src = url;
+        zone.appendChild(inp);
+        zone.classList.add('filled');
+      } catch(e){
+        console.error('[ARD] Compression de la photo échouée', e);
+        zone.innerHTML = '<span>+</span>';
+        zone.appendChild(inp);
+        zone.classList.remove('filled');
+      }
+    });
+  });
+}
+
+// Redimensionne et recompresse dans le navigateur AVANT l'envoi : une photo
+// d'iPhone fait 3 à 5 Mo, or un document Firestore est plafonné à 1 Mio. On vise
+// ~150 Ko, ce qui laisse la place à trois photos dans un seul document.
+function compresserImage(file, maxCote = 1000, qualite = 0.72){
+  return new Promise((resolve, reject)=>{
+    const lecteur = new FileReader();
+    lecteur.onerror = reject;
+    lecteur.onload = ()=>{
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = ()=>{
+        const ratio = Math.min(1, maxCote / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * ratio);
+        c.height = Math.round(img.height * ratio);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        let q = qualite, url = c.toDataURL('image/jpeg', q);
+        // Filet de sécurité : on redescend la qualité tant qu'on dépasse ~230 Ko.
+        while(url.length > 230000 && q > 0.35){ q -= 0.1; url = c.toDataURL('image/jpeg', q); }
+        resolve(url);
+      };
+      img.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(file);
+  });
+}
+
+$('#saveMesureBtn').addEventListener('click', async ()=>{
+  const err = $('#mesureError');
+  err.style.display = 'none';
+
+  const entree = { date: TODAY_ISO };
+  let auMoinsUne = false;
+  for(const m of MESURES){
+    const brut = $('#m-' + m.k).value.trim();
+    if(brut === '') continue;
+    const v = parseFloat(brut.replace(',', '.'));
+    if(isNaN(v) || v < m.min || v > m.max){
+      err.textContent = `${m.l} : valeur invalide (attendu entre ${m.min} et ${m.max} ${m.u}).`;
+      err.style.display = 'block';
+      return;
+    }
+    entree[m.k] = v;
+    auMoinsUne = true;
+  }
+  const photos = Object.entries(photosEnAttente).map(([label, dataUrl]) => ({ label, dataUrl }));
+  if(!auMoinsUne && photos.length === 0){
+    err.textContent = "Renseigne au moins une mesure ou ajoute une photo.";
+    err.style.display = 'block';
+    return;
+  }
+
+  const btn = $('#saveMesureBtn');
+  btn.disabled = true;
+  btn.textContent = 'ENVOI...';
+  try{
+    if(auMoinsUne){
+      // Lecture-modification-écriture : une mesure du jour écrase celle du jour,
+      // pas de doublon si le client corrige sa saisie.
+      const entries = (mesures && Array.isArray(mesures.entries) ? mesures.entries : [])
+        .filter(e => e && e.date !== TODAY_ISO);
+      entries.push(entree);
+      entries.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+      const maj = { clientId, entries };
+      if(photos.length){
+        const dates = new Set([...(mesures && mesures.photoDates || []), TODAY_ISO]);
+        maj.photoDates = [...dates].sort();
+      } else if(mesures && mesures.photoDates){
+        maj.photoDates = mesures.photoDates;
+      }
+      await setDoc(doc(db, 'measures', clientId), maj, { merge:true });
+      mesures = maj;
+    }
+    if(photos.length){
+      await setDoc(doc(db, 'photos', `${clientId}_${TODAY_ISO}`),
+                   { clientId, date: TODAY_ISO, items: photos }, { merge:true });
+    }
+    Object.keys(photosEnAttente).forEach(k => delete photosEnAttente[k]);
+    $$('.photo-drop').forEach(z=>{
+      const inp = $('input', z);
+      z.innerHTML = '<span>+</span>';
+      if(inp){ inp.value = ''; z.appendChild(inp); }
+      z.classList.remove('filled');
+    });
+    MESURES.forEach(m => { $('#m-' + m.k).value = ''; });
+    renderPoidsClient();
+    btn.textContent = 'Enregistré ✓';
+    setTimeout(()=>{ btn.textContent = 'Enregistrer ma mesure'; btn.disabled = false; }, 1800);
+  } catch(e){
+    console.error('[ARD] Envoi des mesures refusé (code:', e && e.code, ')', e);
+    btn.disabled = false;
+    btn.textContent = 'Enregistrer ma mesure';
+    err.textContent = (e && e.code === 'permission-denied')
+      ? "Envoi refusé par le serveur. Préviens ton coach : les règles ne sont pas encore publiées."
+      : "L'envoi a échoué. Vérifie ta connexion et réessaie.";
+    err.style.display = 'block';
+  }
+});
 
 /* ------------------------------------------------------------- Confirmation */
 function showSuccess(exercices){
