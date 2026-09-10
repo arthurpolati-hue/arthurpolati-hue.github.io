@@ -13,7 +13,9 @@
   :root{
     --ink:#0B0E11; --steel:#1B1F22; --steel-line:#2C3134;
     --paper:#F6F4EF; --fog:#9AA0A6; --blue:#3E8EFF; --blue-dim:#173A63;
-    --ok:#38D97A; --ok-dim:#123B24; --err:#FF6B6B;
+    --blue-deep:#0E2F57;   /* fond des éléments validés */
+    --blue-soft:#CFE3FF;   /* texte sur fond bleu */
+    --err:#FF6B6B;
     --safe-b:env(safe-area-inset-bottom,0px);
   }
   *{box-sizing:border-box;}
@@ -60,7 +62,25 @@
   /* ---- Exercices (éditeur) ---- */
   .ex-card{background:var(--ink);border:1.5px solid var(--steel-line);border-radius:12px;padding:16px 16px 4px;margin-bottom:14px;}
   .ex-head{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
-  .ex-head input{flex:1;font-weight:700;min-width:0;}
+  .ex-head input{width:100%;font-weight:700;min-width:0;}
+  .ac-wrap{position:relative;flex:1;min-width:0;}
+  /* La liste peut être plus large que le champ : le champ partage sa ligne avec les
+     boutons ↑ ↓ ⧉ ✕, et tronquer les noms rendait « Développé couché » et
+     « Développé couché haltères » indistinguables. */
+  .ac-list{position:absolute;top:calc(100% + 5px);left:0;right:auto;z-index:45;background:var(--steel);
+    min-width:100%;width:max-content;max-width:min(430px, calc(100vw - 56px));
+    border:1.5px solid var(--blue);border-radius:11px;max-height:262px;overflow-y:auto;
+    box-shadow:0 12px 30px rgba(0,0,0,0.55);padding:4px;-webkit-overflow-scrolling:touch;}
+  .ac-list[hidden]{display:none;}
+  .ac-head{font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--fog);padding:7px 10px 5px;}
+  .ac-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;}
+  .ac-item.active{background:var(--blue-dim);}
+  .ac-n{flex:1;font-size:0.9rem;font-weight:600;color:var(--paper);line-height:1.3;}
+  .ac-n mark{background:none;color:var(--blue);font-weight:800;}
+  .ac-g{flex:0 0 auto;font-size:0.7rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;}
+  .ac-item.active .ac-g{color:var(--blue-soft);}
+  .ac-empty{padding:10px;font-size:0.82rem;color:var(--fog);}
   .ex-order{display:flex;gap:4px;flex:0 0 auto;}
   .ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin-bottom:14px;}
   .ex-grid .field{margin-bottom:0;min-width:0;}
@@ -75,8 +95,8 @@
   .client-list .cmeta{font-size:0.78rem;color:var(--fog);margin-top:2px;}
   .client-list .arrow{color:var(--fog);flex:0 0 auto;}
   .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--steel-line);}
-  .dot.done{background:var(--ok);box-shadow:0 0 0 3px rgba(56,217,122,0.16);}
-  .dot.todo{background:var(--blue);box-shadow:0 0 0 3px var(--blue-dim);}
+  .dot.done{background:var(--blue);box-shadow:0 0 0 3px rgba(62,142,255,0.22);}
+  .dot.todo{background:transparent;border:2px solid var(--blue);}
   .dot.rest{background:var(--steel-line);}
   .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:0.76rem;color:var(--fog);margin:0 0 16px;}
   .legend span{display:flex;align-items:center;gap:6px;}
@@ -92,7 +112,7 @@
   .tab.dirty .unsaved{display:block;}
   .tabs-hint{font-size:0.76rem;color:var(--fog);margin:0 0 16px;}
 
-  .toast{position:fixed;bottom:calc(20px + var(--safe-b));left:50%;transform:translateX(-50%);background:var(--ok);color:#08240f;padding:12px 22px;border-radius:10px;font-weight:700;font-size:0.9rem;display:none;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,0.35);max-width:90vw;text-align:center;}
+  .toast{position:fixed;bottom:calc(20px + var(--safe-b));left:50%;transform:translateX(-50%);background:var(--blue);color:#071527;padding:12px 22px;border-radius:10px;font-weight:700;font-size:0.9rem;display:none;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,0.35);max-width:90vw;text-align:center;}
   .toast.show{display:block;}
   .toast.err{background:var(--err);color:#3a0d0d;}
 
@@ -105,8 +125,8 @@
   .session-row .meta{font-size:0.85rem;}
   .session-row .submeta{font-size:0.76rem;color:var(--fog);margin-top:2px;}
   .session-row .status{font-size:0.72rem;font-weight:700;padding:4px 10px;border-radius:20px;text-transform:uppercase;flex:0 0 auto;}
-  .status.pending{background:var(--blue-dim);color:#CFE3FF;}
-  .status.completed{background:var(--ok-dim);color:#8FF0B4;}
+  .status.pending{background:transparent;border:1px solid var(--blue-dim);color:#7E9CC4;}
+  .status.completed{background:var(--blue);color:#071527;}
   .results-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--steel-line);font-size:0.85rem;color:var(--fog);}
   .results-detail.show{display:block;}
   .res-ex{margin-bottom:10px;}
@@ -114,7 +134,7 @@
   .res-ex .rgoal{font-size:0.78rem;color:var(--fog);margin:1px 0 4px;}
   .res-sets{display:flex;gap:6px;flex-wrap:wrap;}
   .res-set{background:var(--steel);border:1px solid var(--steel-line);border-radius:7px;padding:3px 8px;font-size:0.78rem;color:var(--paper);}
-  .res-set.done{border-color:rgba(56,217,122,0.45);}
+  .res-set.done{border-color:rgba(62,142,255,0.5);background:var(--blue-deep);}
   .res-tags{margin-top:4px;font-size:0.78rem;}
   .stat-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
   .stat{flex:1 1 120px;background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;padding:12px 14px;}
@@ -263,6 +283,7 @@ import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { EXERCICES } from "./exercices.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA94ynktcOetPJuxjU9nsdLxSsX9VFXA4c",
@@ -380,6 +401,7 @@ async function loadTodayStatuses(){
         getDoc(doc(db, 'programs', c.id)),
         getDoc(doc(db, 'sessions', `${c.id}_${iso}`))
       ]);
+      if(prog.exists()) learnFromProgram(prog.data());
       const day = prog.exists() ? (prog.data()[tk] || {}) : {};
       const hasSession = day.exercises && day.exercises.length > 0;
       todayStatus.set(c.id, sess.exists() ? 'done' : (hasSession ? 'todo' : 'rest'));
@@ -446,6 +468,152 @@ $('#addClientForm').addEventListener('submit', async (e)=>{
   }
 });
 
+/* ------------------------------------------- Catalogue & autocomplétion */
+// Le catalogue de `exercices.js` sert de base ; on y ajoute les exercices déjà
+// écrits dans les programmes existants, pour que la liste apprenne au fil du temps
+// sans avoir à toucher au fichier. Clé = nom normalisé (sans accents ni casse).
+const learned = new Map();
+
+function norm(str){
+  return (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+function learnFromProgram(prog){
+  if(!prog) return;
+  DAYS.forEach(([key])=>{
+    const day = prog[key];
+    if(!day || !day.exercises) return;
+    day.exercises.forEach(ex=>{
+      const nom = (ex.nom||'').trim();
+      if(!nom) return;
+      const k = norm(nom);
+      if(!k) return;
+      const known = EXERCICES.find(c => norm(c.n) === k);
+      learned.set(k, {
+        n: nom,
+        g: known ? known.g : 'Déjà utilisé',
+        s: ex.series || (known ? known.s : ''),
+        r: ex.repetitions || (known ? known.r : ''),
+        p: ex.repos || (known ? known.p : ''),
+        own: true
+      });
+    });
+  });
+}
+
+// Catalogue fusionné, les exercices déjà utilisés par le coach en tête.
+function catalogue(){
+  const out = [], seen = new Set();
+  learned.forEach((v,k)=>{ if(!seen.has(k)){ seen.add(k); out.push(v); } });
+  EXERCICES.forEach(c=>{ const k = norm(c.n); if(!seen.has(k)){ seen.add(k); out.push(c); } });
+  return out;
+}
+
+function suggest(q){
+  const nq = norm(q);
+  const all = catalogue();
+  if(!nq) return all.slice(0, 8);
+  // Chaque mot tapé doit correspondre à quelque chose : "dev incl" trouve
+  // "Développé incliné", "squat bul" trouve "Squat bulgare".
+  const tokens = nq.split(/\s+/).filter(Boolean);
+  const scored = [];
+  all.forEach(item=>{
+    const nn = norm(item.n);
+    const words = nn.split(/[\s('\-,]+/).filter(Boolean);
+    let total = 0;
+    for(const t of tokens){
+      if(nn.startsWith(t)) total += 0;
+      else if(words.some(w => w.startsWith(t))) total += 1;
+      else if(nn.includes(t)) total += 2;
+      else return;                      // un mot sans correspondance exclut l'exercice
+    }
+    // à score égal, les exercices déjà utilisés par le coach passent devant
+    scored.push({ item, score: total * 2 + (item.own ? 0 : 1) });
+  });
+  scored.sort((a,b)=> a.score - b.score || a.item.n.localeCompare(b.item.n));
+  return scored.slice(0, 8).map(x => x.item);
+}
+
+// Met en évidence la partie tapée, en travaillant sur le texte échappé pour ne
+// jamais réinjecter de HTML venant d'un nom d'exercice.
+function highlight(nom, q){
+  const safe = escapeHtml(nom);
+  const t = norm(q).split(/\s+/).filter(Boolean)[0];
+  if(!t) return safe;
+  const i = norm(nom).indexOf(t);      // la normalisation conserve les longueurs
+  if(i < 0) return safe;
+  return escapeHtml(nom.slice(0, i))
+    + `<mark>${escapeHtml(nom.slice(i, i + t.length))}</mark>`
+    + escapeHtml(nom.slice(i + t.length));
+}
+
+function attachAutocomplete(input, list, idx){
+  let items = [], active = -1;
+
+  const close = ()=>{ list.hidden = true; list.innerHTML = ''; active = -1; items = []; };
+  const open = ()=>{
+    items = suggest(input.value);
+    if(items.length === 0){ close(); return; }
+    const q = input.value;
+    const titre = q.trim() ? '' : '<div class="ac-head">Suggestions</div>';
+    list.innerHTML = titre + items.map((it,i)=>
+      `<div class="ac-item${i===active?' active':''}" data-i="${i}">`
+      + `<span class="ac-n">${highlight(it.n, q)}</span>`
+      + `<span class="ac-g">${escapeHtml(it.g||'')}</span></div>`
+    ).join('');
+    list.hidden = false;
+  };
+  const move = (delta)=>{
+    if(list.hidden){ open(); active = -1; }
+    if(items.length === 0) return;
+    active = (active + delta + items.length) % items.length;
+    $$('.ac-item', list).forEach((el,i)=> el.classList.toggle('active', i === active));
+    const el = $$('.ac-item', list)[active];
+    if(el) el.scrollIntoView({ block:'nearest' });
+  };
+  const pick = (i)=>{
+    const it = items[i];
+    if(!it) return;
+    const card = input.closest('.ex-card');
+    input.value = it.n;
+    exerciseRows[idx].nom = it.n;
+    // Les valeurs par défaut ne remplissent que les champs encore vides :
+    // un programme déjà réglé à la main n'est jamais écrasé.
+    [['series','s'],['repetitions','r'],['repos','p']].forEach(([field, key])=>{
+      if(!it[key]) return;
+      if((exerciseRows[idx][field]||'').trim() !== '') return;
+      exerciseRows[idx][field] = it[key];
+      const el = $(`[data-field="${field}"]`, card);
+      if(el) el.value = it[key];
+    });
+    close();
+    markDirty();
+    renderDayTabs();
+    const next = $('[data-field="series"]', card);
+    if(next) next.focus();
+  };
+
+  input.addEventListener('focus', open);
+  input.addEventListener('input', ()=>{ active = -1; open(); });
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'ArrowDown'){ e.preventDefault(); move(1); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); move(-1); }
+    else if(e.key === 'Enter'){
+      if(!list.hidden && active >= 0){ e.preventDefault(); pick(active); }
+      else close();
+    }
+    else if(e.key === 'Escape'){ close(); }
+    else if(e.key === 'Tab'){ close(); }
+  });
+  input.addEventListener('blur', ()=> setTimeout(close, 120));
+  // mousedown plutôt que click : le blur de l'input fermerait la liste avant.
+  list.addEventListener('mousedown', (e)=>{
+    const el = e.target.closest('.ac-item');
+    if(!el) return;
+    e.preventDefault();
+    pick(+el.dataset.i);
+  });
+}
+
 /* ------------------------------------------------------- Fiche client */
 let currentClient = null;
 let currentProgram = {};
@@ -493,6 +661,7 @@ async function openClient(client){
   try{
     const progSnap = await getDoc(doc(db, 'programs', client.id));
     currentProgram = progSnap.exists() ? progSnap.data() : {};
+    learnFromProgram(currentProgram);
   } catch(e){
     console.error('[ARD] Lecture du programme refusée (code:', e && e.code, ')', e);
     currentProgram = {};
@@ -612,7 +781,10 @@ function renderExCards(){
     card.innerHTML = `
       <div class="ex-head">
         <span style="color:var(--fog);font-weight:800;font-size:0.8rem;flex:0 0 auto;">${idx+1}</span>
-        <input type="text" data-field="nom" placeholder="Nom de l'exercice (ex: Développé couché)" value="${escapeHtml(ex.nom)}">
+        <div class="ac-wrap">
+          <input type="text" data-field="nom" autocomplete="off" placeholder="Tape 3 lettres : dév, trac, squat..." value="${escapeHtml(ex.nom)}">
+          <div class="ac-list" hidden></div>
+        </div>
         <span class="ex-order">
           <button class="icon-btn" type="button" data-up title="Monter" ${idx===0?'disabled':''}>↑</button>
           <button class="icon-btn" type="button" data-down title="Descendre" ${idx===exerciseRows.length-1?'disabled':''}>↓</button>
@@ -628,6 +800,7 @@ function renderExCards(){
       </div>
       <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
     `;
+    attachAutocomplete($('input[data-field="nom"]', card), $('.ac-list', card), idx);
     $$('input[data-field], textarea[data-field]', card).forEach(inp=>{
       inp.addEventListener('input', ()=>{
         exerciseRows[idx][inp.dataset.field] = inp.value;

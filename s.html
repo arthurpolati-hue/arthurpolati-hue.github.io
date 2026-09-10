@@ -17,7 +17,10 @@
   :root{
     --ink:#0B0E11; --steel:#1B1F22; --steel-line:#2C3134;
     --paper:#F6F4EF; --fog:#9AA0A6; --blue:#3E8EFF; --blue-dim:#173A63;
-    --ok:#38D97A; --ok-dim:#123B24; --err:#FF6B6B;
+    --blue-deep:#0E2F57;   /* fond des éléments validés */
+    --blue-soft:#CFE3FF;   /* texte sur fond bleu */
+    --blue-hi:#7FB4FF;     /* bleu clair, fin de repos */
+    --err:#FF6B6B;
     --safe-b:env(safe-area-inset-bottom,0px);
   }
   *{box-sizing:border-box;}
@@ -41,7 +44,7 @@
   .day-pill.active{background:var(--blue);border-color:var(--blue);}
   .day-pill.active .dname,.day-pill.active .dtag,.day-pill.active .dnum{color:#071527;}
   .day-pill.rest .dtag{color:var(--fog);}
-  .day-pill .flag{position:absolute;top:-5px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--ok);color:#08240f;font-size:0.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);}
+  .day-pill .flag{position:absolute;top:-5px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#071527;font-size:0.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);}
 
   /* ---- Barre de progression collante ---- */
   .progress-bar{position:sticky;top:0;z-index:30;background:rgba(11,14,17,0.94);backdrop-filter:blur(8px);margin:0 -20px 14px;padding:10px 20px 11px;border-bottom:1px solid var(--steel-line);display:none;}
@@ -51,7 +54,7 @@
   .progress-count{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--paper);}
   .progress-track{height:5px;border-radius:3px;background:var(--steel-line);overflow:hidden;}
   .progress-fill{height:100%;width:0%;background:var(--blue);border-radius:3px;transition:width .3s ease;}
-  .progress-fill.full{background:var(--ok);}
+  .progress-fill.full{background:var(--blue);box-shadow:0 0 10px rgba(62,142,255,0.55);}
 
   .card{background:var(--steel);border:1px solid var(--steel-line);border-radius:14px;padding:18px;margin-bottom:16px;}
   .card h2{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;margin:0 0 14px;letter-spacing:0.01em;}
@@ -74,10 +77,10 @@
 
   /* ---- Carte exercice ---- */
   .ex-card{background:var(--ink);border:1.5px solid var(--steel-line);border-radius:12px;padding:16px;margin-bottom:14px;}
-  .ex-card.complete{border-color:rgba(56,217,122,0.5);}
+  .ex-card.complete{border-color:rgba(62,142,255,0.5);background:linear-gradient(180deg,rgba(62,142,255,0.05),transparent 120px);}
   .ex-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
   .ex-num{flex:0 0 auto;width:24px;height:24px;border-radius:7px;background:var(--steel);border:1px solid var(--steel-line);font-size:0.74rem;font-weight:800;color:var(--fog);display:flex;align-items:center;justify-content:center;margin-top:1px;}
-  .ex-card.complete .ex-num{background:var(--ok-dim);border-color:var(--ok);color:var(--ok);}
+  .ex-card.complete .ex-num{background:var(--blue-dim);border-color:var(--blue);color:var(--blue-soft);}
   .ex-title{flex:1;font-weight:700;font-size:1rem;line-height:1.25;}
 
   .objectif-box{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.35);border-radius:9px;padding:10px 12px;margin-bottom:10px;font-size:0.85rem;color:#CFE3FF;line-height:1.45;}
@@ -94,10 +97,16 @@
   .set-row{display:grid;grid-template-columns:32px 1fr 1fr 44px;gap:7px;align-items:center;}
   .set-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--fog);}
   .set-row input{padding:10px 8px;text-align:center;font-size:1rem;font-weight:600;}
-  .set-row.done .set-label{color:var(--ok);}
-  .set-row.done input{border-color:rgba(56,217,122,0.4);}
+  .set-row.done .set-label{color:var(--blue);}
+  .set-row.done input{border-color:rgba(62,142,255,0.4);background:var(--blue-deep);}
   .set-check{height:100%;min-height:40px;border-radius:9px;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
-  .set-check.on{background:var(--ok-dim);border-color:var(--ok);color:var(--ok);}
+  .set-check.on{background:var(--blue);border-color:var(--blue);color:#071527;}
+  .set-check.on.just{animation:validPulse .45s ease-out;}
+  @keyframes validPulse{
+    0%{transform:scale(1);box-shadow:0 0 0 0 rgba(62,142,255,0.55);}
+    45%{transform:scale(1.14);box-shadow:0 0 0 8px rgba(62,142,255,0);}
+    100%{transform:scale(1);box-shadow:0 0 0 0 rgba(62,142,255,0);}
+  }
   .set-hint{font-size:0.72rem;color:var(--fog);margin:-4px 0 12px;}
   .add-set{background:none;border:none;color:var(--blue);font-size:0.8rem;font-weight:700;cursor:pointer;padding:0 0 8px;font-family:'Work Sans',sans-serif;}
 
@@ -112,7 +121,7 @@
   .preview-ex .pmeta{font-size:0.8rem;color:var(--fog);}
 
   .banner{border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:0.85rem;line-height:1.45;}
-  .banner-ok{background:var(--ok-dim);border:1px solid var(--ok);color:#B8F5CE;}
+  .banner-ok{background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue-soft);}
   .banner-warn{background:#3B2F12;border:1px solid #C79A2E;color:#FFE3A3;}
   .banner-draft{background:var(--steel);border:1px solid var(--steel-line);color:var(--fog);display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .banner-draft button{background:none;border:none;color:var(--blue);font-weight:700;font-size:0.82rem;cursor:pointer;padding:0;font-family:'Work Sans',sans-serif;}
@@ -120,7 +129,8 @@
   .error-msg{display:none;background:#3A1F1F;border:1.5px solid var(--err);color:#FFD5D5;font-size:0.85rem;padding:10px 12px;border-radius:10px;margin-top:10px;}
 
   .success,.state-msg{display:none;text-align:center;padding:50px 10px 10px;}
-  .success .check{width:64px;height:64px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.8rem;color:#0A1F12;}
+  .success .check{width:64px;height:64px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.8rem;color:#071527;animation:validPop .5s cubic-bezier(.2,1.4,.4,1);}
+  @keyframes validPop{0%{transform:scale(0.4);opacity:0;}60%{transform:scale(1.08);opacity:1;}100%{transform:scale(1);}}
   .success h2,.state-msg h2{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;margin:0 0 10px;}
   .success p,.state-msg p{color:var(--fog);font-size:0.95rem;line-height:1.5;margin:0 auto;max-width:32ch;}
   .state-msg .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--steel-line);border-top-color:var(--blue);margin:0 auto 20px;animation:spin 0.8s linear infinite;}
@@ -131,10 +141,11 @@
   /* ---- Chrono de repos collant ---- */
   .rest-bar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--steel);border-top:1.5px solid var(--blue);padding:12px 16px calc(12px + var(--safe-b));display:none;box-shadow:0 -8px 24px rgba(0,0,0,0.45);}
   .rest-bar.show{display:block;}
-  .rest-bar.over{border-top-color:var(--ok);}
+  .rest-bar.over{border-top-color:var(--blue-hi);animation:restDone 1.1s ease-in-out infinite;}
+  @keyframes restDone{0%,100%{background:var(--steel);}50%{background:#1F2A3A;}}
   .rest-inner{max-width:600px;margin:0 auto;display:flex;align-items:center;gap:12px;}
   .rest-time{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;min-width:76px;color:var(--blue);}
-  .rest-bar.over .rest-time{color:var(--ok);}
+  .rest-bar.over .rest-time{color:var(--blue-hi);}
   .rest-meta{flex:1;min-width:0;}
   .rest-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);}
   .rest-ex{font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -142,7 +153,7 @@
   .rest-actions button{background:var(--ink);border:1.5px solid var(--steel-line);color:var(--paper);border-radius:9px;padding:9px 11px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;}
   .rest-track{max-width:600px;margin:9px auto 0;height:4px;border-radius:2px;background:var(--steel-line);overflow:hidden;}
   .rest-progress{height:100%;width:100%;background:var(--blue);}
-  .rest-bar.over .rest-progress{background:var(--ok);}
+  .rest-bar.over .rest-progress{background:var(--blue-hi);}
 
   .a2hs{background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.84rem;color:var(--fog);line-height:1.5;display:flex;gap:10px;align-items:flex-start;}
   .a2hs b{color:var(--paper);}
@@ -683,7 +694,15 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
       const now = !ex.sets[i].done;
       ex.sets[i].done = now;
       row.classList.toggle('done', now);
-      $('[data-check]', row).classList.toggle('on', now);
+      const chk = $('[data-check]', row);
+      chk.classList.toggle('on', now);
+      if(now){                       // pulsation bleue de validation
+        chk.classList.remove('just');
+        void chk.offsetWidth;        // force le rejeu de l'animation
+        chk.classList.add('just');
+      } else {
+        chk.classList.remove('just');
+      }
       // Report automatique de la charge sur la série suivante encore vide :
       // en salle, on garde presque toujours le même poids d'une série à l'autre.
       if(now && ex.sets[i+1] && !ex.sets[i+1].charge && ex.sets[i].charge){
