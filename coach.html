@@ -175,4 +175,257 @@ const firebaseConfig = {
   apiKey: "AIzaSyA94ynktcOetPJuxjU9nsdLxSsX9VFXA4c",
   authDomain: "ard-coaching.firebaseapp.com",
   projectId: "ard-coaching",
-  storageBucket:
+  storageBucket: "ard-coaching.firebasestorage.app",
+  messagingSenderId: "553782332925",
+  appId: "1:553782332925:web:ae2e6b7da5bf86156a1d94"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const DAYS = [['lundi','Lundi'],['mardi','Mardi'],['mercredi','Mercredi'],['jeudi','Jeudi'],['vendredi','Vendredi'],['samedi','Samedi'],['dimanche','Dimanche']];
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg, isErr){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+function spinner(on){ $('#globalSpinner').style.display = on ? 'block' : 'none'; }
+
+onAuthStateChanged(auth, (user)=>{
+  if(user){
+    $('#loginView').style.display = 'none';
+    $('#appView').style.display = 'block';
+    loadClients();
+  } else {
+    $('#loginView').style.display = 'block';
+    $('#appView').style.display = 'none';
+  }
+});
+
+$('#loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = $('#loginEmail').value.trim();
+  const password = $('#loginPassword').value;
+  $('#loginError').style.display = 'none';
+  try{
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch(err){
+    $('#loginError').textContent = "Connexion refusée — vérifie ton email et mot de passe.";
+    $('#loginError').style.display = 'block';
+  }
+});
+
+$('#logoutBtn').addEventListener('click', ()=> signOut(auth));
+
+async function loadClients(){
+  spinner(true);
+  const snap = await getDocs(collection(db, 'clients'));
+  spinner(false);
+  const list = $('#clientList');
+  list.innerHTML = '';
+  const clients = [];
+  snap.forEach(d => clients.push({ id: d.id, ...d.data() }));
+  clients.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+  clients.forEach(c=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="name">${escapeHtml(c.name)}</span><span class="arrow">→</span>`;
+    li.addEventListener('click', ()=> openClient(c));
+    list.appendChild(li);
+  });
+  if(clients.length === 0){
+    list.innerHTML = '<p class="sub" style="margin:0;">Aucun client pour l\'instant, ajoute-en un ci-dessous.</p>';
+  }
+}
+
+$('#addClientForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const name = $('#newClientName').value.trim();
+  const phone = $('#newClientPhone').value.trim();
+  if(!name){ return; }
+  spinner(true);
+  const ref = await addDoc(collection(db, 'clients'), { name, phone, createdAt: serverTimestamp() });
+  await setDoc(doc(db, 'programs', ref.id), {});
+  spinner(false);
+  $('#newClientName').value = '';
+  $('#newClientPhone').value = '';
+  showToast('Client ajouté ✓');
+  loadClients();
+});
+
+let currentClient = null;
+let currentProgram = {};
+let currentDay = 'lundi';
+let exerciseRows = [];
+
+function blankExercise(){ return { id: uid(), nom:'', series:'', repetitions:'', charge:'', repos:'', notes:'' }; }
+
+async function openClient(client){
+  currentClient = client;
+  $('#viewClients').style.display = 'none';
+  $('#viewClient').style.display = 'block';
+  $('#clientTitle').textContent = client.name;
+
+  spinner(true);
+  const progSnap = await getDoc(doc(db, 'programs', client.id));
+  currentProgram = progSnap.exists() ? progSnap.data() : {};
+  spinner(false);
+
+  renderDayTabs();
+  loadDay('lundi');
+  loadHistory();
+  showFixedLink();
+}
+
+function showFixedLink(){
+  const link = `${window.location.origin}${window.location.pathname.replace('coach.html','s.html')}?c=${currentClient.id}`;
+  $('#generatedLink').value = link;
+  const phone = (currentClient.phone||'').replace(/\s|\.|-/g,'').trim();
+  const waBtn = $('#waLinkBtn');
+  if(phone){
+    let waPhone = phone.startsWith('0') ? '33' + phone.slice(1) : phone;
+    const msg = encodeURIComponent(`Salut ${currentClient.name} ! Voici le lien vers ton programme de la semaine, il ne change jamais : ${link}`);
+    waBtn.style.display = 'inline-block';
+    waBtn.onclick = () => window.open(`https://wa.me/${waPhone}?text=${msg}`, '_blank');
+  } else {
+    waBtn.style.display = 'none';
+  }
+}
+
+$('#backToClients').addEventListener('click', ()=>{
+  $('#viewClient').style.display = 'none';
+  $('#viewClients').style.display = 'block';
+  $('#linkResult').style.display = 'none';
+});
+
+function renderDayTabs(){
+  const wrap = $('#dayTabs');
+  wrap.innerHTML = '';
+  DAYS.forEach(([key,label])=>{
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'tab' + (key===currentDay ? ' active' : '');
+    tab.textContent = label;
+    tab.addEventListener('click', ()=>{ saveCurrentDayToMemory(); loadDay(key); });
+    wrap.appendChild(tab);
+  });
+}
+
+function saveCurrentDayToMemory(){
+  currentProgram[currentDay] = {
+    echauffement: $('#dayEchauffement').value.trim(),
+    exercises: exerciseRows.filter(e=>e.nom.trim()!=='').map(ex=>({
+      nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge, repos: ex.repos, notes: ex.notes
+    }))
+  };
+}
+
+function loadDay(key){
+  currentDay = key;
+  renderDayTabs();
+  const dayData = currentProgram[key] || {};
+  $('#dayEchauffement').value = dayData.echauffement || '';
+  exerciseRows = (dayData.exercises && dayData.exercises.length ? dayData.exercises : [{}]).map(ex => ({
+    id: uid(), nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'', charge: ex.charge||'', repos: ex.repos||'', notes: ex.notes||''
+  }));
+  renderExCards();
+}
+
+function renderExCards(){
+  const body = $('#exCardsWrap');
+  body.innerHTML = '';
+  exerciseRows.forEach((ex, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'ex-card';
+    card.innerHTML = `
+      <div class="ex-head">
+        <input type="text" data-field="nom" placeholder="Nom de l'exercice (ex: Développé couché)" value="${escapeHtml(ex.nom)}">
+        <button class="rm-btn" type="button" title="Supprimer">✕</button>
+      </div>
+      <div class="ex-grid">
+        <div class="field"><label>Séries</label><input type="text" data-field="series" placeholder="4" value="${escapeHtml(ex.series)}"></div>
+        <div class="field"><label>Répét. cible</label><input type="text" data-field="repetitions" placeholder="8-12" value="${escapeHtml(ex.repetitions)}"></div>
+        <div class="field"><label>Charge cible</label><input type="text" data-field="charge" placeholder="40kg" value="${escapeHtml(ex.charge)}"></div>
+        <div class="field"><label>Repos</label><input type="text" data-field="repos" placeholder="90s" value="${escapeHtml(ex.repos)}"></div>
+      </div>
+      <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
+    `;
+    $$('input, textarea', card).forEach(inp=>{
+      inp.addEventListener('input', ()=>{ exerciseRows[idx][inp.dataset.field] = inp.value; });
+    });
+    $('.rm-btn', card).addEventListener('click', ()=>{ exerciseRows.splice(idx,1); renderExCards(); });
+    body.appendChild(card);
+  });
+}
+$('#addExBtn').addEventListener('click', ()=>{ exerciseRows.push(blankExercise()); renderExCards(); });
+
+$('#saveTemplateBtn').addEventListener('click', async ()=>{
+  saveCurrentDayToMemory();
+  spinner(true);
+  await setDoc(doc(db, 'programs', currentClient.id), currentProgram);
+  spinner(false);
+  showToast('Programme enregistré ✓');
+});
+
+$('#copyLinkBtn').addEventListener('click', async ()=>{
+  const input = $('#generatedLink');
+  try{ await navigator.clipboard.writeText(input.value); showToast('Lien copié ✓'); }
+  catch(e){ input.select(); showToast('Sélectionné — copie avec Ctrl/Cmd+C'); }
+});
+
+async function loadHistory(){
+  const wrap = $('#historyWrap');
+  wrap.innerHTML = '<p class="sub" style="margin:0;">Chargement...</p>';
+  const q = query(collection(db, 'sessions'), where('clientId', '==', currentClient.id));
+  const snap = await getDocs(q);
+  let sessions = [];
+  snap.forEach(d => sessions.push({ id: d.id, ...d.data() }));
+  sessions.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  if(sessions.length === 0){
+    wrap.innerHTML = '<p class="sub" style="margin:0;">Aucune séance envoyée pour l\'instant.</p>';
+    return;
+  }
+
+  wrap.innerHTML = '';
+  sessions.forEach(s=>{
+    const row = document.createElement('div');
+    row.className = 'session-row';
+    const statusLabel = s.status === 'completed' ? 'Terminée' : 'En attente';
+    row.innerHTML = `
+      <div style="flex:1;">
+        <div class="meta"><b>${escapeHtml(s.date||'')}</b> — ${escapeHtml((s.day||'').charAt(0).toUpperCase()+(s.day||'').slice(1))}</div>
+        <div class="results-detail" id="detail-${s.id}"></div>
+      </div>
+      <span class="status ${s.status}">${statusLabel}</span>
+    `;
+    if(s.status === 'completed'){
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', ()=>{
+        const detail = $('#detail-'+s.id, row);
+        if(detail.classList.contains('show')){ detail.classList.remove('show'); return; }
+        if(!detail.dataset.filled){
+          let html = '';
+          if(s.notesGlobales) html += `<div style="margin-bottom:6px;"><b>Remarques :</b> ${escapeHtml(s.notesGlobales)}</div>`;
+          (s.results||[]).forEach(r=>{
+            html += `<div style="margin-bottom:4px;">• <b>${escapeHtml(r.nom)}</b> — ${escapeHtml(r.reps||'?')} rép., ${escapeHtml(r.charge||'?')}, ${escapeHtml(r.reussi||'—')}, ${escapeHtml(r.ressenti||'—')}</div>`;
+          });
+          detail.innerHTML = html || '<i>Pas de détail</i>';
+          detail.dataset.filled = '1';
+        }
+        detail.classList.add('show');
+      });
+    }
+    wrap.appendChild(row);
+  });
+}
+</script>
+</body>
+</html>
