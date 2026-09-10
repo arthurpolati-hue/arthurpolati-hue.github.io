@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARD Coaching — Espace Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0E11; --steel:#1B1F22; --steel-line:#2C3134;
+    --paper:#F6F4EF; --fog:#9AA0A6; --blue:#3E8EFF; --blue-dim:#173A63;
+    --ok:#38D97A; --err:#FF6B6B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--ink);color:var(--paper);font-family:'Work Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:30px 20px 80px;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+  .brand{display:flex;align-items:center;gap:8px;}
+  .brand-dot{width:9px;height:9px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--blue-dim);}
+  .brand-text{font-weight:700;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;color:var(--blue);}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;line-height:0.95;margin:6px 0 10px;letter-spacing:0.01em;}
+  h1.sm{font-size:1.6rem;}
+  .sub{color:var(--fog);font-size:0.9rem;line-height:1.5;margin:0 0 20px;}
+  .backlink{color:var(--blue);font-size:0.85rem;text-decoration:none;font-weight:700;cursor:pointer;background:none;border:none;padding:0;}
+
+  .card{background:var(--steel);border:1px solid var(--steel-line);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .card h2{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;margin:0 0 14px;letter-spacing:0.01em;}
+  label{display:block;font-size:0.74rem;font-weight:700;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;}
+  .field{margin-bottom:12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .row .field{flex:1;min-width:130px;}
+  input[type=text], input[type=email], input[type=password], input[type=tel], input[type=date], select, textarea{
+    width:100%;background:var(--ink);border:1.5px solid var(--steel-line);border-radius:9px;
+    padding:11px 12px;color:var(--paper);font-family:'Work Sans',sans-serif;font-size:0.95rem;
+  }
+  input:focus, select:focus, textarea:focus{outline:none;border-color:var(--blue);}
+  ::placeholder{color:#5c6266;}
+  textarea{resize:vertical;min-height:44px;}
+
+  .btn{border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Work Sans',sans-serif;}
+  .btn-blue{background:var(--blue);color:#071527;}
+  .btn-ghost{background:transparent;color:var(--paper);border:1.5px solid var(--steel-line);}
+  .btn-full{width:100%;}
+  .btn-sm{padding:8px 14px;font-size:0.82rem;border-radius:8px;}
+  .btn:disabled{opacity:0.5;cursor:default;}
+  .rm-btn{background:none;border:none;color:var(--err);font-size:1.2rem;cursor:pointer;padding:6px;}
+
+  .ex-card{background:var(--ink);border:1.5px solid var(--steel-line);border-radius:12px;padding:16px 16px 4px;margin-bottom:14px;}
+  .ex-head{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+  .ex-head input{flex:1;font-weight:700;}
+  .ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin-bottom:14px;}
+  .ex-grid .field{margin-bottom:0;min-width:0;}
+  .ex-grid label{font-size:0.68rem;}
+
+  .client-list{list-style:none;margin:0;padding:0;}
+  .client-list li{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;margin-bottom:10px;cursor:pointer;}
+  .client-list li:hover{border-color:var(--blue);}
+  .client-list .name{font-weight:700;}
+  .client-list .arrow{color:var(--fog);}
+
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .tab{padding:8px 14px;border-radius:20px;background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.82rem;font-weight:700;cursor:pointer;}
+  .tab.active{background:var(--blue);border-color:var(--blue);color:#071527;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ok);color:#08240f;padding:12px 22px;border-radius:10px;font-weight:700;font-size:0.9rem;display:none;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.35);}
+  .toast.show{display:block;}
+  .toast.err{background:var(--err);color:#3a0d0d;}
+
+  #generatedLink{width:100%;background:var(--ink);border:1.5px solid var(--steel-line);border-radius:9px;padding:11px 12px;color:var(--paper);font-size:0.82rem;margin-bottom:12px;}
+  .link-actions{display:flex;gap:10px;flex-wrap:wrap;}
+
+  .session-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;margin-bottom:8px;}
+  .session-row .meta{font-size:0.85rem;}
+  .session-row .status{font-size:0.72rem;font-weight:700;padding:4px 10px;border-radius:20px;text-transform:uppercase;}
+  .status.pending{background:var(--blue-dim);color:#CFE3FF;}
+  .status.completed{background:#123B24;color:#8FF0B4;}
+  .results-detail{display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--steel-line);font-size:0.85rem;color:var(--fog);}
+  .results-detail.show{display:block;}
+
+  #loginView, #appView{display:none;}
+  .spinner{width:28px;height:28px;border-radius:50%;border:3px solid var(--steel-line);border-top-color:var(--blue);margin:40px auto;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loginView">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
+    <h1>Espace coach</h1>
+    <p class="sub">Connecte-toi pour gérer tes clients et envoyer des séances.</p>
+    <form id="loginForm" class="card">
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" required></div>
+      <div class="field" style="margin-bottom:0;"><label>Mot de passe</label><input type="password" id="loginPassword" required></div>
+    </form>
+    <button class="btn btn-blue btn-full" id="loginBtn" type="submit" form="loginForm">Se connecter</button>
+    <div class="error-msg" id="loginError" style="display:none;color:var(--err);font-size:0.85rem;margin-top:10px;"></div>
+  </div>
+
+  <div id="appView">
+    <div class="topbar">
+      <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn">Déconnexion</button>
+    </div>
+
+    <div id="viewClients">
+      <h1>Tes clients</h1>
+      <ul class="client-list" id="clientList"></ul>
+      <form id="addClientForm" class="card">
+        <h2>Ajouter un client</h2>
+        <div class="row">
+          <div class="field"><label>Nom</label><input type="text" id="newClientName" required placeholder="Prénom Nom"></div>
+          <div class="field"><label>Téléphone (optionnel)</label><input type="tel" id="newClientPhone" placeholder="06 12 34 56 78"></div>
+        </div>
+        <button type="submit" class="btn btn-blue">+ Ajouter</button>
+      </form>
+    </div>
+
+    <div id="viewClient" style="display:none;">
+      <button class="backlink" id="backToClients">← Tous les clients</button>
+      <h1 class="sm" id="clientTitle"></h1>
+
+      <div class="card" id="linkResult">
+        <h2>Lien fixe du client</h2>
+        <p class="sub" style="margin:0 0 12px;">Ce lien ne change jamais. Il affiche toujours la semaine à jour — envoie-le une seule fois.</p>
+        <input type="text" id="generatedLink" readonly>
+        <div class="link-actions">
+          <button class="btn btn-ghost btn-sm" id="copyLinkBtn" type="button">Copier le lien</button>
+          <button class="btn btn-blue btn-sm" id="waLinkBtn" type="button" style="display:none;">Envoyer sur WhatsApp</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="dayTabs"></div>
+
+      <div class="card">
+        <h2>Échauffement</h2>
+        <textarea id="dayEchauffement" placeholder="Ex: 5min vélo + mobilité épaules/hanches..."></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Exercices</h2>
+        <div id="exCardsWrap"></div>
+        <button class="btn btn-ghost btn-sm" id="addExBtn" type="button">+ Ajouter un exercice</button>
+      </div>
+
+      <button class="btn btn-blue btn-full" id="saveTemplateBtn" style="margin-bottom:16px;">Enregistrer ce programme</button>
+
+      <div class="card">
+        <h2>Historique des séances</h2>
+        <div id="historyWrap"><p class="sub" style="margin:0;">Aucune séance envoyée pour l'instant.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spinner" id="globalSpinner" style="display:none;"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, query, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA94ynktcOetPJuxjU9nsdLxSsX9VFXA4c",
+  authDomain: "ard-coaching.firebaseapp.com",
+  projectId: "ard-coaching",
+  storageBucket:
