@@ -187,6 +187,26 @@
   .photo-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;}
   .photo-note{font-size:0.76rem;color:var(--fog);line-height:1.45;margin:0 0 12px;}
 
+  /* --- protocole de mesure (repliable, natif <details>) --- */
+  .howto{background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;
+    padding:0 12px;margin-bottom:14px;}
+  .howto summary{cursor:pointer;padding:11px 0;font-size:0.82rem;font-weight:700;color:var(--blue);
+    list-style:none;display:flex;align-items:center;gap:7px;}
+  .howto summary::-webkit-details-marker{display:none;}
+  .howto summary::before{content:"?";flex:0 0 auto;width:17px;height:17px;border-radius:50%;
+    background:var(--blue-dim);color:var(--blue);font-size:0.68rem;display:flex;
+    align-items:center;justify-content:center;font-weight:800;}
+  .howto[open] summary{border-bottom:1px solid var(--steel-line);}
+  .howto ul{margin:10px 0 12px;padding-left:18px;}
+  .howto li{font-size:0.8rem;color:var(--fog);line-height:1.55;margin-bottom:5px;}
+  .howto li b{color:var(--paper);font-weight:600;}
+  .howto p.why{font-size:0.78rem;color:var(--fog);line-height:1.5;margin:0 0 12px;
+    padding-left:10px;border-left:2px solid var(--steel-line);}
+
+  .optionnel{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.35);border-radius:10px;
+    padding:11px 13px;margin-bottom:16px;font-size:0.82rem;color:var(--blue-soft);line-height:1.5;}
+  .optionnel b{color:#fff;}
+
   #mainView,#fillSuccess,#loadingState,#notFoundState{display:none;}
   @media (prefers-reduced-motion: reduce){*{transition:none !important;animation-duration:0.01ms !important;}}
 </style>
@@ -248,12 +268,68 @@
 
       <div class="card">
         <h2>Nouvelle mesure</h2>
-        <p class="photo-note">Remplis ce que tu veux, laisse le reste vide. Une fois par semaine suffit, toujours dans les mêmes conditions (le matin, à jeun).</p>
+
+        <div class="optionnel">
+          <b>Rien n'est obligatoire ici.</b> Tu remplis ce que tu veux, tu laisses vide
+          tout le reste. Se peser ou se mesurer met certaines personnes mal à l'aise —
+          si c'est ton cas, ne le fais pas. Ton programme et ton suivi fonctionnent
+          très bien sans. Tu peux aussi n'en faire qu'une partie, ou t'arrêter quand
+          tu veux.
+        </div>
+
+        <p class="photo-note">Ce qui compte n'est pas le chiffre d'un jour, c'est de
+        mesurer <b>toujours de la même façon</b> : sinon on compare des choses qui ne
+        se comparent pas.</p>
+
+        <label>Poids &amp; mensurations</label>
         <div class="mesure-grid" id="mesureGrid"></div>
+
+        <details class="howto">
+          <summary>Comment bien te peser</summary>
+          <ul>
+            <li>Toujours le <b>même jour</b> de la semaine.</li>
+            <li>Toujours à la <b>même heure</b> — l'idéal : le matin au réveil, après être passé aux toilettes, avant de manger et de boire.</li>
+            <li>Toujours la <b>même balance</b>, posée au même endroit, sur un sol dur (pas sur un tapis).</li>
+            <li>Toujours la <b>même tenue</b>, le moins de vêtements possible.</li>
+          </ul>
+          <p class="why">Le poids peut varier de 1 à 2 kg dans une même journée selon
+          l'eau, les repas et le transit. Ces variations n'ont rien à voir avec la
+          graisse ou le muscle. En mesurant toujours pareil, on les neutralise.</p>
+        </details>
+
+        <details class="howto">
+          <summary>Comment bien te mesurer au mètre ruban</summary>
+          <ul>
+            <li>Même jour, même heure — avant de manger et <b>avant</b> l'entraînement (après, les muscles sont congestionnés).</li>
+            <li><b>Tour de taille</b> : au niveau du nombril, debout, ventre <b>neutre</b>. Ne rentre pas le ventre, ne le gonfle pas non plus. Respire normalement et mesure en fin d'expiration.</li>
+            <li><b>Bras et cuisses</b> : toujours le <b>même côté</b> et toujours au même endroit (repère-toi à une distance fixe, par exemple à mi-chemin entre l'épaule et le coude).</li>
+            <li>Toujours la <b>même pression</b> sur le ruban : posé à plat contre la peau, ni serré au point de marquer, ni lâche au point de pendre.</li>
+            <li>Le ruban doit être <b>parallèle au sol</b>, pas en biais.</li>
+          </ul>
+          <p class="why">Les mensurations bougent souvent avant le poids : on peut
+          perdre du tour de taille sans que la balance bouge. C'est bon signe, pas un
+          échec.</p>
+        </details>
 
         <label>Photos (optionnel)</label>
         <div class="photo-slots" id="photoSlots"></div>
-        <p class="photo-note">Tes photos sont envoyées à ton coach et ne sont visibles que par lui. Elles ne s'afficheront pas ici, même pour toi.</p>
+
+        <details class="howto">
+          <summary>Comment prendre tes photos</summary>
+          <ul>
+            <li>Même jour, même heure que ta pesée.</li>
+            <li><b>Même lumière</b> : même pièce, même éclairage. Évite la lumière du jour, qui change tout le temps.</li>
+            <li><b>Même angle et même distance</b> : pose le téléphone au même endroit, à la même hauteur. Un repère au sol (un scotch, un carreau) aide beaucoup.</li>
+            <li><b>Même tenue</b>, d'une fois sur l'autre : si c'est en sous-vêtements, reste en sous-vêtements ; si c'est en brassière, garde la même.</li>
+            <li>Trois vues : <b>face, profil, dos</b>. Debout, détendu, bras le long du corps — pas de pose, pas de contraction.</li>
+          </ul>
+          <p class="why">Une photo prise sous un autre angle ou dans une autre lumière
+          peut donner l'impression d'une différence qui n'existe pas — dans un sens
+          comme dans l'autre. C'est pour ça qu'on fige les conditions.</p>
+        </details>
+
+        <p class="photo-note">Tes photos sont envoyées à ton coach et ne sont visibles
+        que par lui. Elles ne s'afficheront pas ici, même pour toi.</p>
 
         <button class="btn btn-blue btn-full" id="saveMesureBtn" type="button">Enregistrer ma mesure</button>
         <div class="error-msg" id="mesureError"></div>

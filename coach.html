@@ -186,7 +186,10 @@
 
   /* --- galerie photos --- */
   .photo-group{margin-bottom:16px;}
-  .photo-group h3{font-size:0.8rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;font-weight:700;}
+  .photo-group h3{font-size:0.8rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.05em;
+    margin:0 0 8px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .photo-group h3 .rm-btn{font-size:0.95rem;padding:2px 6px;opacity:0.6;}
+  .photo-group h3 .rm-btn:hover{opacity:1;}
   .photo-row{display:flex;gap:8px;flex-wrap:wrap;}
   .photo-row figure{margin:0;flex:0 0 auto;width:104px;}
   .photo-row img{width:104px;height:139px;object-fit:cover;border-radius:9px;border:1px solid var(--steel-line);
@@ -330,10 +333,34 @@
 
         <div class="card">
           <div class="card-head">
+            <h2>Saisir ou corriger une mesure</h2>
+          </div>
+          <p class="sub" style="margin:0 0 12px;">Le client saisit lui-même depuis son lien. Ici tu peux corriger une valeur douteuse, ajouter une mesure prise pendant un bilan, ou supprimer une entrée.</p>
+          <div class="row">
+            <div class="field" style="flex:0 0 auto;min-width:180px;">
+              <label>Mesure</label>
+              <select id="mesureSelect"></select>
+            </div>
+            <div class="field" style="flex:0 0 auto;min-width:150px;">
+              <label>Date</label>
+              <input type="date" id="mesureDate">
+            </div>
+          </div>
+          <div class="ex-grid" id="mesureFields" style="margin-bottom:14px;"></div>
+          <div class="row">
+            <button class="btn btn-blue btn-sm" id="saveMesureBtn" type="button">Enregistrer</button>
+            <button class="btn btn-danger btn-sm" id="deleteMesureBtn" type="button" style="display:none;">Supprimer cette mesure</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
             <h2>Photos de suivi</h2>
             <button class="btn btn-ghost btn-sm" id="reloadPhotosBtn" type="button">Actualiser</button>
           </div>
           <div id="photosWrap"><p class="sub" style="margin:0;">Chargement...</p></div>
+          <button class="btn btn-ghost btn-sm" id="morePhotosBtn" type="button" style="display:none;margin-top:6px;">Charger les sessions plus anciennes</button>
+          <p class="viz-note" id="photosNote"></p>
         </div>
       </div>
 
@@ -1242,7 +1269,80 @@ async function loadResultats(force){
   }
   renderPoids();
   renderMensurations();
+  construireEditeurMesures();
+  photosAffichees = 0;
   loadPhotos();
+}
+
+/* --------------------------------- Saisie / correction d'une mesure */
+function construireEditeurMesures(){
+  if(!$('#mesureFields').dataset.pret){
+    $('#mesureFields').dataset.pret = '1';
+    $('#mesureFields').innerHTML = MESURES.map(m=>`
+      <div class="field"><label>${escapeHtml(m.l)} (${m.u})</label>
+        <input type="number" id="cm-${m.k}" step="${m.pas}" min="${m.min}" max="${m.max}" placeholder="—"></div>`).join('');
+    $('#mesureSelect').addEventListener('change', chargerMesureSelectionnee);
+  }
+  const entries = entreesTriees();
+  $('#mesureSelect').innerHTML = '<option value="">+ Nouvelle mesure</option>'
+    + entries.slice().reverse().map(e => `<option value="${escapeHtml(e.date)}">${escapeHtml(fmtDate(e.date))}</option>`).join('');
+  $('#mesureSelect').value = '';
+  chargerMesureSelectionnee();
+}
+
+function chargerMesureSelectionnee(){
+  const date = $('#mesureSelect').value;
+  const e = date ? entreesTriees().find(x => x.date === date) : null;
+  $('#mesureDate').value = e ? e.date : todayISO();
+  MESURES.forEach(m => { $('#cm-' + m.k).value = (e && typeof e[m.k] === 'number') ? e[m.k] : ''; });
+  $('#deleteMesureBtn').style.display = e ? 'inline-block' : 'none';
+}
+
+$('#saveMesureBtn').addEventListener('click', async ()=>{
+  const date = $('#mesureDate').value;
+  if(!date){ showToast('Choisis une date.', true); return; }
+  const entree = { date };
+  let une = false;
+  for(const m of MESURES){
+    const brut = $('#cm-' + m.k).value.trim();
+    if(brut === '') continue;
+    const v = parseFloat(brut);
+    if(isNaN(v) || v < m.min || v > m.max){
+      showToast(`${m.l} : valeur hors bornes (${m.min}–${m.max} ${m.u}).`, true);
+      return;
+    }
+    entree[m.k] = v; une = true;
+  }
+  if(!une){ showToast('Renseigne au moins une valeur.', true); return; }
+  // Une mesure par date : réenregistrer la même date corrige au lieu de dupliquer.
+  const entries = entreesTriees().filter(e => e.date !== date);
+  entries.push(entree);
+  entries.sort((a,b)=> a.date.localeCompare(b.date));
+  await ecrireMesures(entries, 'Mesure enregistrée ✓');
+});
+
+$('#deleteMesureBtn').addEventListener('click', async ()=>{
+  const date = $('#mesureSelect').value;
+  if(!date) return;
+  if(!confirm(`Supprimer la mesure du ${fmtDate(date)} ? Les photos de cette date, elles, ne sont pas touchées.`)) return;
+  await ecrireMesures(entreesTriees().filter(e => e.date !== date), 'Mesure supprimée');
+});
+
+async function ecrireMesures(entries, msg){
+  spinner(true);
+  try{
+    const maj = { clientId: currentClient.id, entries };
+    if(currentMeasures && currentMeasures.photoDates) maj.photoDates = currentMeasures.photoDates;
+    await setDoc(doc(db, 'measures', currentClient.id), maj);
+    currentMeasures = maj;
+    renderPoids();
+    renderMensurations();
+    construireEditeurMesures();
+    showToast(msg);
+  } catch(err){
+    console.error('[ARD] Écriture des mesures refusée (code:', err && err.code, ')', err);
+    showToast("Enregistrement refusé — les règles Firestore sont-elles publiées ?", true);
+  } finally { spinner(false); }
 }
 
 function entreesTriees(){
@@ -1304,42 +1404,117 @@ function renderMensurations(){
 /* ---------------------------------------------------------- Photos */
 // Les photos sont refusées en lecture au client (règles Firestore) : seul le compte
 // coach peut les lister. Le lien client, lui, est public dès qu'il est transféré.
-$('#reloadPhotosBtn').addEventListener('click', ()=> loadPhotos(true));
+$('#reloadPhotosBtn').addEventListener('click', ()=>{ photosAffichees = 0; resultatsCharges = false; loadResultats(true); });
+$('#morePhotosBtn').addEventListener('click', ()=> loadPhotos(true));
 
-async function loadPhotos(){
+// Les photos pèsent ~150 Ko pièce : tout charger d'un coup ferait plusieurs Mo dès
+// une vingtaine de sessions. On lit donc les dates depuis `measures.photoDates`
+// (index léger) et on ne récupère que les documents affichés, par paquets de 6.
+const PHOTOS_PAR_LOT = 6;
+let photosAffichees = 0;
+let photosDocs = [];
+
+async function loadPhotos(suite){
   const wrap = $('#photosWrap');
-  wrap.innerHTML = '<p class="sub" style="margin:0;">Chargement...</p>';
-  let docs = [];
+  if(!suite){ photosDocs = []; photosAffichees = 0; wrap.innerHTML = '<p class="sub" style="margin:0;">Chargement...</p>'; }
+
+  let dates = (currentMeasures && Array.isArray(currentMeasures.photoDates))
+    ? currentMeasures.photoDates.slice().sort().reverse()
+    : null;
+
+  // Repli : anciennes données sans index, ou photos créées hors du parcours normal.
+  if(!dates){
+    try{
+      const snap = await getDocs(query(collection(db, 'photos'), where('clientId', '==', currentClient.id)));
+      const tous = [];
+      snap.forEach(d => tous.push({ id:d.id, ...d.data() }));
+      tous.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+      photosDocs = tous;
+      photosAffichees = tous.length;
+      renderPhotos(0);
+      return;
+    } catch(e){
+      console.error('[ARD] Lecture des photos refusée (code:', e && e.code, ')', e);
+      wrap.innerHTML = `<p class="sub" style="margin:0;">Impossible de charger les photos. Si le code est <code>permission-denied</code>, les règles de <code>site/firestore.rules</code> ne sont pas encore publiées.</p>`;
+      return;
+    }
+  }
+
+  const lot = dates.slice(photosAffichees, photosAffichees + PHOTOS_PAR_LOT);
+  if(lot.length === 0 && photosAffichees === 0){
+    wrap.innerHTML = '<p class="sub" style="margin:0;">Aucune photo. Ton client les envoie depuis son lien, onglet « Mes résultats ».</p>';
+    $('#morePhotosBtn').style.display = 'none';
+    $('#photosNote').textContent = '';
+    return;
+  }
   try{
-    const q = query(collection(db, 'photos'), where('clientId', '==', currentClient.id));
-    const snap = await getDocs(q);
-    snap.forEach(d => docs.push({ id:d.id, ...d.data() }));
+    const snaps = await Promise.all(lot.map(d =>
+      getDoc(doc(db, 'photos', `${currentClient.id}_${d}`)).catch(()=>null)
+    ));
+    snaps.forEach(sn => { if(sn && sn.exists()) photosDocs.push({ id:sn.id, ...sn.data() }); });
   } catch(e){
     console.error('[ARD] Lecture des photos refusée (code:', e && e.code, ')', e);
-    wrap.innerHTML = `<p class="sub" style="margin:0;">Impossible de charger les photos. Si le code est <code>permission-denied</code>, la règle <code>photos</code> n'est pas encore publiée (voir le doc projet, §1).</p>`;
-    return;
   }
-  if(docs.length === 0){
-    wrap.innerHTML = '<p class="sub" style="margin:0;">Aucune photo. Ton client les envoie depuis son lien, onglet « Mes résultats ».</p>';
-    return;
-  }
-  docs.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-  wrap.innerHTML = docs.map(d=>`
-    <div class="photo-group">
-      <h3>${escapeHtml(fmtDate(d.date))}</h3>
-      <div class="photo-row">
-        ${(d.items||[]).map(it=>`<figure>
-          <img src="${escapeHtml(it.dataUrl||'')}" alt="${escapeHtml(it.label||'photo')} du ${escapeHtml(d.date||'')}" loading="lazy">
-          <figcaption>${escapeHtml(it.label||'')}</figcaption>
-        </figure>`).join('')}
-      </div>
-    </div>`).join('');
-  $$('#photosWrap img').forEach(img=>{
-    img.addEventListener('click', ()=>{
-      $('#lightboxImg').src = img.src;
-      $('#lightbox').classList.add('show');
+  photosAffichees += lot.length;
+  renderPhotos(dates.length);
+}
+
+function renderPhotos(total){
+  const wrap = $('#photosWrap');
+  if(photosDocs.length === 0){
+    wrap.innerHTML = '<p class="sub" style="margin:0;">Aucune photo.</p>';
+  } else {
+    wrap.innerHTML = photosDocs.map(d=>`
+      <div class="photo-group">
+        <h3>${escapeHtml(fmtDate(d.date))}
+          <button type="button" class="rm-btn" data-delphoto="${escapeHtml(d.date||'')}" title="Supprimer cette session">✕</button>
+        </h3>
+        <div class="photo-row">
+          ${(d.items||[]).map(it=>`<figure>
+            <img src="${escapeHtml(it.dataUrl||'')}" alt="${escapeHtml(it.label||'photo')} du ${escapeHtml(d.date||'')}" loading="lazy">
+            <figcaption>${escapeHtml(it.label||'')}</figcaption>
+          </figure>`).join('')}
+        </div>
+      </div>`).join('');
+    $$('#photosWrap img').forEach(img=>{
+      img.addEventListener('click', ()=>{
+        $('#lightboxImg').src = img.src;
+        $('#lightbox').classList.add('show');
+      });
     });
-  });
+    $$('[data-delphoto]').forEach(b => b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      supprimerSessionPhoto(b.dataset.delphoto);
+    }));
+  }
+  const reste = Math.max(0, (total || 0) - photosAffichees);
+  $('#morePhotosBtn').style.display = reste > 0 ? 'inline-block' : 'none';
+  $('#morePhotosBtn').textContent = `Charger les ${Math.min(reste, PHOTOS_PAR_LOT)} sessions plus anciennes (${reste} restantes)`;
+  const poids = photosDocs.reduce((n,d)=> n + (d.items||[]).reduce((k,i)=> k + (i.dataUrl||'').length, 0), 0);
+  $('#photosNote').textContent = photosDocs.length
+    ? `${photosDocs.length} session(s) chargée(s)${total ? ` sur ${total}` : ''} · ${Math.round(poids/1024)} Ko téléchargés.`
+    : '';
+}
+
+async function supprimerSessionPhoto(date){
+  if(!confirm(`Supprimer définitivement les photos du ${fmtDate(date)} ?\n\nElles ne sont stockées nulle part ailleurs : c'est irréversible.`)) return;
+  spinner(true);
+  try{
+    await deleteDoc(doc(db, 'photos', `${currentClient.id}_${date}`));
+    if(currentMeasures && Array.isArray(currentMeasures.photoDates)){
+      const restant = currentMeasures.photoDates.filter(d => d !== date);
+      await setDoc(doc(db, 'measures', currentClient.id),
+                   { ...currentMeasures, photoDates: restant }, { merge:true });
+      currentMeasures.photoDates = restant;
+    }
+    photosDocs = photosDocs.filter(d => d.date !== date);
+    photosAffichees = Math.max(0, photosAffichees - 1);
+    renderPhotos((currentMeasures.photoDates || []).length);
+    showToast('Photos supprimées');
+  } catch(e){
+    console.error('[ARD] Suppression des photos refusée (code:', e && e.code, ')', e);
+    showToast('Suppression refusée — voir la console.', true);
+  } finally { spinner(false); }
 }
 $('#lightboxClose').addEventListener('click', ()=> $('#lightbox').classList.remove('show'));
 $('#lightbox').addEventListener('click', (e)=>{ if(e.target.id === 'lightbox') $('#lightbox').classList.remove('show'); });
