@@ -184,6 +184,17 @@
   .mini-card .mv small{font-size:0.8rem;color:var(--fog);margin-left:2px;}
   .mini-card .md{font-size:0.72rem;font-variant-numeric:tabular-nums;}
 
+  /* --- bilan de cycle --- */
+  .bilan-fait{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--steel-line);}
+  .bilan-fait:last-of-type{border-bottom:none;}
+  .bilan-puce{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-top:7px;
+    box-shadow:0 0 0 3px var(--blue-dim);}
+  .bilan-fait .t{flex:1;font-size:0.88rem;line-height:1.5;color:var(--fog);}
+  .bilan-fait .t b{color:var(--paper);font-weight:700;font-size:0.98rem;display:block;margin-bottom:2px;}
+  .bilan-final{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.4);border-radius:10px;
+    padding:12px 14px;margin-top:14px;font-size:0.9rem;line-height:1.5;color:var(--blue-soft);}
+  .bilan-meta{font-size:0.76rem;color:var(--fog);margin:0 0 10px;}
+
   /* --- galerie photos --- */
   .photo-group{margin-bottom:16px;}
   .photo-group h3{font-size:0.8rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.05em;
@@ -317,6 +328,15 @@
 
       <!-- ========================= RÉSULTATS ========================= -->
       <div id="paneResultats" style="display:none;">
+        <div class="card" id="bilanCard" style="display:none;">
+          <div class="card-head">
+            <h2>Bilan du cycle</h2>
+            <button class="btn btn-ghost btn-sm" id="copyBilanBtn" type="button">Copier pour WhatsApp</button>
+          </div>
+          <div id="bilanWrap"></div>
+          <p class="viz-note">C'est exactement ce que ton client voit dans son onglet « Mes résultats ». Seuls les chiffres qui vont dans le bon sens y figurent — ce qui ne va pas se dit de vive voix, pas dans un encart.</p>
+        </div>
+
         <div class="card">
           <div class="card-head">
             <h2>Poids</h2>
@@ -386,6 +406,20 @@
             <div class="field"><label>Téléphone</label><input type="tel" id="editClientPhone" placeholder="06 12 34 56 78"></div>
           </div>
           <div class="row">
+            <div class="field">
+              <label>Objectif</label>
+              <select id="editClientObjectif"></select>
+            </div>
+            <div class="field">
+              <label>Début du cycle en cours</label>
+              <input type="date" id="editClientCycle">
+            </div>
+          </div>
+          <p class="sub" style="margin:0 0 12px;font-size:0.8rem;">L'objectif décide de ce que le bilan met en avant : on ne félicite pas quelqu'un d'avoir pris 2 kg s'il vient pour en perdre. Le cycle sert de période de référence (4 semaines).</p>
+          <div class="row" style="margin-bottom:12px;">
+            <button class="btn btn-ghost btn-sm" id="newCycleBtn" type="button">Démarrer un nouveau cycle aujourd'hui</button>
+          </div>
+          <div class="row">
             <button class="btn btn-ghost btn-sm" id="saveClientBtn" type="button">Enregistrer la fiche</button>
             <button class="btn btn-danger btn-sm" id="deleteClientBtn" type="button">Supprimer ce client</button>
           </div>
@@ -422,6 +456,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { EXERCICES } from "./exercices.js";
 import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
+import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -683,14 +718,33 @@ async function loadInactivity(){
     <h2>À relancer (${alertes.length})</h2>
     ${alertes.map(a=>`<div class="alert-row" data-cid="${escapeHtml(a.client.id)}">
       <span><b>${escapeHtml(a.client.name)}</b></span>
-      <span class="days">${a.jours !== null ? `${a.jours} jours sans séance`
-        : (a.borne ? `plus de ${a.borne} jours sans séance` : 'jamais de séance')}</span>
+      <span style="display:flex;align-items:center;gap:10px;">
+        <span class="days">${a.jours !== null ? `${a.jours} jours sans séance`
+          : (a.borne ? `plus de ${a.borne} jours sans séance` : 'jamais de séance')}</span>
+        ${a.client.phone ? `<button class="btn btn-ghost btn-sm" data-relance="${escapeHtml(a.client.id)}" type="button">Relancer</button>` : ''}
+      </span>
     </div>`).join('')}
   </div>`;
   $$('.alert-row', wrap).forEach(row=>{
     row.addEventListener('click', ()=>{
       const c = allClients.find(x => x.id === row.dataset.cid);
       if(c) openClient(c);
+    });
+  });
+  // Faute de notifications push (voir le doc, §7), la relance passe par WhatsApp
+  // en un tap, avec un message déjà écrit qu'il reste à personnaliser.
+  $$('[data-relance]', wrap).forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const c = allClients.find(x => x.id === b.dataset.relance);
+      if(!c) return;
+      const tel = (c.phone || '').replace(/[\s.\-()]/g, '');
+      const num = tel.startsWith('0') ? '33' + tel.slice(1) : tel.replace(/^\+/, '');
+      const prenom = (c.name || '').split(' ')[0];
+      const msg = encodeURIComponent(
+        `Salut ${prenom} ! Je n'ai pas vu passer de séance depuis quelques jours, tout va bien ? `
+        + `Dis-moi si tu veux qu'on ajuste le programme, on peut le rendre plus court cette semaine.`);
+      window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
     });
   });
 }
@@ -1016,6 +1070,12 @@ async function openClient(client){
   $('#clientTitle').textContent = client.name;
   $('#editClientName').value = client.name || '';
   $('#editClientPhone').value = client.phone || '';
+  if(!$('#editClientObjectif').options.length){
+    $('#editClientObjectif').innerHTML = OBJECTIFS.map(o =>
+      `<option value="${o.k}">${escapeHtml(o.l)}</option>`).join('');
+  }
+  $('#editClientObjectif').value = client.objectif || 'forme';
+  $('#editClientCycle').value = client.cycleStart || debutCycleParDefaut(client);
   window.scrollTo(0,0);
 
   spinner(true);
@@ -1264,16 +1324,18 @@ $('#copyLinkBtn').addEventListener('click', async ()=>{
 $('#saveClientBtn').addEventListener('click', async ()=>{
   const name = $('#editClientName').value.trim();
   const phone = $('#editClientPhone').value.trim();
+  const objectif = $('#editClientObjectif').value;
+  const cycleStart = $('#editClientCycle').value || debutCycleParDefaut();
   if(!name){ showToast("Le nom ne peut pas être vide.", true); return; }
   spinner(true);
   try{
-    await updateDoc(doc(db, 'clients', currentClient.id), { name, phone });
-    currentClient.name = name;
-    currentClient.phone = phone;
+    await updateDoc(doc(db, 'clients', currentClient.id), { name, phone, objectif, cycleStart });
+    Object.assign(currentClient, { name, phone, objectif, cycleStart });
     const inList = allClients.find(c => c.id === currentClient.id);
-    if(inList){ inList.name = name; inList.phone = phone; }
+    if(inList) Object.assign(inList, { name, phone, objectif, cycleStart });
     $('#clientTitle').textContent = name;
     showFixedLink();
+    if(currentMeasures) renderBilan();
     showToast('Fiche enregistrée ✓');
   } catch(err){
     console.error('[ARD] Mise à jour du client refusée (code:', err && err.code, ')', err);
@@ -1322,6 +1384,7 @@ async function loadResultats(force){
   }
   renderPoids();
   renderMensurations();
+  renderBilan();
   construireEditeurMesures();
   photosAffichees = 0;
   loadPhotos();
@@ -1453,6 +1516,51 @@ function renderMensurations(){
   }).join('');
   cartes.forEach((c,i)=> mini($('#mini-'+i), c.pts, VIZ_COLORS.ligne));
 }
+
+/* ------------------------------------------------------ Bilan de cycle */
+function debutCycleParDefaut(){
+  const d = new Date(); d.setDate(d.getDate() - 27);
+  return isoLocal(d);
+}
+function debutCycle(){
+  return (currentClient && currentClient.cycleStart) || debutCycleParDefaut();
+}
+
+function renderBilan(){
+  const b = bilanCycle({
+    sessions: currentSessions,
+    entries: entreesTriees(),
+    debut: debutCycle(),
+    fin: todayISO(),
+    objectif: (currentClient && currentClient.objectif) || 'forme',
+    prenom: ((currentClient && currentClient.name) || '').split(' ')[0]
+  });
+  const carte = $('#bilanCard');
+  if(!b){
+    carte.style.display = 'none';
+    return;
+  }
+  carte.style.display = 'block';
+  carte.dataset.texte = bilanTexte(b, ((currentClient.name || '').split(' ')[0]));
+  $('#bilanWrap').innerHTML =
+    `<p class="bilan-meta">Du ${escapeHtml(fmtDate(b.debut))} à aujourd'hui · ${b.seances} séances`
+    + `${b.joursRestants > 0 ? ` · ${b.joursRestants} jour(s) avant la fin du cycle` : ' · cycle terminé'}</p>`
+    + b.faits.map(f => `<div class="bilan-fait"><span class="bilan-puce"></span>`
+        + `<span class="t"><b>${escapeHtml(f.fort)}</b>${escapeHtml(f.texte)}</span></div>`).join('')
+    + `<div class="bilan-final">${escapeHtml(b.phraseFinale)}</div>`;
+}
+
+$('#copyBilanBtn').addEventListener('click', async ()=>{
+  const t = $('#bilanCard').dataset.texte || '';
+  try{ await navigator.clipboard.writeText(t); showToast('Bilan copié ✓'); }
+  catch(e){ showToast('Copie impossible — sélectionne le texte à la main.', true); }
+});
+
+$('#newCycleBtn').addEventListener('click', ()=>{
+  if(!confirm("Démarrer un nouveau cycle aujourd'hui ? Le bilan repartira de zéro.")) return;
+  $('#editClientCycle').value = todayISO();
+  showToast("Date mise à jour — pense à enregistrer la fiche");
+});
 
 /* ---------------------------------------------------------- Photos */
 // Les photos sont refusées en lecture au client (règles Firestore) : seul le compte
@@ -1595,6 +1703,7 @@ async function loadHistory(){
   sessions.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
   currentSessions = sessions;
   construirePerfIndex(sessions);
+  if(currentMeasures) renderBilan();
   injecterDernieresPerfs();
   remplirSelectExercices();
   renderProgression();

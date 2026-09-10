@@ -203,6 +203,27 @@
   .howto p.why{font-size:0.78rem;color:var(--fog);line-height:1.5;margin:0 0 12px;
     padding-left:10px;border-left:2px solid var(--steel-line);}
 
+  /* --- bilan de cycle --- */
+  .bilan-card{background:linear-gradient(160deg,#16233A,var(--steel) 60%);
+    border:1px solid rgba(62,142,255,0.45);border-radius:16px;padding:20px 18px;margin-bottom:18px;}
+  .bilan-card h2{font-family:'Bebas Neue',sans-serif;font-size:1.45rem;margin:0 0 3px;letter-spacing:0.01em;}
+  .bilan-meta{font-size:0.76rem;color:var(--fog);margin:0 0 14px;}
+  .bilan-fait{display:flex;gap:11px;align-items:flex-start;padding:11px 0;
+    border-bottom:1px solid rgba(255,255,255,0.07);}
+  .bilan-fait:last-of-type{border-bottom:none;}
+  .bilan-puce{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--blue);
+    margin-top:7px;box-shadow:0 0 0 3px rgba(62,142,255,0.25);}
+  .bilan-fait .t{flex:1;font-size:0.88rem;line-height:1.5;color:var(--fog);}
+  .bilan-fait .t b{color:var(--paper);font-weight:700;font-size:1.05rem;display:block;margin-bottom:2px;}
+  .bilan-final{border-top:1px solid rgba(62,142,255,0.3);margin-top:14px;padding-top:13px;
+    font-size:0.92rem;line-height:1.5;color:var(--blue-soft);font-weight:500;}
+
+  .bilan-teaser{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.45);border-radius:12px;
+    padding:13px 15px;margin-bottom:16px;font-size:0.88rem;color:var(--blue-soft);line-height:1.5;
+    cursor:pointer;display:flex;align-items:center;gap:11px;}
+  .bilan-teaser b{color:#fff;}
+  .bilan-teaser .fl{flex:0 0 auto;font-size:1.3rem;}
+
   .optionnel{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.35);border-radius:10px;
     padding:11px 13px;margin-bottom:16px;font-size:0.82rem;color:var(--blue-soft);line-height:1.5;}
   .optionnel b{color:#fff;}
@@ -244,6 +265,7 @@
     </div>
 
     <div id="paneSeance">
+    <div class="bilan-teaser" id="bilanTeaser" style="display:none;"></div>
     <div class="cheer" id="cheer" style="display:none;"></div>
 
     <div class="week-strip" id="weekStrip"></div>
@@ -260,6 +282,8 @@
     </div>
 
     <div id="paneResultats" style="display:none;">
+      <div class="bilan-card" id="bilanCard" style="display:none;"></div>
+
       <div class="card">
         <h2>Ta courbe de poids</h2>
         <div id="poidsChart" class="viz-holder"></div>
@@ -365,6 +389,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
+import { bilanCycle } from "./bilan.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -443,6 +468,8 @@ let program = {};
 let clientName = '';
 let selectedDay = todayKey();
 let renderToken = 0;
+let clientObjectif = 'forme';
+let clientCycle = null;
 let lastTimeMap = new Map();   // nom d'exercice -> {date, r} de la dernière séance
 
 /* ---------------------------------------------------------------- Chrono */
@@ -512,13 +539,17 @@ async function boot(){
       console.error('[ARD] Aucun client avec cet ID :', clientId);
       show('#notFoundState'); return;
     }
-    clientName = clientSnap.data().name || '';
+    const cd = clientSnap.data();
+    clientName = cd.name || '';
+    clientObjectif = cd.objectif || 'forme';
+    clientCycle = cd.cycleStart || null;
     program = progSnap.exists() ? progSnap.data() : {};
     $('#greeting').textContent = clientName ? `SALUT ${clientName.split(' ')[0].toUpperCase()}` : 'TA SEMAINE';
     renderWeekStrip();
     renderDay(selectedDay);
     show('#mainView');
     maybeShowA2HS();
+    majTeaserBilan();
     loadWeekStatuses();
   } catch(e){
     // Ne jamais avaler l'erreur en silence : une règle Firestore refusée et un ID
@@ -1014,6 +1045,73 @@ function majEncouragement(){
   $('#cheer').style.display = 'block';
 }
 
+/* ------------------------------------------------------ Bilan de cycle */
+// Le coach fixe la date de départ du cycle sur la fiche client. Sans elle, on
+// prend les 28 derniers jours glissants — le bilan reste juste, il n'est
+// simplement pas calé sur le cycle réel.
+function debutCycle(){
+  if(clientCycle) return clientCycle;
+  const d = addDays(startOfToday(), -27);
+  return isoLocal(d);
+}
+function joursRestantsCycle(){
+  // Même base de calcul que `bilanCycle()` (différence de dates à midi), sinon
+  // l'accroche annonçait un jour de plus que la carte à cause de l'arrondi.
+  const ecoules = Math.round(
+    (new Date(TODAY_ISO + 'T12:00:00') - new Date(debutCycle() + 'T12:00:00')) / 86400000);
+  return 28 - ecoules;
+}
+
+// Accroche sur l'onglet séance quand le cycle touche à sa fin. Uniquement des
+// dates : aucune lecture Firestore, donc aucun ralentissement au chargement.
+function majTeaserBilan(){
+  const r = joursRestantsCycle();
+  const el = $('#bilanTeaser');
+  if(r < 0 || r > 7){ el.style.display = 'none'; return; }
+  el.innerHTML = `<span class="fl">🏁</span><span>`
+    + (r === 0 ? `<b>Dernier jour de ton cycle.</b>` : `<b>Plus que ${r} jour${r > 1 ? 's' : ''}</b> sur ce cycle de 4 semaines.`)
+    + ` Va voir tout ce que tu as accompli dans « Mes résultats ».</span>`;
+  el.style.display = 'flex';
+  el.onclick = ()=> $$('.maintab').find(t => t.dataset.pane === 'resultats').click();
+}
+
+// Les séances du cycle, lues par ID déterministe (le client ne peut pas lister).
+// Chargées à l'ouverture de l'onglet Résultats seulement.
+let seancesCycle = null;
+async function chargerSeancesCycle(){
+  if(seancesCycle) return seancesCycle;
+  const debut = new Date(debutCycle() + 'T12:00:00');
+  const n = Math.min(35, Math.max(1, Math.round((startOfToday() - debut) / 86400000) + 1));
+  const dates = Array.from({length:n}, (_,i)=> isoLocal(addDays(debut, i)));
+  const snaps = await Promise.all(dates.map(d =>
+    getDoc(doc(db, 'sessions', `${clientId}_${d}`)).catch(()=>null)
+  ));
+  seancesCycle = [];
+  snaps.forEach(sn => { if(sn && sn.exists()) seancesCycle.push(sn.data()); });
+  return seancesCycle;
+}
+
+async function renderBilanClient(){
+  const carte = $('#bilanCard');
+  const seances = await chargerSeancesCycle();
+  const b = bilanCycle({
+    sessions: seances,
+    entries: (mesures && mesures.entries) || [],
+    debut: debutCycle(),
+    fin: TODAY_ISO,
+    objectif: clientObjectif,
+    prenom: (clientName || '').split(' ')[0]
+  });
+  if(!b){ carte.style.display = 'none'; return; }
+  carte.style.display = 'block';
+  carte.innerHTML = `<h2>${escapeHtml(b.titre.toUpperCase())}</h2>`
+    + `<p class="bilan-meta">Depuis le ${escapeHtml(b.debut.split('-').reverse().slice(0,2).join('/'))}`
+    + ` · ${b.seances} séances${b.joursRestants > 0 ? ` · ${b.joursRestants} jour(s) restants` : ''}</p>`
+    + b.faits.map(f => `<div class="bilan-fait"><span class="bilan-puce"></span>`
+        + `<span class="t"><b>${escapeHtml(f.fort)}</b>${escapeHtml(f.texte)}</span></div>`).join('')
+    + `<div class="bilan-final">${escapeHtml(b.phraseFinale)}</div>`;
+}
+
 /* ---------------------------------------------------- Mes résultats */
 let mesures = null;          // document measures/{clientId}
 let resultatsCharges = false;
@@ -1022,7 +1120,7 @@ const PHOTO_LABELS = ['Face', 'Profil', 'Dos'];
 
 async function ouvrirResultats(){
   construireFormulaireMesures();
-  if(resultatsCharges) return;
+  if(resultatsCharges){ renderBilanClient(); return; }
   resultatsCharges = true;
   try{
     const snap = await getDoc(doc(db, 'measures', clientId));
@@ -1032,6 +1130,7 @@ async function ouvrirResultats(){
     mesures = { clientId, entries: [] };
   }
   renderPoidsClient();
+  renderBilanClient();
 }
 
 function renderPoidsClient(){
@@ -1171,6 +1270,7 @@ $('#saveMesureBtn').addEventListener('click', async ()=>{
     });
     MESURES.forEach(m => { $('#m-' + m.k).value = ''; });
     renderPoidsClient();
+    renderBilanClient();
     btn.textContent = 'Enregistré ✓';
     setTimeout(()=>{ btn.textContent = 'Enregistrer ma mesure'; btn.disabled = false; }, 1800);
   } catch(e){
