@@ -458,7 +458,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
-import { creerIcs, telechargerIcs, lienGoogleAgenda } from "./analyse.js";
+import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
+         parseSetCount, parseRestSeconds } from "./commun.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -508,25 +509,6 @@ function todayKey(){
   return found ? found[0] : 'lundi';
 }
 
-function parseRestSeconds(str){
-  if(!str) return null;
-  const s = String(str).trim().toLowerCase();
-  let m = s.match(/(\d+)\s*:\s*(\d+)/); if(m) return (+m[1])*60 + (+m[2]);
-  m = s.match(/(\d+(?:[.,]\d+)?)\s*min/); if(m) return Math.round(parseFloat(m[1].replace(',','.'))*60);
-  m = s.match(/(\d+)\s*s/); if(m) return +m[1];
-  m = s.match(/^(\d+)$/); if(m) return +m[1];
-  return null;
-}
-// Nombre de lignes de saisie à générer, d'après le champ "séries" du coach.
-// On prend le PREMIER nombre : "4" -> 4, "3-4" -> 3, "4x10" -> 4 séries (pas 10).
-// Borné à 12 pour qu'une faute de frappe ne génère pas 300 lignes ; le client
-// peut de toute façon ajouter une série à la volée.
-function parseSetCount(str){
-  if(!str) return 1;
-  const m = String(str).match(/\d+/);
-  if(!m) return 1;
-  return Math.min(12, Math.max(1, parseInt(m[0], 10)));
-}
 function fmtClock(sec){
   const s = Math.max(0, sec);
   return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
@@ -1158,15 +1140,6 @@ function majEncouragement(){
 // Rien ne s'affiche tant que le coach n'a pas proposé de créneau : pas de carte
 // vide, pas de « aucun rendez-vous prévu ». C'est volontaire.
 let rdv = null;
-
-function fmtJourLong(iso){
-  const d = new Date(iso + 'T12:00:00');
-  if(isNaN(d)) return iso;
-  const j = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()];
-  const m = ['janvier','février','mars','avril','mai','juin','juillet','août',
-             'septembre','octobre','novembre','décembre'][d.getMonth()];
-  return `${j} ${d.getDate()} ${m}`;
-}
 
 async function chargerRdv(){
   try{
