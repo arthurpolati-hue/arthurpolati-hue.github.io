@@ -111,6 +111,19 @@
   .add-set{background:none;border:none;color:var(--blue);font-size:0.8rem;font-weight:700;cursor:pointer;padding:0 0 8px;font-family:'Work Sans',sans-serif;}
 
   /* ---- Ressenti / réussite en boutons ---- */
+  .rpe-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;}
+  .rpe-btn{flex:1 1 44px;min-width:44px;padding:9px 4px;border-radius:9px;background:var(--ink);
+    border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.86rem;font-weight:700;
+    cursor:pointer;font-family:'Work Sans',sans-serif;text-align:center;}
+  .rpe-btn.on{background:var(--blue-dim);border-color:var(--blue);color:#CFE3FF;}
+  .rpe-btn.cible{border-style:dashed;border-color:rgba(62,142,255,0.55);}
+  .rpe-aide{font-size:0.72rem;color:var(--fog);line-height:1.45;margin:0 0 12px;}
+  .rpe-aide b{color:var(--paper);}
+  .rpe-aide summary{cursor:pointer;color:var(--blue);font-weight:700;list-style:none;}
+  .rpe-aide summary::-webkit-details-marker{display:none;}
+  .rpe-aide ul{margin:7px 0 0;padding-left:17px;}
+  .rpe-aide li{margin-bottom:3px;}
+
   .choice-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
   .choice{flex:1 1 auto;min-width:64px;padding:9px 10px;border-radius:9px;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.82rem;font-weight:600;cursor:pointer;font-family:'Work Sans',sans-serif;text-align:center;}
   .choice.on{background:var(--blue-dim);border-color:var(--blue);color:#CFE3FF;}
@@ -218,6 +231,26 @@
   .bilan-final{border-top:1px solid rgba(62,142,255,0.3);margin-top:14px;padding-top:13px;
     font-size:0.92rem;line-height:1.5;color:var(--blue-soft);font-weight:500;}
 
+  /* --- rendez-vous en présentiel --- */
+  .rdv-card{background:linear-gradient(160deg,#16233A,var(--steel) 65%);
+    border:1px solid rgba(62,142,255,0.5);border-radius:14px;padding:17px 16px;margin-bottom:16px;}
+  .rdv-card h3{font-family:'Bebas Neue',sans-serif;font-size:1.25rem;margin:0 0 4px;letter-spacing:0.01em;}
+  .rdv-card .sub2{font-size:0.82rem;color:var(--fog);line-height:1.45;margin:0 0 13px;}
+  .rdv-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+    background:var(--ink);border:1.5px solid var(--steel-line);border-radius:11px;padding:13px 14px;
+    margin-bottom:8px;cursor:pointer;font-family:'Work Sans',sans-serif;text-align:left;}
+  .rdv-opt:active{transform:scale(0.99);}
+  .rdv-opt .j{font-weight:700;font-size:0.95rem;color:var(--paper);text-transform:capitalize;}
+  .rdv-opt .h{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--blue);}
+  .rdv-conf .quand{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;line-height:1.1;
+    color:#fff;text-transform:capitalize;}
+  .rdv-conf .ou{font-size:0.84rem;color:var(--blue-soft);margin:3px 0 14px;}
+  .rdv-cal{width:100%;border:none;border-radius:12px;padding:14px;background:var(--blue);
+    color:#071527;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.03em;
+    cursor:pointer;margin-bottom:8px;}
+  .rdv-gcal{display:block;text-align:center;color:var(--blue);font-size:0.84rem;
+    font-weight:700;text-decoration:none;padding:4px;}
+
   .bilan-teaser{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.45);border-radius:12px;
     padding:13px 15px;margin-bottom:16px;font-size:0.88rem;color:var(--blue-soft);line-height:1.5;
     cursor:pointer;display:flex;align-items:center;gap:11px;}
@@ -285,6 +318,7 @@
     </div>
 
     <div id="paneSeance">
+    <div class="rdv-card" id="rdvCard" style="display:none;"></div>
     <div class="bilan-teaser" id="bilanTeaser" style="display:none;"></div>
     <div class="cheer" id="cheer" style="display:none;"></div>
 
@@ -424,6 +458,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
+import { creerIcs, telechargerIcs, lienGoogleAgenda } from "./analyse.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -589,6 +624,7 @@ async function boot(){
     show('#mainView');
     maybeShowA2HS();
     majTeaserBilan();
+    chargerRdv();
     loadWeekStatuses();
   } catch(e){
     // Ne jamais avaler l'erreur en silence : une règle Firestore refusée et un ID
@@ -684,7 +720,7 @@ async function renderDay(key){
       html += `<div class="objectif-box"><b>Échauffement :</b><br>${escapeHtml(dayData.echauffement).replace(/\n/g,'<br>')}</div>`;
     }
     dayData.exercises.forEach(ex=>{
-      html += `<div class="preview-ex"><div class="pname">${escapeHtml(ex.nom)}</div><div class="pmeta">${objectifLine(ex.series, ex.repetitions, ex.charge, ex.repos, '')}</div></div>`;
+      html += `<div class="preview-ex"><div class="pname">${escapeHtml(ex.nom)}</div><div class="pmeta">${objectifLine(ex.series, ex.repetitions, ex.charge, ex.repos, '', ex.rpe)}</div></div>`;
     });
     html += `</div><p class="sub">${past ? "Cette séance n'est plus modifiable." : "Cette séance sera à remplir le jour même."}</p>`;
     wrap.innerHTML = html;
@@ -721,8 +757,10 @@ async function renderDay(key){
     return {
       nom: pe.nom || '', seriesCible: pe.series || '', repCible: pe.repetitions || '',
       chargeCible: pe.charge || '', reposCible: pe.repos || '', notesCible: pe.notes || '',
+      rpeCible: pe.rpe || '',
       sets,
       reussi: prev ? prev.reussi||'' : '',
+      rpe: prev ? prev.rpe||'' : '',
       ressenti: prev ? prev.ressenti||'' : ''
     };
   });
@@ -816,6 +854,7 @@ async function renderDay(key){
         results: exercices.map(ex => ({
           nom: ex.nom, seriesCible: ex.seriesCible, repCible: ex.repCible,
           chargeCible: ex.chargeCible, reposCible: ex.reposCible,
+          rpeCible: ex.rpeCible, rpe: ex.rpe,
           sets: ex.sets.map(s => ({ reps: s.reps, charge: s.charge, done: !!s.done })),
           // Résumés lisibles, conservés pour l'affichage côté coach.
           reps: ex.sets.map(s=>s.reps||'—').join(' / '),
@@ -836,12 +875,13 @@ async function renderDay(key){
   });
 }
 
-function objectifLine(series, reps, charge, repos, notes){
+function objectifLine(series, reps, charge, repos, notes, rpe){
   const parts = [];
   if(series) parts.push(`${escapeHtml(series)} séries`);
   if(reps) parts.push(`${escapeHtml(reps)} répét.`);
   if(charge) parts.push(escapeHtml(charge));
   if(repos) parts.push(`repos ${escapeHtml(repos)}`);
+  if(rpe) parts.push(`RPE ${escapeHtml(String(rpe).replace('.', ','))}`);
   let line = parts.join(' · ') || 'Objectif libre';
   if(notes) line += `<br><span style="opacity:0.85;">${escapeHtml(notes)}</span>`;
   return line;
@@ -850,6 +890,8 @@ function objectifLine(series, reps, charge, repos, notes){
 function hasInput(ex){
   return ex.sets.some(s => (s.reps||'').trim() !== '' || (s.charge||'').trim() !== '' || s.done);
 }
+// Le RPE seul ne suffit pas à considérer un exercice comme fait : il est facultatif
+// et ne doit pas gonfler la barre de progression.
 
 function buildExerciseCard(ex, idx, exercices, draftKey){
   const card = document.createElement('div');
@@ -869,13 +911,31 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
       <span class="ex-num">${idx+1}</span>
       <span class="ex-title">${escapeHtml(ex.nom)}</span>
     </div>
-    <div class="objectif-box"><b>Objectif :</b> ${objectifLine(ex.seriesCible, ex.repCible, ex.chargeCible, ex.reposCible, ex.notesCible)}</div>
+    <div class="objectif-box"><b>Objectif :</b> ${objectifLine(ex.seriesCible, ex.repCible, ex.chargeCible, ex.reposCible, ex.notesCible, ex.rpeCible)}</div>
     <div class="lastime" data-lastime style="display:none;"></div>
     <div class="section-tag">Ce que tu as fait</div>
     <div class="set-head"><span></span><span>Répét.</span><span>Charge</span><span></span></div>
     <div class="sets">${setsHtml}</div>
     <button type="button" class="add-set" data-addset>+ une série de plus</button>
     <div class="set-hint">${restSec ? 'Coche ✓ à la fin de chaque série : le chrono de repos part tout seul.' : 'Coche ✓ à la fin de chaque série.'}</div>
+    <div class="section-tag">RPE — difficulté ressentie <span style="text-transform:none;letter-spacing:0;font-weight:400;">(facultatif)</span></div>
+    <div class="rpe-row" data-rpe>
+      ${['6','7','7.5','8','8.5','9','10'].map(v=>`<button type="button" class="rpe-btn${ex.rpe===v?' on':''}${ex.rpeCible===v?' cible':''}" data-v="${v}">${v.replace('.', ',')}</button>`).join('')}
+    </div>
+    <details class="rpe-aide">
+      <summary>C'est quoi le RPE ?</summary>
+      <div>C'est la difficulté de la série, sur une échelle de 6 à 10. On la juge par
+      le nombre de répétitions qu'on aurait <b>encore pu faire</b> à la fin :
+      <ul>
+        <li><b>6</b> — facile, il m'en restait 4 ou plus</li>
+        <li><b>7</b> — il m'en restait 3</li>
+        <li><b>8</b> — il m'en restait 2</li>
+        <li><b>9</b> — il m'en restait 1</li>
+        <li><b>10</b> — impossible d'en faire une de plus</li>
+      </ul>
+      ${ex.rpeCible ? `Arthur vise <b>RPE ${escapeHtml(String(ex.rpeCible).replace('.', ','))}</b> sur cet exercice (repère en pointillés).` : `Tu peux laisser vide, ça reste utile sans.`}
+      </div>
+    </details>
     <div class="section-tag">Objectif atteint ?</div>
     <div class="choice-row" data-group="reussi">
       ${['Oui','Partiel','Non'].map(v=>`<button type="button" class="choice${ex.reussi===v?' on':''}" data-v="${v}">${v}</button>`).join('')}
@@ -919,6 +979,15 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
       }
       if(now && restSec) startRest(restSec, ex.nom + ' — série ' + (i+1));
       else if(!now) stopRest();
+      sync();
+    });
+  });
+
+  const rpeGroup = $('[data-rpe]', card);
+  $$('.rpe-btn', rpeGroup).forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      ex.rpe = (ex.rpe === btn.dataset.v) ? '' : btn.dataset.v;   // re-tap = désélection
+      $$('.rpe-btn', rpeGroup).forEach(b => b.classList.toggle('on', b.dataset.v === ex.rpe));
       sync();
     });
   });
@@ -972,7 +1041,7 @@ function saveDraft(key, exercices, notes){
     try{
       localStorage.setItem(key, JSON.stringify({
         savedAt: Date.now(), notes,
-        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets, reussi:e.reussi, ressenti:e.ressenti }))
+        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets, reussi:e.reussi, rpe:e.rpe, ressenti:e.ressenti }))
       }));
     }catch(e){ /* quota plein / navigation privée : on continue sans brouillon */ }
   }, 400);
@@ -996,6 +1065,7 @@ function restoreDraft(key, exercices, setNotes){
       }
     });
     if(saved.reussi){ target.reussi = saved.reussi; touched = true; }
+    if(saved.rpe){ target.rpe = saved.rpe; touched = true; }
     if(saved.ressenti){ target.ressenti = saved.ressenti; touched = true; }
   });
   if(typeof d.notes === 'string' && d.notes.trim()){ setNotes(d.notes); touched = true; }
@@ -1082,6 +1152,90 @@ function majEncouragement(){
   }
   $('#cheer').innerHTML = msg;
   $('#cheer').style.display = 'block';
+}
+
+/* --------------------------------------- Séance en présentiel (RDV) */
+// Rien ne s'affiche tant que le coach n'a pas proposé de créneau : pas de carte
+// vide, pas de « aucun rendez-vous prévu ». C'est volontaire.
+let rdv = null;
+
+function fmtJourLong(iso){
+  const d = new Date(iso + 'T12:00:00');
+  if(isNaN(d)) return iso;
+  const j = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()];
+  const m = ['janvier','février','mars','avril','mai','juin','juillet','août',
+             'septembre','octobre','novembre','décembre'][d.getMonth()];
+  return `${j} ${d.getDate()} ${m}`;
+}
+
+async function chargerRdv(){
+  try{
+    const snap = await getDoc(doc(db, 'rdv', clientId));
+    rdv = snap.exists() ? snap.data() : null;
+  } catch(e){
+    console.error('[ARD] Lecture du rendez-vous impossible (code:', e && e.code, ')', e);
+    rdv = null;
+  }
+  renderRdv();
+}
+
+function renderRdv(){
+  const carte = $('#rdvCard');
+  if(!rdv){ carte.style.display = 'none'; return; }
+
+  // Un rendez-vous passé n'a plus à occuper le haut de l'écran.
+  const ref = (rdv.choisi && rdv.choisi.date) || (rdv.propositions || []).map(p=>p.date).sort().pop();
+  if(ref && ref < TODAY_ISO){ carte.style.display = 'none'; return; }
+
+  if(rdv.choisi){
+    const c = rdv.choisi;
+    const ev = { date:c.date, heure:c.heure, dureeMin:c.dureeMin,
+                 titre:'Séance avec Arthur', lieu:rdv.lieu || '',
+                 notes:'Séance de coaching en présentiel — ARD Coaching',
+                 uid:`${clientId}-${c.date}@ardcoaching` };
+    carte.style.display = 'block';
+    carte.className = 'rdv-card rdv-conf';
+    carte.innerHTML = `<h3>📍 SÉANCE AVEC ARTHUR</h3>
+      <div class="quand">${escapeHtml(fmtJourLong(c.date))} à ${escapeHtml(c.heure)}</div>
+      <div class="ou">${c.dureeMin} min${rdv.lieu ? ' · ' + escapeHtml(rdv.lieu) : ''} — c'est noté !</div>
+      <button class="rdv-cal" id="rdvCalBtn" type="button">AJOUTER À MON CALENDRIER</button>
+      <a class="rdv-gcal" id="rdvGcal" href="#" target="_blank" rel="noopener">ou ouvrir dans Google Agenda →</a>`;
+    $('#rdvCalBtn').addEventListener('click', ()=> telechargerIcs(creerIcs(ev), `seance-${c.date}.ics`));
+    $('#rdvGcal').href = lienGoogleAgenda(ev);
+    return;
+  }
+
+  const props = (rdv.propositions || []).filter(p => p.date >= TODAY_ISO);
+  if(props.length === 0){ carte.style.display = 'none'; return; }
+  carte.style.display = 'block';
+  carte.className = 'rdv-card';
+  carte.innerHTML = `<h3>📍 SÉANCE AVEC ARTHUR</h3>
+    <p class="sub2">Il te propose ${props.length > 1 ? 'ces créneaux' : 'ce créneau'} pour votre prochaine séance ensemble${rdv.lieu ? ` — ${escapeHtml(rdv.lieu)}` : ''}. Choisis celui qui t'arrange :</p>
+    ${props.map(p=>`<button class="rdv-opt" type="button" data-rdv="${escapeHtml(p.id)}">
+      <span class="j">${escapeHtml(fmtJourLong(p.date))}</span>
+      <span class="h">${escapeHtml(p.heure)}</span>
+    </button>`).join('')}
+    <div class="error-msg" id="rdvErr"></div>`;
+
+  $$('[data-rdv]', carte).forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const p = props.find(x => x.id === b.dataset.rdv);
+      if(!p) return;
+      $$('[data-rdv]', carte).forEach(x => x.disabled = true);
+      b.querySelector('.j').textContent = 'Confirmation...';
+      try{
+        await setDoc(doc(db, 'rdv', clientId),
+                     { choisi: { ...p, confirmeLe: TODAY_ISO } }, { merge:true });
+        rdv = { ...rdv, choisi: { ...p, confirmeLe: TODAY_ISO } };
+        renderRdv();
+      } catch(e){
+        console.error('[ARD] Choix du créneau refusé (code:', e && e.code, ')', e);
+        renderRdv();
+        const err = $('#rdvErr');
+        if(err){ err.textContent = "Impossible d'enregistrer ton choix. Préviens Arthur directement."; err.style.display = 'block'; }
+      }
+    });
+  });
 }
 
 /* -------------------------------------------------------- Suivi en pause */

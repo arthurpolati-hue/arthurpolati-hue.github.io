@@ -205,6 +205,43 @@
   .switch-row .lbl{font-size:0.9rem;font-weight:600;}
   .switch-row .desc{font-size:0.78rem;color:var(--fog);margin-top:2px;line-height:1.4;}
 
+  /* --- vue d'ensemble de la semaine --- */
+  .ap-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:10px;margin-bottom:16px;}
+  .ap-kpi{background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;padding:11px 13px;}
+  .ap-kpi .v{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;line-height:1;}
+  .ap-kpi .k{font-size:0.7rem;color:var(--fog);text-transform:uppercase;letter-spacing:0.04em;margin-top:3px;}
+  .ap-jours{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+  .ap-jour{flex:1 1 84px;min-width:84px;background:var(--ink);border:1px solid var(--steel-line);
+    border-radius:10px;padding:9px 8px;text-align:center;}
+  .ap-jour.repos{opacity:0.45;}
+  .ap-jour .d{font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--fog);}
+  .ap-jour .t{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;line-height:1.2;margin-top:2px;}
+  .ap-jour .s{font-size:0.68rem;color:var(--fog);}
+  .ap-bar{display:flex;align-items:center;gap:10px;padding:6px 0;}
+  .ap-bar .nom{flex:0 0 112px;font-size:0.8rem;color:var(--paper);}
+  /* display:block indispensable : ce sont des <span>, donc inline par defaut,
+     et width/height n'ont alors aucun effet — les barres restaient invisibles. */
+  .ap-bar .piste{display:block;flex:1;height:10px;background:var(--ink);border-radius:5px;
+    overflow:hidden;min-width:40px;}
+  .ap-bar .fill{display:block;height:100%;background:var(--blue);border-radius:0 5px 5px 0;min-width:3px;}
+  .ap-bar .val{flex:0 0 auto;font-size:0.78rem;color:var(--fog);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .ap-bar .val b{color:var(--paper);}
+  .ap-warn{background:#2A2313;border:1px solid #B8862F;border-radius:10px;padding:10px 12px;
+    font-size:0.8rem;color:#F2D9A6;line-height:1.5;margin-top:12px;}
+
+  /* --- rendez-vous en présentiel --- */
+  .rdv-ligne{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
+  .rdv-ligne .field{margin-bottom:0;}
+  .rdv-ligne .f-date{flex:1 1 140px;} .rdv-ligne .f-h{flex:0 0 104px;} .rdv-ligne .f-d{flex:0 0 92px;}
+  .rdv-choisi{background:var(--blue-dim);border:1px solid var(--blue);border-radius:12px;
+    padding:14px 16px;margin-bottom:12px;}
+  .rdv-choisi .quand{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1.1;color:#fff;}
+  .rdv-choisi .ou{font-size:0.84rem;color:var(--blue-soft);margin-top:3px;}
+  .rdv-attente{background:var(--ink);border:1px dashed var(--steel-line);border-radius:12px;
+    padding:13px 15px;margin-bottom:12px;font-size:0.85rem;color:var(--fog);line-height:1.5;}
+  .rdv-attente ul{margin:8px 0 0;padding-left:18px;}
+  .rdv-attente li{margin-bottom:3px;color:var(--paper);}
+
   /* --- bilan de cycle --- */
   .bilan-fait{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--steel-line);}
   .bilan-fait:last-of-type{border-bottom:none;}
@@ -325,6 +362,14 @@
         </div>
 
         <div class="card">
+          <div class="card-head">
+            <h2>Vue d'ensemble de la semaine</h2>
+            <button class="btn btn-ghost btn-sm" id="refreshApercuBtn" type="button">Recalculer</button>
+          </div>
+          <div id="apercuWrap"></div>
+        </div>
+
+        <div class="card">
           <h2>Progression par exercice</h2>
           <div class="viz-filters">
             <select id="progExercice"></select>
@@ -336,6 +381,22 @@
             </select>
           </div>
           <div id="progContenu"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Séance en présentiel</h2>
+            <button class="btn btn-ghost btn-sm" id="rdvReloadBtn" type="button">Actualiser</button>
+          </div>
+          <p class="sub" style="margin:0 0 12px;">Propose des créneaux : le client en choisit un depuis son lien, et vous l'ajoutez chacun à votre calendrier. Tant que tu ne proposes rien, il ne voit rien.</p>
+          <div id="rdvEtat"></div>
+          <div id="rdvForm">
+            <div id="rdvLignes"></div>
+            <div class="row" style="margin-top:6px;">
+              <button class="btn btn-ghost btn-sm" id="rdvAddBtn" type="button">+ Ajouter un créneau</button>
+              <button class="btn btn-blue btn-sm" id="rdvSendBtn" type="button">Proposer au client</button>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -487,6 +548,7 @@ import {
 import { EXERCICES } from "./exercices.js";
 import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
+import { apercuSemaine, fmtDuree, dureeJour, creerIcs, telechargerIcs, lienGoogleAgenda } from "./analyse.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -1047,12 +1109,13 @@ function attachAutocomplete(input, list, idx){
     exerciseRows[idx].nom = it.n;
     // Les valeurs par défaut ne remplissent que les champs encore vides :
     // un programme déjà réglé à la main n'est jamais écrasé.
-    [['series','s'],['repetitions','r'],['repos','p']].forEach(([field, key])=>{
+    [['series','s'],['repetitions','r'],['repos','p'],['rpe','rpe']].forEach(([field, key])=>{
       if(!it[key]) return;
       if((exerciseRows[idx][field]||'').trim() !== '') return;
       exerciseRows[idx][field] = it[key];
       const el = $(`[data-field="${field}"]`, card);
       if(el) el.value = it[key];
+      if(el && el.tagName === 'SELECT' && el.value !== it[key]) el.value = '';   // valeur absente de la liste
     });
     close();
     markDirty();
@@ -1091,11 +1154,15 @@ let exerciseRows = [];
 let isDirty = false;
 const dirtyDays = new Set();   // jours modifiés depuis le dernier enregistrement
 
-function blankExercise(){ return { id: uid(), nom:'', series:'', repetitions:'', charge:'', repos:'', notes:'' }; }
+function blankExercise(){ return { id: uid(), nom:'', series:'', repetitions:'', charge:'', repos:'', rpe:'', notes:'' }; }
 
+let apercuTimer = null;
 function markDirty(){
   isDirty = true;
   dirtyDays.add(currentDay);
+  // Recalcul différé : inutile de refaire la vue d'ensemble à chaque frappe.
+  clearTimeout(apercuTimer);
+  apercuTimer = setTimeout(renderApercu, 400);
   $('#savebar').classList.add('show');
   $('#savebarState').textContent = 'Modifications non enregistrées';
   $('#savebarState').classList.add('dirty');
@@ -1153,6 +1220,7 @@ async function openClient(client){
   loadDay(currentDay);
   loadHistory();
   showFixedLink();
+  loadRdv();
   switchPane('entrainement');
 }
 
@@ -1228,7 +1296,8 @@ function saveCurrentDayToMemory(){
   currentProgram[currentDay] = {
     echauffement: $('#dayEchauffement').value.trim(),
     exercises: exerciseRows.filter(e => (e.nom||'').trim() !== '').map(ex=>({
-      nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge, repos: ex.repos, notes: ex.notes
+      nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge,
+      repos: ex.repos, rpe: ex.rpe || '', notes: ex.notes
     }))
   };
 }
@@ -1239,10 +1308,11 @@ function loadDay(key){
   $('#dayEchauffement').value = dayData.echauffement || '';
   exerciseRows = (dayData.exercises && dayData.exercises.length ? dayData.exercises : []).map(ex => ({
     id: uid(), nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'',
-    charge: ex.charge||'', repos: ex.repos||'', notes: ex.notes||''
+    charge: ex.charge||'', repos: ex.repos||'', rpe: ex.rpe||'', notes: ex.notes||''
   }));
   renderExCards();
   renderDayTabs();
+  renderApercu();
 }
 
 $('#dayEchauffement').addEventListener('input', ()=>{ markDirty(); });
@@ -1276,12 +1346,15 @@ function renderExCards(){
         <div class="field"><label>Répét. cible</label><input type="text" data-field="repetitions" placeholder="8-12" value="${escapeHtml(ex.repetitions)}"></div>
         <div class="field"><label>Charge cible</label><input type="text" data-field="charge" placeholder="40kg" value="${escapeHtml(ex.charge)}"><div class="lastperf" data-lastperf></div></div>
         <div class="field"><label>Repos</label><input type="text" data-field="repos" placeholder="90s" value="${escapeHtml(ex.repos)}"></div>
+        <div class="field"><label>RPE cible <span style="text-transform:none;font-weight:400;">(option.)</span></label>
+          <select data-field="rpe">${[['','—'],['6','6 — facile'],['7','7 — 3 reps en réserve'],['7.5','7,5'],['8','8 — 2 reps en réserve'],['8.5','8,5'],['9','9 — 1 rep en réserve'],['10','10 — échec']]
+            .map(([v,l])=>`<option value="${v}" ${v===(ex.rpe||'')?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select></div>
       </div>
       <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
     `;
     attachAutocomplete($('input[data-field="nom"]', card), $('.ac-list', card), idx);
-    $$('input[data-field], textarea[data-field]', card).forEach(inp=>{
-      inp.addEventListener('input', ()=>{
+    $$('input[data-field], textarea[data-field], select[data-field]', card).forEach(inp=>{
+      inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', ()=>{
         exerciseRows[idx][inp.dataset.field] = inp.value;
         markDirty();
         // Le compteur de l'onglet dépend du nom : on rafraîchit à la volée.
@@ -1571,6 +1644,202 @@ function renderMensurations(){
   }).join('');
   cartes.forEach((c,i)=> mini($('#mini-'+i), c.pts, VIZ_COLORS.ligne));
 }
+
+/* ------------------------------------------- Séance en présentiel (RDV) */
+// Un seul document par client : `rdv/{clientId}`. Tant qu'il n'existe pas, ou que
+// `propositions` est vide, le client ne voit RIEN sur son lien — c'est la demande
+// explicite : cette option ne doit pas s'afficher à chaque fois.
+let currentRdv = null;
+let rdvLignes = [];
+
+function prochainJour(n){ const d = new Date(); d.setDate(d.getDate() + n); return isoLocal(d); }
+
+function renderRdvLignes(){
+  $('#rdvLignes').innerHTML = rdvLignes.map((l, i)=>`
+    <div class="rdv-ligne" data-i="${i}">
+      <div class="field f-date"><label>Date</label><input type="date" data-f="date" value="${escapeHtml(l.date)}"></div>
+      <div class="field f-h"><label>Heure</label><input type="time" data-f="heure" value="${escapeHtml(l.heure)}"></div>
+      <div class="field f-d"><label>Durée</label><input type="number" data-f="dureeMin" min="15" max="240" step="15" value="${escapeHtml(String(l.dureeMin))}"></div>
+      <button class="rm-btn" type="button" data-rm title="Retirer">✕</button>
+    </div>`).join('')
+    + `<div class="field" style="margin-top:4px;"><label>Lieu (commun à tous les créneaux)</label>
+        <input type="text" id="rdvLieu" placeholder="Ex : Salle Fitness Park Nancy" value="${escapeHtml(rdvLieu)}"></div>`;
+
+  $$('#rdvLignes .rdv-ligne').forEach(row=>{
+    const i = +row.dataset.i;
+    $$('input[data-f]', row).forEach(inp=>{
+      inp.addEventListener('input', ()=>{ rdvLignes[i][inp.dataset.f] = inp.value; });
+    });
+    $('[data-rm]', row).addEventListener('click', ()=>{ rdvLignes.splice(i,1); renderRdvLignes(); });
+  });
+  $('#rdvLieu').addEventListener('input', e => { rdvLieu = e.target.value; });
+}
+let rdvLieu = '';
+
+$('#rdvAddBtn').addEventListener('click', ()=>{
+  if(rdvLignes.length >= 4){ showToast('Quatre créneaux au maximum.', true); return; }
+  rdvLignes.push({ id: uid(), date: prochainJour(rdvLignes.length + 1), heure:'18:00', dureeMin:60 });
+  renderRdvLignes();
+});
+
+async function loadRdv(){
+  currentRdv = null;
+  try{
+    const snap = await getDoc(doc(db, 'rdv', currentClient.id));
+    if(snap.exists()) currentRdv = snap.data();
+  } catch(e){
+    console.error('[ARD] Lecture des rendez-vous refusée (code:', e && e.code, ')', e);
+  }
+  rdvLieu = (currentRdv && currentRdv.lieu) || '';
+  rdvLignes = [];
+  renderRdvEtat();
+}
+
+function renderRdvEtat(){
+  const zone = $('#rdvEtat');
+  const choisi = currentRdv && currentRdv.choisi;
+  const props = (currentRdv && currentRdv.propositions) || [];
+
+  if(choisi){
+    const titre = `Séance avec ${(currentClient.name||'').split(' ')[0] || 'ton client'}`;
+    zone.innerHTML = `<div class="rdv-choisi">
+      <div class="quand">${escapeHtml(fmtJourLong(choisi.date))} À ${escapeHtml(choisi.heure)}</div>
+      <div class="ou">${choisi.dureeMin} min${currentRdv.lieu ? ' · ' + escapeHtml(currentRdv.lieu) : ''} · confirmé par le client</div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-blue btn-sm" id="rdvIcsBtn" type="button">Ajouter à mon calendrier</button>
+        <a class="btn btn-ghost btn-sm" id="rdvGcalBtn" href="#" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;">Google Agenda</a>
+        <button class="btn btn-danger btn-sm" id="rdvResetBtn" type="button">Annuler ce rendez-vous</button>
+      </div>
+    </div>`;
+    const ev = { date:choisi.date, heure:choisi.heure, dureeMin:choisi.dureeMin,
+                 titre, lieu:currentRdv.lieu || '',
+                 notes:'Séance de coaching en présentiel — ARD Coaching',
+                 uid:`${currentClient.id}-${choisi.date}@ardcoaching` };
+    $('#rdvIcsBtn').addEventListener('click', ()=>{
+      telechargerIcs(creerIcs(ev), `seance-${choisi.date}.ics`);
+    });
+    $('#rdvGcalBtn').href = lienGoogleAgenda(ev);
+    $('#rdvResetBtn').addEventListener('click', ()=> effacerRdv());
+    $('#rdvForm').style.display = 'none';
+    return;
+  }
+
+  // Des créneaux en attente : on masque le formulaire pour ne pas laisser croire
+  // qu'on peut en ajouter (« Proposer » remplace tout). « Retirer » le ramène.
+  $('#rdvForm').style.display = props.length ? 'none' : 'block';
+  if(props.length){
+    zone.innerHTML = `<div class="rdv-attente">
+      En attente du choix de ${escapeHtml((currentClient.name||'').split(' ')[0])} — ${props.length} créneau(x) proposé(s) :
+      <ul>${props.map(p=>`<li>${escapeHtml(fmtJourLong(p.date))} à ${escapeHtml(p.heure)} (${p.dureeMin} min)</li>`).join('')}</ul>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" id="rdvRelanceBtn" type="button">Relancer sur WhatsApp</button>
+        <button class="btn btn-danger btn-sm" id="rdvAnnulBtn" type="button">Retirer la proposition</button>
+      </div>
+    </div>`;
+    $('#rdvAnnulBtn').addEventListener('click', ()=> effacerRdv());
+    $('#rdvRelanceBtn').addEventListener('click', ()=>{
+      const tel = (currentClient.phone||'').replace(/[\s.\-()]/g,'');
+      if(!tel){ showToast("Pas de téléphone sur cette fiche.", true); return; }
+      const num = tel.startsWith('0') ? '33' + tel.slice(1) : tel.replace(/^\+/,'');
+      const msg = encodeURIComponent(`Salut ${(currentClient.name||'').split(' ')[0]} ! Je t'ai proposé des créneaux pour notre séance ensemble, tu peux choisir depuis ton lien quand tu veux.`);
+      window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    });
+  } else {
+    zone.innerHTML = '';
+    if(rdvLignes.length === 0){
+      rdvLignes = [{ id: uid(), date: prochainJour(2), heure:'18:00', dureeMin:60 }];
+    }
+  }
+  renderRdvLignes();
+}
+
+function fmtJourLong(iso){
+  const d = new Date(iso + 'T12:00:00');
+  if(isNaN(d)) return iso;
+  const j = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()];
+  const m = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'][d.getMonth()];
+  return `${j} ${d.getDate()} ${m}`;
+}
+
+$('#rdvSendBtn').addEventListener('click', async ()=>{
+  const props = rdvLignes.filter(l => l.date && l.heure)
+    .map(l => ({ id:l.id, date:l.date, heure:l.heure, dureeMin: Math.max(15, +l.dureeMin || 60) }));
+  if(props.length === 0){ showToast('Renseigne au moins une date et une heure.', true); return; }
+  spinner(true);
+  try{
+    const data = { clientId: currentClient.id, clientName: currentClient.name || '',
+                   propositions: props, lieu: rdvLieu || '', choisi: null, proposeLe: todayISO() };
+    await setDoc(doc(db, 'rdv', currentClient.id), data);
+    currentRdv = data;
+    renderRdvEtat();
+    showToast(`${props.length} créneau(x) proposé(s) ✓`);
+  } catch(e){
+    console.error('[ARD] Proposition de créneaux refusée (code:', e && e.code, ')', e);
+    showToast("Refusé — la règle `rdv` est-elle publiée ?", true);
+  } finally { spinner(false); }
+});
+
+async function effacerRdv(){
+  if(!confirm("Retirer ce rendez-vous ? Le client ne verra plus rien sur son lien.")) return;
+  spinner(true);
+  try{
+    await deleteDoc(doc(db, 'rdv', currentClient.id));
+    currentRdv = null;
+    rdvLignes = [];
+    renderRdvEtat();
+    showToast('Rendez-vous retiré');
+  } catch(e){ showToast('Suppression refusée.', true); }
+  finally { spinner(false); }
+}
+$('#rdvReloadBtn').addEventListener('click', loadRdv);
+
+/* ------------------------------------------ Vue d'ensemble de la semaine */
+// Recalculée à partir de l'état en mémoire (jour courant compris, même non
+// enregistré) : le coach voit l'effet de sa modification immédiatement.
+function renderApercu(){
+  const prog = JSON.parse(JSON.stringify(currentProgram || {}));
+  prog[currentDay] = {
+    echauffement: $('#dayEchauffement').value.trim(),
+    exercises: exerciseRows.filter(e => (e.nom||'').trim() !== '')
+  };
+  const a = apercuSemaine(prog);
+  const wrap = $('#apercuWrap');
+
+  if(a.totalSeances === 0){
+    wrap.innerHTML = '<p class="sub" style="margin:0;">Aucun jour programmé pour l\'instant.</p>';
+    return;
+  }
+
+  const maxSeries = Math.max(...a.groupes.map(g => g.series), 1);
+  wrap.innerHTML = `
+    <div class="ap-kpis">
+      <div class="ap-kpi"><div class="v">${a.totalSeances}</div><div class="k">séances / semaine</div></div>
+      <div class="ap-kpi"><div class="v">${a.totalSeries}</div><div class="k">séries / semaine</div></div>
+      <div class="ap-kpi"><div class="v">${escapeHtml(fmtDuree(a.dureeMoyenne))}</div><div class="k">par séance (est.)</div></div>
+      <div class="ap-kpi"><div class="v">${escapeHtml(fmtDuree(a.dureeTotale))}</div><div class="k">total hebdo (est.)</div></div>
+    </div>
+
+    <div class="ap-jours">
+      ${a.jours.map(j=>`<div class="ap-jour${j.repos ? ' repos' : ''}">
+        <div class="d">${escapeHtml(j.label.slice(0,3))}</div>
+        <div class="t">${j.repos ? '—' : escapeHtml(fmtDuree(j.duree))}</div>
+        <div class="s">${j.repos ? 'repos' : `${j.exos} exos · ${j.series} séries`}</div>
+      </div>`).join('')}
+    </div>
+
+    <div class="section-tag" style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);margin-bottom:6px;">Volume par groupe musculaire</div>
+    ${a.groupes.map(g=>`<div class="ap-bar">
+      <span class="nom">${escapeHtml(g.nom)}</span>
+      <span class="piste"><span class="fill" style="width:${Math.round((g.series/maxSeries)*100)}%"></span></span>
+      <span class="val"><b>${g.series}</b> séries · ${g.frequence}×/sem</span>
+    </div>`).join('')}
+    <p class="viz-note" style="margin-top:10px;">Séries hebdomadaires par groupe, et sur combien de jours différents il est travaillé. Le cardio, l'échauffement et les étirements ne sont pas comptés dans le volume.</p>
+    ${a.nonClasses.length ? `<div class="ap-warn"><b>Non classé :</b> ${a.nonClasses.map(escapeHtml).join(', ')}.
+      Ces exercices comptent dans le volume total mais pas dans un groupe musculaire, parce que le catalogue ne les connaît pas.
+      Renomme-les en piochant dans l'autocomplétion, ou ajoute-les à <code>exercices.js</code>.</div>` : ''}
+    <p class="viz-note" style="margin-top:8px;opacity:0.8;">Durées estimées : 40 s par série, plus le repos que tu as indiqué (75 s par défaut), 8 min d'échauffement et 1 min entre exercices. C'est un ordre de grandeur pour comparer tes séances entre elles, pas une promesse d'heure de fin.</p>`;
+}
+$('#refreshApercuBtn').addEventListener('click', renderApercu);
 
 /* --------------------------------------------- Suivi actif / en pause */
 function majBoutonActif(){
@@ -1953,7 +2222,8 @@ function renderSessionDetail(s){
     const goal = [
       r.seriesCible ? `${escapeHtml(r.seriesCible)} séries` : '',
       r.repCible ? `${escapeHtml(r.repCible)} rép.` : '',
-      r.chargeCible ? escapeHtml(r.chargeCible) : ''
+      r.chargeCible ? escapeHtml(r.chargeCible) : '',
+      r.rpeCible ? `RPE ${escapeHtml(String(r.rpeCible).replace('.', ','))}` : ''
     ].filter(Boolean).join(' · ');
 
     let setsHtml;
@@ -1968,6 +2238,7 @@ function renderSessionDetail(s){
 
     const tags = [
       r.reussi ? `Objectif : <b style="color:var(--paper);">${escapeHtml(r.reussi)}</b>` : '',
+      r.rpe ? `RPE <b style="color:var(--paper);">${escapeHtml(String(r.rpe).replace('.', ','))}</b>${r.rpeCible ? ` <span style="opacity:0.7;">(cible ${escapeHtml(String(r.rpeCible).replace('.', ','))})</span>` : ''}` : '',
       r.ressenti ? `Ressenti : <b style="color:var(--paper);">${escapeHtml(r.ressenti)}</b>` : ''
     ].filter(Boolean).join(' · ');
 
