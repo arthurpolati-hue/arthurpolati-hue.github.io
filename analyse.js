@@ -28,8 +28,24 @@ export const DUREE = {
 // la main que le catalogue ne connaît pas tombent dans « Non classé » — c'est
 // affiché tel quel plutôt que deviné, pour que le coach sache quoi corriger.
 const PAR_NOM = new Map(EXERCICES.map(e => [norm(e.n), e.g]));
-export function groupeDe(nom){
+
+// Tous les groupes connus du catalogue, dans leur ordre d'apparition.
+export const GROUPES = [...new Set(EXERCICES.map(e => e.g))];
+
+// Classements faits à la main par le coach : nom normalisé -> groupe.
+// Rempli par coach.html à partir du champ `groupe` des exercices de TOUS les
+// programmes chargés : classer un exercice une fois le classe pour tous les clients.
+export const GROUPES_PERSO = new Map();
+
+/**
+ * Ordre de priorité : groupe fixé sur l'exercice > classement du coach > catalogue.
+ * Le coach passe avant le catalogue : c'est lui qui sait ce que fait l'exercice.
+ */
+export function groupeDe(nom, groupeFixe){
+  if(groupeFixe) return groupeFixe;
   const k = norm(nom);
+  if(!k) return 'Non classé';
+  if(GROUPES_PERSO.has(k)) return GROUPES_PERSO.get(k);
   if(PAR_NOM.has(k)) return PAR_NOM.get(k);
   // Tolérance : « Développé couché barre » retrouve « Développé couché ».
   for(const [cle, g] of PAR_NOM){
@@ -80,7 +96,7 @@ export function apercuSemaine(program){
     const groupesDuJour = new Set();
     exos.forEach(ex=>{
       const n = parseSetCount(ex.series);
-      const g = groupeDe(ex.nom);
+      const g = groupeDe(ex.nom, ex.groupe);
       if(g === 'Non classé' && (ex.nom||'').trim()) nonClasses.add(ex.nom.trim());
       if(HORS_VOLUME.has(g)) return;              // cardio et mobilité hors volume
       seriesJour += n;
