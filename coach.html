@@ -226,6 +226,11 @@
   .ap-bar .fill{display:block;height:100%;background:var(--blue);border-radius:0 5px 5px 0;min-width:3px;}
   .ap-bar .val{flex:0 0 auto;font-size:0.78rem;color:var(--fog);font-variant-numeric:tabular-nums;white-space:nowrap;}
   .ap-bar .val b{color:var(--paper);}
+  /* Deux colonnes : sur une seule, « — à choisir — » et « Ischios & fessiers » étaient tronqués. */
+  .ex-grid .f-groupe{grid-column:span 2;}
+  .grp-hint{font-size:0.7rem;color:var(--fog);margin-top:5px;line-height:1.3;}
+  .grp-hint.warn{color:#E0B968;}
+  select.a-choisir{border-color:#B8862F;}
   .ap-classer{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;}
   .ap-classer .n{flex:1 1 140px;color:#fff;font-weight:600;}
   .ap-classer select{flex:1 1 170px;padding:8px 10px;font-size:0.85rem;}
@@ -551,7 +556,7 @@ import {
 import { EXERCICES } from "./exercices.js";
 import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
-import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO } from "./analyse.js";
+import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue } from "./analyse.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
 injecterStylesViz();
 
@@ -1129,6 +1134,7 @@ function attachAutocomplete(input, list, idx){
     const card = input.closest('.ex-card');
     input.value = it.n;
     exerciseRows[idx].nom = it.n;
+    exerciseRows[idx].groupe = '';          // le groupe suit l'exercice choisi
     // Les valeurs par défaut ne remplissent que les champs encore vides :
     // un programme déjà réglé à la main n'est jamais écrasé.
     [['series','s'],['repetitions','r'],['repos','p'],['rpe','rpe']].forEach(([field, key])=>{
@@ -1142,6 +1148,7 @@ function attachAutocomplete(input, list, idx){
     close();
     markDirty();
     renderDayTabs();
+    majChampGroupe(card, idx);
     const next = $('[data-field="series"]', card);
     if(next) next.focus();
   };
@@ -1380,6 +1387,12 @@ function renderExCards(){
         <div class="field"><label>RPE cible <span style="text-transform:none;font-weight:400;">(option.)</span></label>
           <select data-field="rpe">${[['','—'],['6','6 — facile'],['7','7 — 3 reps en réserve'],['7.5','7,5'],['8','8 — 2 reps en réserve'],['8.5','8,5'],['9','9 — 1 rep en réserve'],['10','10 — échec']]
             .map(([v,l])=>`<option value="${v}" ${v===(ex.rpe||'')?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select></div>
+        <div class="field f-groupe"><label>Groupe musculaire</label>
+          <select data-groupe>
+            <option value="">— à choisir —</option>
+            ${GROUPES.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('')}
+          </select>
+          <div class="grp-hint" data-grp-hint></div></div>
       </div>
       <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
     `;
@@ -1389,9 +1402,11 @@ function renderExCards(){
         exerciseRows[idx][inp.dataset.field] = inp.value;
         markDirty();
         // Le compteur de l'onglet dépend du nom : on rafraîchit à la volée.
-        if(inp.dataset.field === 'nom'){ renderDayTabs(); injecterDernieresPerfs(); }
+        if(inp.dataset.field === 'nom'){ renderDayTabs(); injecterDernieresPerfs(); majChampGroupe(card, idx); }
       });
     });
+    majChampGroupe(card, idx);
+    $('select[data-groupe]', card).addEventListener('change', (e)=> choisirGroupe(idx, e.target.value));
     $('[data-rm]', card).addEventListener('click', ()=>{
       exerciseRows.splice(idx,1); renderExCards(); markDirty();
     });
@@ -1412,6 +1427,53 @@ function renderExCards(){
     body.appendChild(card);
   });
   injecterDernieresPerfs();
+}
+
+// Champ « Groupe musculaire » d'une carte : rempli d'office si l'exercice est connu,
+// à choisir (en ambre) s'il ne l'est pas. Le coach peut toujours le changer.
+function majChampGroupe(card, idx){
+  const ex = exerciseRows[idx];
+  const sel = $('select[data-groupe]', card), hint = $('[data-grp-hint]', card);
+  if(!sel || !ex) return;
+  const nom = (ex.nom || '').trim();
+  const effectif = nom ? groupeDe(nom, ex.groupe) : 'Non classé';
+  const cat = nom ? groupeCatalogue(nom) : 'Non classé';
+  sel.value = effectif === 'Non classé' ? '' : effectif;
+  const inconnu = effectif === 'Non classé';
+  sel.classList.toggle('a-choisir', !!nom && inconnu);
+  hint.className = 'grp-hint' + (nom && inconnu ? ' warn' : '');
+  hint.textContent = !nom ? ''
+    : inconnu ? "Exercice inconnu du catalogue : choisis le groupe."
+    : (effectif === cat ? 'Rempli automatiquement.' : 'Choisi par toi.');
+}
+
+function choisirGroupe(idx, valeur){
+  const ex = exerciseRows[idx];
+  const nom = (ex && ex.nom || '').trim();
+  if(!nom){
+    showToast("Écris d'abord le nom de l'exercice.", true);
+    renderExCards();
+    return;
+  }
+  if(valeur && valeur !== groupeCatalogue(nom)){
+    classerExercice(nom, valeur);            // choix du coach : appliqué à tous ses clients
+  } else {
+    // Retour au catalogue : on efface le choix du coach partout où il s'appliquait.
+    const k = norm(nom);
+    GROUPES_PERSO.delete(k);
+    const l = learned.get(k); if(l) l.g = groupeCatalogue(nom);
+    DAYS.forEach(([cle])=>{
+      const jour = currentProgram[cle];
+      (jour && jour.exercises || []).forEach(e=>{
+        if(norm(e.nom) === k && e.groupe){ delete e.groupe; dirtyDays.add(cle); }
+      });
+    });
+    exerciseRows.forEach(e => { if(norm(e.nom) === k) e.groupe = ''; });
+    markDirty();
+    renderApercu();
+  }
+  // Les autres cartes du jour portant le même exercice doivent suivre.
+  $$('#exCardsWrap .ex-card').forEach((c, i) => majChampGroupe(c, i));
 }
 
 $('#addExBtn').addEventListener('click', ()=>{
@@ -1859,7 +1921,7 @@ function renderApercu(){
     <p class="viz-note" style="margin-top:10px;">Séries hebdomadaires par groupe, et sur combien de jours différents il est travaillé. Le cardio, l'échauffement et les étirements ne sont pas comptés dans le volume.</p>
     ${a.nonClasses.length ? `<div class="ap-warn">
       <b>${a.nonClasses.length === 1 ? 'Un exercice non classé' : a.nonClasses.length + ' exercices non classés'}</b> —
-      le catalogue ne les connaît pas, donc ils ne comptent dans aucun groupe. Choisis leur groupe :
+      le catalogue ne les connaît pas, donc ils ne comptent dans aucun groupe. Choisis leur groupe ici, ou dans le champ « Groupe musculaire » de l'exercice :
       ${a.nonClasses.map(n => `<div class="ap-classer">
         <span class="n">${escapeHtml(n)}</span>
         <select data-classer="${escapeHtml(n)}">
@@ -1895,6 +1957,7 @@ function classerExercice(nom, groupe){
   exerciseRows.forEach(ex => { if(norm(ex.nom) === k){ ex.groupe = groupe; dansLeJourAffiche = true; } });
   markDirty(dansLeJourAffiche);
   renderApercu();
+  $$('#exCardsWrap .ex-card').forEach((c, i) => majChampGroupe(c, i));
   showToast(`« ${nom} » classé en ${groupe} — pense à enregistrer`);
 }
 

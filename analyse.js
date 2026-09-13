@@ -46,6 +46,13 @@ export function groupeDe(nom, groupeFixe){
   const k = norm(nom);
   if(!k) return 'Non classé';
   if(GROUPES_PERSO.has(k)) return GROUPES_PERSO.get(k);
+  return groupeCatalogue(nom);
+}
+
+/** Groupe selon le seul catalogue, sans tenir compte des classements du coach. */
+export function groupeCatalogue(nom){
+  const k = norm(nom);
+  if(!k) return 'Non classé';
   if(PAR_NOM.has(k)) return PAR_NOM.get(k);
   // Tolérance : « Développé couché barre » retrouve « Développé couché ».
   for(const [cle, g] of PAR_NOM){
