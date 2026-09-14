@@ -1276,6 +1276,10 @@ function joursRestantsCycle(){
 // Accroche sur l'onglet séance quand le cycle touche à sa fin. Uniquement des
 // dates : aucune lecture Firestore, donc aucun ralentissement au chargement.
 function majTeaserBilan(){
+  // Seulement si le coach a réellement fixé un cycle. Sans date de cycle, les « 28
+  // derniers jours glissants » laissent TOUJOURS 1 jour restant : l'accroche « Plus que
+  // 1 jour » s'affichait donc en permanence chez tous les clients sans cycle.
+  if(!clientCycle){ $('#bilanTeaser').style.display = 'none'; return; }
   const r = joursRestantsCycle();
   const el = $('#bilanTeaser');
   if(r < 0 || r > 7){ el.style.display = 'none'; return; }

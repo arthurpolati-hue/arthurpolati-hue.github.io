@@ -381,18 +381,47 @@
 
     const FORMSPREE_ENDPOINT = "https://formspree.io/f/mlgyplrr";
 
-    try{
-      const res = await fetch(FORMSPREE_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          prenom, nom, telephone: tel, ville,
-          format_souhaite: selectedFormat,
-          objectif
-        })
-      });
+    // La demande part vers deux destinations en parallèle :
+    //  - Formspree, qui envoie l'email au coach (comme avant) ;
+    //  - Firestore, qui crée le prospect dans l'espace coach (onglet Business).
+    // Appel REST direct plutôt que le SDK Firebase : la page d'accueil, ouverte depuis
+    // le QR code, reste légère. La clé est la clé publique du projet, celle déjà
+    // présente dans coach.html et s.html.
+    // Les longueurs sont bornées ici exactement comme dans la règle `prospectDuSite()`
+    // de firestore.rules : un écart ferait refuser l'enregistrement.
+    const FIRESTORE_PROSPECTS = "https://firestore.googleapis.com/v1/projects/ard-coaching/databases/(default)/documents/prospects?key=AIzaSyA94ynktcOetPJuxjU9nsdLxSsX9VFXA4c";
+    const aujourdhui = new Date();
+    const dateISO = aujourdhui.getFullYear() + '-' + String(aujourdhui.getMonth()+1).padStart(2,'0') + '-' + String(aujourdhui.getDate()).padStart(2,'0');
+    const prospect = {
+      prenom: prenom.slice(0, 60), nom: nom.slice(0, 60), tel: tel.slice(0, 25),
+      ville: ville.slice(0, 80), format: selectedFormat.slice(0, 40),
+      objectif: objectif.slice(0, 1000),
+      source: 'site', statut: 'nouveau', createdAt: dateISO
+    };
+    const envoiFirestore = fetch(FIRESTORE_PROSPECTS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: Object.fromEntries(
+        Object.entries(prospect).map(([k, v]) => [k, { stringValue: String(v) }])) })
+    }).then(r => { if(!r.ok) throw new Error('Firestore ' + r.status); return r; });
 
-      if(!res.ok) throw new Error('Réponse serveur non ok');
+    const envoiEmail = fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        prenom, nom, telephone: tel, ville,
+        format_souhaite: selectedFormat,
+        objectif
+      })
+    }).then(r => { if(!r.ok) throw new Error('Formspree ' + r.status); return r; });
+
+    try{
+      const [email, base] = await Promise.allSettled([envoiEmail, envoiFirestore]);
+      if(base.status === 'rejected') console.error('[ARD] Prospect non enregistré dans Firestore :', base.reason);
+      if(email.status === 'rejected') console.error('[ARD] Email Formspree non envoyé :', email.reason);
+      // Réussite dès qu'au moins un des deux canaux a fonctionné : la demande n'est
+      // pas perdue. Échec seulement si les deux ont échoué.
+      if(email.status === 'rejected' && base.status === 'rejected') throw new Error('Aucun envoi abouti');
 
       setTimeout(() => {
         document.getElementById('formView').style.display = 'none';

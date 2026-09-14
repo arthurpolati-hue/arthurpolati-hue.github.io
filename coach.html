@@ -279,6 +279,40 @@
   .lightbox button{position:absolute;top:16px;right:18px;background:var(--steel);border:1px solid var(--steel-line);
     color:var(--paper);border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;}
 
+  /* --- navigation Clients / Business --- */
+  .navtabs{display:flex;gap:6px;margin:-6px 0 20px;}
+  .navtab{flex:1;background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);
+    border-radius:11px;padding:10px 12px;font-family:'Work Sans',sans-serif;font-weight:700;
+    font-size:0.9rem;cursor:pointer;}
+  .navtab.active{background:var(--blue-dim);border-color:var(--blue);color:#fff;}
+  .nav-badge{display:inline-block;margin-left:6px;background:var(--blue);color:#071527;
+    border-radius:20px;padding:1px 8px;font-size:0.72rem;}
+  .nav-badge[hidden]{display:none;}
+
+  /* --- Business --- */
+  .prospect-form{background:var(--ink);border:1px solid var(--steel-line);border-radius:12px;
+    padding:14px;margin-bottom:14px;}
+  .prospect-row{background:var(--ink);border:1px solid var(--steel-line);border-radius:11px;
+    padding:12px 14px;margin-bottom:8px;}
+  .prospect-row.nouveau{border-left:3px solid var(--blue);}
+  .p-top{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;}
+  .p-id{flex:1 1 180px;min-width:0;}
+  .p-id b{display:block;font-size:0.95rem;}
+  .p-meta{font-size:0.76rem;color:var(--fog);}
+  .p-top select{width:auto;flex:0 0 auto;padding:8px 10px;font-size:0.84rem;}
+  .p-notes{font-size:0.82rem;color:var(--fog);margin-top:6px;line-height:1.45;white-space:pre-line;}
+  .p-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+  .p-actions a.btn{text-decoration:none;display:inline-block;}
+  .p-actions .rm-btn{margin-left:auto;}
+  .p-convert{margin-top:10px;padding-top:10px;border-top:1px solid var(--steel-line);}
+  .p-convert[hidden]{display:none;}
+  .biz-source{display:flex;justify-content:space-between;gap:10px;font-size:0.82rem;
+    padding:6px 0;border-bottom:1px solid var(--steel-line);}
+  .biz-source:last-child{border-bottom:none;}
+  .biz-source span{color:var(--fog);text-align:right;}
+  .biz-titre{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
+    color:var(--fog);margin:16px 0 6px;}
+
   #loginView, #appView{display:none;}
   .spinner{width:28px;height:28px;border-radius:50%;border:3px solid var(--steel-line);border-top-color:var(--blue);margin:40px auto;animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
@@ -305,6 +339,11 @@
     <div class="topbar">
       <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
       <button class="btn btn-ghost btn-sm" id="logoutBtn">Déconnexion</button>
+    </div>
+
+    <div class="navtabs" id="navtabs">
+      <button class="navtab active" type="button" data-vue="clients">Clients</button>
+      <button class="navtab" type="button" data-vue="business">Business <span class="nav-badge" id="navBadge" hidden></span></button>
     </div>
 
     <div id="viewClients">
@@ -334,6 +373,59 @@
         </div>
         <button type="submit" class="btn btn-blue" id="addClientBtn">+ Ajouter</button>
       </form>
+    </div>
+
+    <div id="viewBusiness" style="display:none;">
+      <h1>Business</h1>
+      <p class="sub">Tes prospects, tes taux de conversion et ton chiffre d'affaires.</p>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Prospects</h2>
+          <select id="bizPeriode" style="width:auto;">
+            <option value="30">30 derniers jours</option>
+            <option value="90" selected>3 derniers mois</option>
+            <option value="365">12 derniers mois</option>
+            <option value="">Depuis le début</option>
+          </select>
+        </div>
+        <div id="bizTunnel"></div>
+
+        <div class="row" style="margin:14px 0;align-items:center;">
+          <button class="btn btn-blue btn-sm" id="prospectAddBtn" type="button">+ Ajouter un prospect</button>
+          <select id="prospectFiltre" style="width:auto;">
+            <option value="encours">En cours</option>
+            <option value="tous">Tous</option>
+            <option value="client">Devenus clients</option>
+            <option value="perdu">Perdus</option>
+          </select>
+        </div>
+
+        <form id="prospectForm" class="prospect-form" style="display:none;">
+          <p class="sub" style="margin:0 0 12px;font-size:0.82rem;">Pour un contact venu d'ailleurs que le site : bouche-à-oreille, salle, réseaux… Les demandes du formulaire du site arrivent toutes seules.</p>
+          <div class="row">
+            <div class="field"><label>Prénom</label><input type="text" id="pPrenom" required maxlength="60"></div>
+            <div class="field"><label>Nom</label><input type="text" id="pNom" maxlength="60"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Téléphone</label><input type="tel" id="pTel" placeholder="06 12 34 56 78"></div>
+            <div class="field"><label>D'où vient-il ?</label><select id="pSource"></select></div>
+            <div class="field"><label>Date du contact</label><input type="date" id="pDate"></div>
+          </div>
+          <div class="field"><label>Notes (objectif, qui l'a recommandé…)</label><textarea id="pNotes"></textarea></div>
+          <div class="row">
+            <button class="btn btn-blue btn-sm" type="submit">Enregistrer le prospect</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="prospectCancelBtn">Annuler</button>
+          </div>
+        </form>
+
+        <div id="prospectList"><p class="sub" style="margin:0;">Chargement...</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Chiffre d'affaires</h2>
+        <div id="bizCa"></div>
+      </div>
     </div>
 
     <div id="viewClient" style="display:none;">
@@ -506,6 +598,12 @@
               <input type="date" id="editClientCycle">
             </div>
           </div>
+          <div class="row">
+            <div class="field"><label>Offre</label><select id="editClientOffre"></select></div>
+            <div class="field"><label>Tarif mensuel (€)</label><input type="number" id="editClientTarif" min="0" step="10"></div>
+            <div class="field"><label>Offre depuis</label><input type="date" id="editClientOffreDepuis"></div>
+          </div>
+          <p class="sub" id="offreDetail" style="margin:0 0 12px;font-size:0.8rem;"></p>
           <p class="sub" style="margin:0 0 12px;font-size:0.8rem;">L'objectif décide de ce que le bilan met en avant : on ne félicite pas quelqu'un d'avoir pris 2 kg s'il vient pour en perdre. Le cycle sert de période de référence (4 semaines).</p>
           <div class="row" style="margin-bottom:12px;">
             <button class="btn btn-ghost btn-sm" id="newCycleBtn" type="button">Démarrer un nouveau cycle aujourd'hui</button>
@@ -558,6 +656,8 @@ import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue } from "./analyse.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
+import { OFFRES, offreDe, tarifClient, ETAPES, SOURCES, sourceDe, CLE_DATE,
+         tunnel, caMensuel, caHistorique, fmtEuros } from "./offres.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -665,6 +765,7 @@ async function loadClients(){
   loadTodayStatuses();
   loadInactivity();
   loadReprises();
+  loadProspects();
 }
 
 // Statut du jour par client. On interroge l'ID déterministe de la séance du jour
@@ -1219,6 +1320,8 @@ window.addEventListener('beforeunload', (e)=>{
 async function openClient(client){
   currentClient = client;
   $('#viewClients').style.display = 'none';
+  $('#viewBusiness').style.display = 'none';
+  $$('.navtab').forEach(b => b.classList.toggle('active', b.dataset.vue === 'clients'));
   $('#viewClient').style.display = 'block';
   $('#clientTitle').textContent = client.name;
   $('#editClientName').value = client.name || '';
@@ -1229,6 +1332,14 @@ async function openClient(client){
   }
   $('#editClientObjectif').value = client.objectif || 'forme';
   $('#editClientCycle').value = client.cycleStart || debutCycleParDefaut(client);
+  if(!$('#editClientOffre').options.length){
+    $('#editClientOffre').innerHTML = '<option value="">— aucune offre —</option>'
+      + OFFRES.map(o => `<option value="${o.k}">${escapeHtml(o.l)} — ${o.prixMax && o.prixMax !== o.prix ? o.prix + ' à ' + o.prixMax : o.prix} €/mois</option>`).join('');
+  }
+  $('#editClientOffre').value = client.offre || '';
+  $('#editClientTarif').value = client.offre ? tarifClient(client) : '';
+  $('#editClientOffreDepuis').value = client.offreDepuis || '';
+  majDetailOffre();
   majBoutonActif();
   window.scrollTo(0,0);
 
@@ -1547,13 +1658,20 @@ $('#saveClientBtn').addEventListener('click', async ()=>{
   const phone = $('#editClientPhone').value.trim();
   const objectif = $('#editClientObjectif').value;
   const cycleStart = $('#editClientCycle').value || debutCycleParDefaut();
+  const offre = $('#editClientOffre').value;
+  const o = offreDe(offre);
+  const tarifSaisi = parseFloat($('#editClientTarif').value);
+  const tarif = o ? (isNaN(tarifSaisi) ? o.prix : tarifSaisi) : null;
+  const offreDepuis = o ? ($('#editClientOffreDepuis').value || todayISO()) : '';
   if(!name){ showToast("Le nom ne peut pas être vide.", true); return; }
   spinner(true);
   try{
-    await updateDoc(doc(db, 'clients', currentClient.id), { name, phone, objectif, cycleStart });
-    Object.assign(currentClient, { name, phone, objectif, cycleStart });
+    const maj = { name, phone, objectif, cycleStart, offre: offre || '', tarif, offreDepuis };
+    await updateDoc(doc(db, 'clients', currentClient.id), maj);
+    Object.assign(currentClient, maj);
     const inList = allClients.find(c => c.id === currentClient.id);
-    if(inList) Object.assign(inList, { name, phone, objectif, cycleStart });
+    if(inList) Object.assign(inList, maj);
+    $('#editClientOffreDepuis').value = offreDepuis;
     $('#clientTitle').textContent = name;
     showFixedLink();
     if(currentMeasures) renderBilan();
@@ -1978,10 +2096,14 @@ $('#toggleActifBtn').addEventListener('click', async ()=>{
   if(actif && !confirm(`Mettre le suivi de ${prenom} en pause ?\n\nSon programme disparaît de son lien, remplacé par un message l'invitant à reprendre. Rien n'est supprimé : historique, mesures et photos sont conservés, et tout revient si tu le réactives.`)) return;
   spinner(true);
   try{
-    await updateDoc(doc(db, 'clients', currentClient.id), { actif: !actif });
-    currentClient.actif = !actif;
+    // `pauseLe` sert à l'historique du CA : un client en pause sort immédiatement du
+    // CA mensuel (et du mois en cours de la courbe), et des mois passés à partir du
+    // mois qui suit sa mise en pause.
+    const majPause = { actif: !actif, pauseLe: actif ? todayISO() : '' };
+    await updateDoc(doc(db, 'clients', currentClient.id), majPause);
+    Object.assign(currentClient, majPause);
     const inList = allClients.find(c => c.id === currentClient.id);
-    if(inList) inList.actif = !actif;
+    if(inList) Object.assign(inList, majPause);
     // Réactiver efface la demande de reprise en attente : elle est traitée.
     if(!actif) await deleteDoc(doc(db, 'reprises', currentClient.id)).catch(()=>{});
     majBoutonActif();
@@ -2035,6 +2157,322 @@ async function loadReprises(){
       loadReprises();
     } catch(e){ showToast('Suppression refusée.', true); }
     finally { spinner(false); }
+  }));
+}
+
+/* ------------------------------------------------------------- Business */
+// Offre sur la fiche : changer d'offre propose son tarif de base, qui reste modifiable
+// (Full sur devis, séances en présentiel supplémentaires en Hybride).
+function majDetailOffre(){
+  const o = offreDe($('#editClientOffre').value);
+  $('#offreDetail').textContent = o
+    ? o.detail + '. Le tarif mensuel compte dans ton chiffre d\'affaires.'
+    : "Sans offre, ce client ne compte pas dans ton chiffre d'affaires.";
+}
+$('#editClientOffre').addEventListener('change', ()=>{
+  const o = offreDe($('#editClientOffre').value);
+  $('#editClientTarif').value = o ? o.prix : '';
+  if(o && !$('#editClientOffreDepuis').value) $('#editClientOffreDepuis').value = todayISO();
+  majDetailOffre();
+});
+
+$$('.navtab').forEach(b => b.addEventListener('click', ()=> afficherVue(b.dataset.vue)));
+
+function afficherVue(vue){
+  const dansFiche = $('#viewClient').style.display === 'block';
+  if(dansFiche && isDirty && !confirm("Le programme n'est pas enregistré. Quitter la fiche quand même ?")) return;
+  if(dansFiche) isDirty = false;
+  $$('.navtab').forEach(b => b.classList.toggle('active', b.dataset.vue === vue));
+  $('#viewClient').style.display = 'none';
+  $('#savebar').classList.remove('show');
+  $('#viewClients').style.display = vue === 'clients' ? 'block' : 'none';
+  $('#viewBusiness').style.display = vue === 'business' ? 'block' : 'none';
+  if(vue === 'business') loadBusiness();
+  else loadTodayStatuses();
+  window.scrollTo(0, 0);
+}
+
+let prospects = [];
+let prospectsErreur = null;
+
+async function loadProspects(){
+  try{
+    const snap = await getDocs(collection(db, 'prospects'));
+    prospects = [];
+    snap.forEach(d => prospects.push({ id:d.id, ...d.data() }));
+    prospectsErreur = null;
+  } catch(e){
+    console.error('[ARD] Lecture des prospects refusée (code:', e && e.code, ')', e);
+    prospectsErreur = e && e.code || 'erreur';
+  }
+  const nouveaux = prospects.filter(p => (p.statut || 'nouveau') === 'nouveau').length;
+  $('#navBadge').textContent = nouveaux;
+  $('#navBadge').hidden = nouveaux === 0;
+}
+
+async function loadBusiness(){
+  await loadProspects();
+  renderBusiness();
+}
+function renderBusiness(){ renderTunnel(); renderProspects(); renderCa(); }
+
+$('#bizPeriode').addEventListener('change', renderTunnel);
+$('#prospectFiltre').addEventListener('change', renderProspects);
+
+function pct(v){ return v === null ? '—' : v + ' %'; }
+
+function renderTunnel(){
+  const zone = $('#bizTunnel');
+  if(prospectsErreur){
+    zone.innerHTML = `<p class="sub" style="margin:0;">Impossible de lire les prospects (${escapeHtml(prospectsErreur)}). Si c'est <code>permission-denied</code>, la règle <code>prospects</code> de <code>firestore.rules</code> n'est pas encore publiée.</p>`;
+    return;
+  }
+  const jours = $('#bizPeriode').value;
+  const depuis = jours ? isoLocal(new Date(Date.now() - (+jours - 1) * 86400000)) : null;
+  const t = tunnel(prospects, depuis);
+  if(t.total === 0){
+    zone.innerHTML = '<p class="sub" style="margin:0;">Aucun prospect sur cette période.</p>';
+    return;
+  }
+  const etapes = [
+    ['Contacts', t.total], ['Appelés', t.appeles], ['Bilans offerts faits', t.bilans], ['Devenus clients', t.clients]
+  ];
+  zone.innerHTML = `
+    <div class="ap-kpis">
+      <div class="ap-kpi"><div class="v">${t.total}</div><div class="k">prospects</div></div>
+      <div class="ap-kpi"><div class="v">${pct(t.tauxBilan)}</div><div class="k">prospect → bilan offert</div></div>
+      <div class="ap-kpi"><div class="v">${pct(t.tauxClient)}</div><div class="k">bilan offert → coaching</div></div>
+      <div class="ap-kpi"><div class="v">${t.enCours}</div><div class="k">encore en cours</div></div>
+    </div>
+    ${etapes.map(([l, n]) => `<div class="ap-bar">
+      <span class="nom">${escapeHtml(l)}</span>
+      <span class="piste"><span class="fill" style="width:${Math.round((n / t.total) * 100)}%"></span></span>
+      <span class="val"><b>${n}</b> · ${Math.round((n / t.total) * 100)} %</span>
+    </div>`).join('')}
+    <div class="biz-titre">Par source</div>
+    ${t.parSource.map(sr => `<div class="biz-source"><b>${escapeHtml(sr.l)}</b>
+      <span>${sr.total} contact(s) · ${sr.bilans} bilan(s) · ${sr.clients} client(s)</span></div>`).join('')}
+    <p class="viz-note" style="margin-top:10px;">Période calculée sur la date du premier contact. Un prospect perdu après son bilan compte toujours comme bilan fait, sinon chaque refus ferait baisser le taux de bilans.</p>`;
+}
+
+function renderProspects(){
+  const zone = $('#prospectList');
+  if(prospectsErreur){ zone.innerHTML = ''; return; }
+  const filtre = $('#prospectFiltre').value;
+  let liste = prospects.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  if(filtre === 'encours') liste = liste.filter(p => !['client','perdu'].includes(p.statut || 'nouveau'));
+  else if(filtre !== 'tous') liste = liste.filter(p => p.statut === filtre);
+  if(liste.length === 0){
+    zone.innerHTML = '<p class="sub" style="margin:0;">Aucun prospect dans cette liste.</p>';
+    return;
+  }
+  zone.innerHTML = liste.map(p => {
+    const statut = p.statut || 'nouveau';
+    const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Sans nom';
+    const meta = [sourceDe(p.source).l, p.createdAt ? 'contact le ' + fmtDate(p.createdAt) : '',
+                  p.format ? 'bilan souhaité : ' + p.format : '', p.ville || ''].filter(Boolean).join(' · ');
+    const texte = [p.objectif, p.notes].filter(Boolean).join('\n');
+    return `<div class="prospect-row ${statut}" data-pid="${escapeHtml(p.id)}">
+      <div class="p-top">
+        <div class="p-id"><b>${escapeHtml(nom)}</b><span class="p-meta">${escapeHtml(meta)}</span></div>
+        <select data-statut>${ETAPES.map(e => `<option value="${e.k}" ${e.k === statut ? 'selected' : ''}>${escapeHtml(e.l)}</option>`).join('')}</select>
+      </div>
+      ${texte ? `<div class="p-notes">${escapeHtml(texte)}</div>` : ''}
+      <div class="p-actions">
+        ${p.tel ? `<a class="btn btn-ghost btn-sm" href="tel:${escapeHtml(p.tel.replace(/\s/g, ''))}">Appeler</a>
+                   <button class="btn btn-ghost btn-sm" type="button" data-wa>WhatsApp</button>` : ''}
+        ${statut === 'client' && p.clientId
+          ? `<button class="btn btn-ghost btn-sm" type="button" data-fiche>Voir sa fiche</button>`
+          : `<button class="btn btn-blue btn-sm" type="button" data-convertir>Convertir en client</button>`}
+        <button class="rm-btn" type="button" data-suppr title="Supprimer ce prospect">✕</button>
+      </div>
+      <div class="p-convert" hidden>
+        <div class="row">
+          <div class="field"><label>Offre choisie</label>
+            <select data-conv-offre>${OFFRES.map(o => `<option value="${o.k}">${escapeHtml(o.l)}</option>`).join('')}</select></div>
+          <div class="field"><label>Tarif mensuel (€)</label><input type="number" data-conv-tarif min="0" step="10" value="${OFFRES[0].prix}"></div>
+        </div>
+        <div class="row">
+          <button class="btn btn-blue btn-sm" type="button" data-conv-ok>Créer la fiche client</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-conv-annuler>Annuler</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+$('#prospectList').addEventListener('change', async (e)=>{
+  const row = e.target.closest('.prospect-row');
+  if(!row) return;
+  const p = prospects.find(x => x.id === row.dataset.pid);
+  if(!p) return;
+  if(e.target.matches('[data-conv-offre]')){
+    const o = offreDe(e.target.value);
+    $('[data-conv-tarif]', row).value = o ? o.prix : '';
+    return;
+  }
+  if(!e.target.matches('[data-statut]')) return;
+  const statut = e.target.value;
+  if(statut === 'client'){
+    // Devenir client crée une fiche : on passe par le formulaire de conversion.
+    e.target.value = p.statut || 'nouveau';
+    $('.p-convert', row).hidden = false;
+    return;
+  }
+  const dates = { ...(p.dates || {}) };
+  const cle = CLE_DATE[statut];
+  if(cle && !dates[cle]) dates[cle] = todayISO();
+  try{
+    await updateDoc(doc(db, 'prospects', p.id), { statut, dates });
+    Object.assign(p, { statut, dates });
+    renderBusiness();
+    await loadProspects();   // badge
+    renderBusiness();
+  } catch(err){
+    console.error('[ARD] Changement de statut refusé (code:', err && err.code, ')', err);
+    showToast('Changement refusé — voir la console.', true);
+  }
+});
+
+$('#prospectList').addEventListener('click', async (e)=>{
+  const row = e.target.closest('.prospect-row');
+  if(!row) return;
+  const p = prospects.find(x => x.id === row.dataset.pid);
+  if(!p) return;
+
+  if(e.target.closest('[data-convertir]')){ $('.p-convert', row).hidden = false; return; }
+  if(e.target.closest('[data-conv-annuler]')){ $('.p-convert', row).hidden = true; return; }
+  if(e.target.closest('[data-fiche]')){
+    const c = allClients.find(x => x.id === p.clientId);
+    if(c) openClient(c); else showToast("Cette fiche client n'existe plus.", true);
+    return;
+  }
+  if(e.target.closest('[data-wa]')){
+    const tel = (p.tel || '').replace(/[\s.\-()]/g, '');
+    const num = tel.startsWith('0') ? '33' + tel.slice(1) : tel.replace(/^\+/, '');
+    const msg = encodeURIComponent(`Salut ${p.prenom || ''} ! C'est Arthur, d'ARD Coaching. Tu m'as contacté pour un bilan offert : quand est-ce que tu es disponible pour en parler ?`);
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    return;
+  }
+  if(e.target.closest('[data-suppr]')){
+    if(!confirm(`Supprimer le prospect ${[p.prenom, p.nom].filter(Boolean).join(' ')} ? Il disparaîtra aussi de tes taux de conversion.`)) return;
+    try{
+      await deleteDoc(doc(db, 'prospects', p.id));
+      prospects = prospects.filter(x => x.id !== p.id);
+      renderBusiness();
+      showToast('Prospect supprimé');
+    } catch(err){ showToast('Suppression refusée.', true); }
+    return;
+  }
+  if(e.target.closest('[data-conv-ok]')){
+    const o = offreDe($('[data-conv-offre]', row).value);
+    const tarif = parseFloat($('[data-conv-tarif]', row).value);
+    if(!o){ showToast('Choisis une offre.', true); return; }
+    await convertirProspect(p, o, isNaN(tarif) ? o.prix : tarif);
+  }
+});
+
+async function convertirProspect(p, o, tarif){
+  const name = [p.prenom, p.nom].filter(Boolean).join(' ').trim() || 'Nouveau client';
+  const aujourdhui = todayISO();
+  spinner(true);
+  try{
+    const ref = await addDoc(collection(db, 'clients'), {
+      name, phone: p.tel || '', createdAt: serverTimestamp(),
+      offre: o.k, tarif, offreDepuis: aujourdhui, cycleStart: aujourdhui
+    });
+    await setDoc(doc(db, 'programs', ref.id), {});
+    const dates = { ...(p.dates || {}), converti: (p.dates && p.dates.converti) || aujourdhui };
+    await updateDoc(doc(db, 'prospects', p.id), { statut: 'client', clientId: ref.id, dates });
+    Object.assign(p, { statut: 'client', clientId: ref.id, dates });
+    await loadClients();
+    renderBusiness();
+    showToast(`${name} est maintenant client (${o.l}) ✓`);
+  } catch(err){
+    console.error('[ARD] Conversion refusée (code:', err && err.code, ')', err);
+    showToast('Conversion refusée — voir la console.', true);
+  } finally { spinner(false); }
+}
+
+$('#prospectAddBtn').addEventListener('click', ()=>{
+  const f = $('#prospectForm');
+  if(!$('#pSource').options.length){
+    // « site » est réservé aux demandes arrivées par le formulaire.
+    $('#pSource').innerHTML = SOURCES.filter(sr => sr.k !== 'site')
+      .map(sr => `<option value="${sr.k}">${escapeHtml(sr.l)}</option>`).join('');
+  }
+  $('#pDate').value = todayISO();
+  f.style.display = 'block';
+  $('#pPrenom').focus();
+});
+$('#prospectCancelBtn').addEventListener('click', ()=>{ $('#prospectForm').style.display = 'none'; });
+
+$('#prospectForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const prenom = $('#pPrenom').value.trim();
+  if(!prenom){ showToast('Le prénom est obligatoire.', true); return; }
+  const data = {
+    prenom, nom: $('#pNom').value.trim(), tel: $('#pTel').value.trim(),
+    source: $('#pSource').value, statut: 'nouveau',
+    createdAt: $('#pDate').value || todayISO(),
+    notes: $('#pNotes').value.trim(), dates: {}
+  };
+  spinner(true);
+  try{
+    const ref = await addDoc(collection(db, 'prospects'), data);
+    prospects.push({ id: ref.id, ...data });
+    $('#prospectForm').reset();
+    $('#prospectForm').style.display = 'none';
+    await loadProspects();
+    renderBusiness();
+    showToast(`${prenom} ajouté aux prospects ✓`);
+  } catch(err){
+    console.error('[ARD] Ajout du prospect refusé (code:', err && err.code, ')', err);
+    showToast("Ajout refusé — la règle `prospects` est-elle publiée ?", true);
+  } finally { spinner(false); }
+});
+
+function renderCa(){
+  const zone = $('#bizCa');
+  const m = caMensuel(allClients);
+  const hist = caHistorique(allClients, 12);
+  const premier = hist.findIndex(h => h.ca > 0);
+  const points = (premier < 0 ? [] : hist.slice(Math.min(premier, hist.length - 2)))
+    .map(h => ({ x: h.x, y: h.ca, note: `${h.nb} client(s)`, libelle: h.libelle }));
+  const maxOffre = Math.max(...m.parOffre.map(o => o.ca), 1);
+
+  zone.innerHTML = `
+    <div class="ap-kpis">
+      <div class="ap-kpi"><div class="v">${fmtEuros(m.total)}</div><div class="k">CA mensuel</div></div>
+      <div class="ap-kpi"><div class="v">${fmtEuros(m.annuel)}</div><div class="k">sur 12 mois à ce rythme</div></div>
+      <div class="ap-kpi"><div class="v">${m.nbPayants}</div><div class="k">clients payants</div></div>
+      <div class="ap-kpi"><div class="v">${fmtEuros(m.panierMoyen)}</div><div class="k">panier moyen</div></div>
+    </div>
+    <div class="biz-titre">Répartition par offre</div>
+    ${m.parOffre.map(o => `<div class="ap-bar">
+      <span class="nom">${escapeHtml(o.l)}</span>
+      <span class="piste"><span class="fill" style="width:${Math.round((o.ca / maxOffre) * 100)}%"></span></span>
+      <span class="val"><b>${fmtEuros(o.ca)}</b> · ${o.nb} client(s)</span>
+    </div>`).join('')}
+    <div class="biz-titre">Évolution sur 12 mois</div>
+    <div id="caChart" class="viz-holder"></div>
+    ${m.sansOffre.length ? `<div class="ap-warn">
+      <b>${m.sansOffre.length} client(s) actif(s) sans offre</b> — ils ne comptent pas dans le chiffre d'affaires :
+      ${m.sansOffre.map(c => `<div class="ap-classer"><span class="n">${escapeHtml(c.name || '')}</span>
+        <button class="btn btn-ghost btn-sm" type="button" data-sans-offre="${escapeHtml(c.id)}">Renseigner l'offre</button></div>`).join('')}
+    </div>` : ''}
+    <p class="viz-note" style="margin-top:10px;">Chiffre d'affaires calculé à partir des offres et des tarifs saisis sur les fiches : c'est ce que tu dois encaisser, pas ce que tu as reçu. L'historique applique le tarif actuel de chaque client à tous les mois, et ne retire pas les mois d'une pause suivie d'une reprise.</p>`;
+
+  courbe($('#caChart'), {
+    points, unite: ' €', libelle: 'CA mensuel', colonneNote: 'Clients',
+    couleur: VIZ_COLORS.ligne, fond: '#1B1F22', hauteur: 150,
+    formatX: x => (points.find(p => p.x === x) || {}).libelle || x
+  });
+
+  $$('[data-sans-offre]', zone).forEach(b => b.addEventListener('click', ()=>{
+    const c = allClients.find(x => x.id === b.dataset.sansOffre);
+    if(!c) return;
+    openClient(c).then(()=> switchPane('fiche'));
   }));
 }
 

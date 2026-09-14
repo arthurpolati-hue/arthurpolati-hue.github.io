@@ -39,8 +39,9 @@ function el(nom, attrs = {}){
 }
 function fmtNombre(v){
   if(v === null || v === undefined || isNaN(v)) return '—';
-  const arrondi = Math.round(v * 10) / 10;
-  return String(arrondi).replace('.', ',');
+  // Format français complet : virgule décimale ET espace des milliers, sinon la courbe
+  // affichait « 1680 € » à côté d'indicateurs écrits « 1 680 € ».
+  return (Math.round(v * 10) / 10).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 }
 function fmtDateCourte(iso){
   const p = String(iso).split('-');
@@ -82,7 +83,10 @@ export function courbe(hote, opts){
     // `points[i].note` : contexte affiché dans l'infobulle et le tableau.
     // Sert à ne jamais montrer une charge sans dire sur combien de répétitions
     // elle a été faite — une charge seule est trompeuse.
-    colonneNote = ''
+    colonneNote = '',
+    // Mise en forme de l'axe X, de l'infobulle et du tableau. Par défaut une date
+    // « 14/09 » ; le CA mensuel passe un libellé de mois (« sept. 26 »).
+    formatX = fmtDateCourte
   } = opts;
 
   hote.innerHTML = '';
@@ -95,7 +99,7 @@ export function courbe(hote, opts){
   if(points.length === 1){
     // Un seul point ne fait pas une courbe : on affiche la valeur, pas un tracé.
     hote.innerHTML = `<div class="viz-solo"><span class="viz-solo-v">${fmtNombre(points[0].y)}<small>${unite}</small></span>`
-      + `<span class="viz-solo-k">${fmtDateCourte(points[0].x)} · une seule mesure, la courbe démarre à la deuxième</span></div>`;
+      + `<span class="viz-solo-k">${formatX(points[0].x)} · une seule mesure, la courbe démarre à la deuxième</span></div>`;
     return;
   }
 
@@ -146,10 +150,10 @@ export function courbe(hote, opts){
 
   // --- dates aux extrémités ---
   const d1 = el('text', { x:padG, y:H - 6, class:'viz-tick' });
-  d1.textContent = fmtDateCourte(points[0].x);
+  d1.textContent = formatX(points[0].x);
   svg.appendChild(d1);
   const d2 = el('text', { x:padG + w, y:H - 6, 'text-anchor':'end', class:'viz-tick' });
-  d2.textContent = fmtDateCourte(points[dernier].x);
+  d2.textContent = formatX(points[dernier].x);
   svg.appendChild(d2);
 
   // --- survol : trait vertical + point actif + infobulle ---
@@ -172,7 +176,7 @@ export function courbe(hote, opts){
     points.forEach((p,k)=>{ const dd = Math.abs(px(k) - xRel); if(dd < dmin){ dmin = dd; i = k; } });
     viseur.setAttribute('x1', px(i)); viseur.setAttribute('x2', px(i)); viseur.setAttribute('opacity', 1);
     actif.setAttribute('cx', px(i)); actif.setAttribute('cy', py(points[i].y)); actif.setAttribute('opacity', 1);
-    bulle.innerHTML = `<b>${fmtNombre(points[i].y)}${unite}</b><span>${fmtDateCourte(points[i].x)}</span>`
+    bulle.innerHTML = `<b>${fmtNombre(points[i].y)}${unite}</b><span>${formatX(points[i].x)}</span>`
       + (points[i].note ? `<span class="viz-tip-note">${points[i].note}</span>` : '');
     bulle.hidden = false;
     const gauche = (px(i) / L) * hote.clientWidth;
@@ -197,7 +201,7 @@ export function courbe(hote, opts){
   const avecNote = colonneNote && points.some(p => p.note);
   tbl.innerHTML = `<table><thead><tr><th>Date</th><th>${libelle}</th>`
     + (avecNote ? `<th>${colonneNote}</th>` : '') + `</tr></thead><tbody>`
-    + points.slice().reverse().map(p => `<tr><td>${fmtDateCourte(p.x)}</td><td>${fmtNombre(p.y)}${unite}</td>`
+    + points.slice().reverse().map(p => `<tr><td>${formatX(p.x)}</td><td>${fmtNombre(p.y)}${unite}</td>`
         + (avecNote ? `<td>${p.note || '—'}</td>` : '') + `</tr>`).join('')
     + `</tbody></table>`;
   bascule.addEventListener('click', ()=>{

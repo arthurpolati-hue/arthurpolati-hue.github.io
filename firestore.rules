@@ -23,6 +23,23 @@ service cloud.firestore {
     function clientDeLId(docId) {
       return docId.split('_')[0];
     }
+    // Demande de bilan envoyee depuis le formulaire public du site (index.html).
+    // Ecriture ouverte a tous : on verrouille donc la forme exacte du document
+    // (champs autorises, statut et source imposes, longueurs bornees) pour limiter
+    // les faux envois. Personne d'autre que le coach ne peut relire les prospects.
+    function prospectDuSite() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['prenom','nom','tel','ville','format','objectif','source','statut','createdAt'])
+        && d.keys().hasAll(['prenom','nom','tel','ville','format','objectif','source','statut','createdAt'])
+        && d.source == 'site' && d.statut == 'nouveau'
+        && d.prenom is string && d.prenom.size() > 0 && d.prenom.size() <= 60
+        && d.nom is string && d.nom.size() <= 60
+        && d.tel is string && d.tel.size() >= 6 && d.tel.size() <= 25
+        && d.ville is string && d.ville.size() <= 80
+        && d.format is string && d.format.size() <= 40
+        && d.objectif is string && d.objectif.size() <= 1000
+        && d.createdAt is string && d.createdAt.size() == 10;
+    }
 
     match /clients/{clientId} {
       allow get:   if true;                 // le lien client lit son propre nom
@@ -73,6 +90,13 @@ service cloud.firestore {
       allow list: if coach();
       allow create, update: if coach() || clientExiste(clientId);
       allow delete: if coach();
+    }
+
+    // Prospects : lecture, modification et suppression reservees au coach. Le site
+    // peut seulement en CREER un, dans la forme verrouillee par prospectDuSite().
+    match /prospects/{prospectId} {
+      allow read, update, delete: if coach();
+      allow create: if coach() || prospectDuSite();
     }
 
     // Photos de suivi : le client les ENVOIE mais ne peut jamais les relire.
