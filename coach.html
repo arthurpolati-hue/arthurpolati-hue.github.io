@@ -18,6 +18,38 @@
   .consent-info{font-size:0.8rem;color:var(--fog);line-height:1.5;margin:0 0 12px;}
   .consent-info b{color:var(--paper);font-weight:600;}
   .consent-info .alerte{color:#E7B45A;}
+  .check-partenaire,.export-photos{text-transform:none;letter-spacing:0;font-weight:500;}
+  .bilan-accord{display:flex;gap:10px;align-items:flex-start;background:var(--blue-dim);border:1px solid rgba(62,142,255,0.4);
+    border-radius:12px;padding:12px;margin:0 0 12px;font-size:0.86rem;line-height:1.45;cursor:pointer;
+    text-transform:none;letter-spacing:0;font-weight:400;color:var(--paper);}
+  .bilan-accord input{width:22px;height:22px;flex:0 0 auto;margin:0;accent-color:var(--blue);}
+  .bilan-top{position:sticky;top:0;z-index:20;background:var(--ink);padding:10px 0 8px;margin:0 0 12px;border-bottom:1px solid var(--steel-line);}
+  .bilan-top .ligne{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .bilan-top input[type=date]{width:auto;padding:7px 10px;font-size:0.85rem;}
+  .bilan-etat{font-size:0.78rem;color:var(--fog);margin-left:auto;text-align:right;}
+  .bilan-etat.ok{color:var(--blue);}
+  .bilan-etat.alerte{color:#E7B45A;}
+  .bilan-nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+  .bilan-nav::-webkit-scrollbar{display:none;}
+  .bilan-nav button{flex:0 0 auto;background:var(--steel);border:1px solid var(--steel-line);color:var(--paper);
+    border-radius:999px;padding:6px 11px;font-size:0.78rem;font-family:inherit;cursor:pointer;white-space:nowrap;}
+  .bilan-nav button .n{color:var(--fog);margin-left:5px;font-variant-numeric:tabular-nums;}
+  .bilan-nav button.complet{border-color:var(--blue);}
+  .bilan-nav button.complet .n{color:var(--blue);}
+  .bilan-sec{scroll-margin-top:110px;}
+  .bilan-sec .intro{font-size:0.8rem;color:var(--fog);margin:-6px 0 14px;line-height:1.45;}
+  .bilan-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:0 14px;}
+  .bilan-champ{margin-bottom:14px;min-width:0;}
+  .bilan-champ.large{grid-column:1/-1;}
+  .bilan-champ .aide{font-size:0.74rem;color:var(--fog);margin:-2px 0 6px;line-height:1.4;}
+  .bilan-champ textarea{min-height:66px;overflow:hidden;resize:none;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip-choix{background:var(--ink);border:1px solid var(--steel-line);color:var(--paper);border-radius:999px;
+    padding:8px 13px;font-size:0.84rem;font-family:inherit;cursor:pointer;}
+  .chip-choix.on{background:var(--blue-deep);border-color:var(--blue);color:#fff;}
+  .liste-ligne{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+  .liste-ligne input{flex:1;min-width:0;}
+  .bilan-actions{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 30px;}
   .tache-form{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
   .tache-form input{flex:1 1 220px;width:auto;}
   .tache-form select{width:auto;flex:0 0 auto;}
@@ -542,11 +574,33 @@
       <div class="card">
         <h2>Sauvegarde</h2>
         <p class="sub" style="margin:0 0 12px;font-size:0.84rem;">Télécharge une copie complète de ta base (clients, programmes,
-        séances, mesures, rendez-vous, prospects, ventes, tâches, consentements) dans un fichier JSON. Fais-le une fois par mois et range le fichier
+        bilans, séances, mesures, rendez-vous, prospects, ventes, tâches, consentements) dans un fichier JSON. Fais-le une fois par mois et range le fichier
         dans un endroit sûr : il contient des données de santé.</p>
         <label class="export-photos"><input type="checkbox" id="exportPhotos"> Inclure les photos (fichier beaucoup plus lourd)</label>
         <button class="btn btn-blue btn-sm" id="exportAllBtn" type="button">Exporter toutes mes données</button>
         <p class="sub" id="exportInfo" style="margin:10px 0 0;font-size:0.8rem;"></p>
+      </div>
+    </div>
+
+    <div id="viewBilan" style="display:none;">
+      <button class="backlink" id="bilanRetour" type="button">← Retour</button>
+      <h1 class="sm" id="bilanTitre" style="margin-top:12px;">Bilan</h1>
+      <p class="sub" id="bilanMeta" style="margin:0 0 12px;"></p>
+      <label class="bilan-accord"><input type="checkbox" id="bilanAccord">
+        <span>La personne est d'accord pour que je note ses réponses, y compris sur sa santé (blessures, pathologies),
+        afin de préparer son coaching. <b>Nécessaire pour enregistrer.</b></span></label>
+      <div class="bilan-top">
+        <div class="ligne">
+          <input type="date" id="bilanDate" aria-label="Date du bilan">
+          <span class="bilan-etat" id="bilanEtat"></span>
+        </div>
+        <div class="bilan-nav" id="bilanNav"></div>
+      </div>
+      <div id="bilanSections"></div>
+      <div class="bilan-actions">
+        <button class="btn btn-ghost btn-sm" id="bilanCopierBtn" type="button">Copier le bilan en texte</button>
+        <button class="btn btn-blue btn-sm" id="bilanFaitBtn" type="button" style="display:none;">Passer le prospect en « Bilan fait »</button>
+        <button class="btn btn-danger btn-sm" id="bilanSupprBtn" type="button">Supprimer ce bilan</button>
       </div>
     </div>
 
@@ -726,6 +780,14 @@
         </div>
 
         <div class="card">
+          <div class="card-head">
+            <h2>Bilan</h2>
+            <button class="btn btn-blue btn-sm" id="bilanClientBtn" type="button">Faire le bilan</button>
+          </div>
+          <p class="sub" id="bilanClientInfo" style="margin:0;font-size:0.84rem;"></p>
+        </div>
+
+        <div class="card">
           <h2>Coordonnées</h2>
           <div class="row" style="align-items:center;margin-bottom:12px;">
             <button class="btn btn-ghost btn-sm" id="avatarChangeBtn" type="button">📷 Photo du client</button>
@@ -808,9 +870,10 @@ import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue } from "./analyse.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
 import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES, venteDe, ventesDuMois,
-         ETAPES, SOURCES, sourceDe, CLE_DATE,
+         ETAPES, SOURCES, sourceDe, CLE_DATE, etapesAtteintes,
          tunnel, caMensuel, caHistorique, fmtEuros } from "./offres.js";
 import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
+import { SECTIONS_BILAN } from "./trame-bilan.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -1474,6 +1537,7 @@ window.addEventListener('beforeunload', (e)=>{
 
 async function openClient(client){
   currentClient = client;
+  $('#viewBilan').style.display = 'none';
   $('#viewClients').style.display = 'none';
   $('#viewBusiness').style.display = 'none';
   $('#viewVeille').style.display = 'none';
@@ -1500,6 +1564,7 @@ async function openClient(client){
   majBoutonActif();
   afficherAvatarFiche();
   afficherConsentFiche(client.id);
+  afficherBilanFiche(client);
   window.scrollTo(0,0);
 
   spinner(true);
@@ -1863,6 +1928,15 @@ async function refsDuClient(id, { avatar = true, seulementSante = false } = {}){
   ajouter('measures', id);
   if(seulementSante) return [...refs.values()];
   await parChamp('sessions');
+  // Bilans : rattachés au client, ou encore seulement au prospect dont il est issu.
+  await parChamp('bilans');
+  const psBilan = await getDocs(query(collection(db, 'prospects'), where('clientId', '==', id)));
+  const pids = [];
+  psBilan.forEach(d => pids.push(d.id));
+  for(const pid of pids){
+    const sb = await getDocs(query(collection(db, 'bilans'), where('prospectId', '==', pid)));
+    sb.forEach(d => ajouter('bilans', d.id));
+  }
   COLLECTIONS_PAR_ID.filter(c => c !== 'clients').forEach(c => ajouter(c, id));
   if(avatar) ajouter('photos', avatarId(id));
   return [...refs.values()];
@@ -1880,7 +1954,7 @@ async function effacerRefs(refs){
 
 $('#deleteClientBtn').addEventListener('click', async ()=>{
   const name = currentClient.name || '';
-  if(!confirm(`Supprimer définitivement ${name} et TOUTES ses données ?\n\nFiche, programme, séances, mesures, photos, rendez-vous et consentements sont effacés, et son lien cesse de fonctionner. Sa fiche prospect et ses ventes à l'unité sont anonymisées (tes taux et ton CA restent justes).\n\nC'est irréversible : exporte ses données avant si tu veux en garder une trace.`)) return;
+  if(!confirm(`Supprimer définitivement ${name} et TOUTES ses données ?\n\nFiche, programme, bilan, séances, mesures, photos, rendez-vous et consentements sont effacés, et son lien cesse de fonctionner. Sa fiche prospect et ses ventes à l'unité sont anonymisées (tes taux et ton CA restent justes).\n\nC'est irréversible : exporte ses données avant si tu veux en garder une trace.`)) return;
   const typed = window.prompt(`Pour confirmer, retape le nom exact du client :`, '');
   if((typed||'').trim() !== name.trim()){ showToast("Nom non confirmé — rien n'a été supprimé.", true); return; }
   spinner(true);
@@ -1911,6 +1985,7 @@ $('#deleteClientBtn').addEventListener('click', async ()=>{
     }
     await deleteDoc(doc(db, 'clients', id));
     avatars.delete(id);
+    bilans = bilans.filter(b => b.clientId !== id);
     isDirty = false;
     showToast(`${name} et ses données ont été supprimés (${refs.length + 1} documents).`);
     $('#viewClient').style.display = 'none';
@@ -1948,7 +2023,7 @@ const nomSlug = t => norm(t || 'client').replace(/[^a-z0-9]+/g, '-').replace(/^-
 
 $('#exportAllBtn').addEventListener('click', async ()=>{
   const avecPhotos = $('#exportPhotos').checked;
-  const noms = ['clients', 'programs', 'sessions', 'measures', 'rdv', 'reprises', 'prospects', 'ventes', 'taches', 'consentements'];
+  const noms = ['clients', 'programs', 'bilans', 'sessions', 'measures', 'rdv', 'reprises', 'prospects', 'ventes', 'taches', 'consentements'];
   if(avecPhotos) noms.push('photos');
   spinner(true);
   $('#exportInfo').textContent = 'Export en cours…';
@@ -1983,7 +2058,7 @@ $('#exportClientBtn').addEventListener('click', async ()=>{
     const lectures = await Promise.allSettled([
       ...COLLECTIONS_PAR_ID.map(coll => getDoc(doc(db, coll, c.id)).then(d => { if(d.exists()) ranger(coll, d.id, d.data()); })),
       getDoc(doc(db, 'photos', avatarId(c.id))).then(d => { if(d.exists()) ranger('photos', d.id, d.data()); }),
-      ...['sessions', 'photos', 'prospects', 'ventes'].map(coll =>
+      ...['sessions', 'photos', 'prospects', 'ventes', 'bilans'].map(coll =>
         getDocs(query(collection(db, coll), where('clientId', '==', c.id))).then(snap => snap.forEach(d => ranger(coll, d.id, d.data()))))
     ]);
     const refus = lectures.filter(r => r.status === 'rejected').length;
@@ -2780,6 +2855,7 @@ $('#editClientOffre').addEventListener('change', ()=>{
 $$('.navtab').forEach(b => b.addEventListener('click', ()=> afficherVue(b.dataset.vue)));
 
 function afficherVue(vue){
+  if(!fermerBilanSansRetour()) return;
   const dansFiche = $('#viewClient').style.display === 'block';
   if(dansFiche && isDirty && !confirm("Le programme n'est pas enregistré. Quitter la fiche quand même ?")) return;
   if(dansFiche) isDirty = false;
@@ -2814,7 +2890,7 @@ async function loadProspects(){
 }
 
 async function loadBusiness(){
-  await Promise.all([loadProspects(), loadTaches(), loadVentes()]);
+  await Promise.all([loadProspects(), loadTaches(), loadVentes(), loadBilans()]);
   renderBusiness();
 }
 function renderBusiness(){ renderTaches(); renderTunnel(); renderProspects(); renderVentes(); renderCa(); }
@@ -3088,6 +3164,7 @@ function renderProspects(){
       <div class="p-actions">
         ${p.tel ? `<a class="btn btn-ghost btn-sm" href="tel:${escapeHtml(p.tel.replace(/\s/g, ''))}">Appeler</a>
                    <button class="btn btn-ghost btn-sm" type="button" data-wa>WhatsApp</button>` : ''}
+        <button class="btn btn-ghost btn-sm" type="button" data-bilan>${bilanDuProspect(p.id) ? '📋 Bilan ✓' : '📋 Faire le bilan'}</button>
         ${statut === 'client' && p.clientId
           ? `<button class="btn btn-ghost btn-sm" type="button" data-fiche>Voir sa fiche</button>`
           : `<button class="btn btn-blue btn-sm" type="button" data-convertir>Convertir en client</button>`}
@@ -3148,6 +3225,7 @@ $('#prospectList').addEventListener('click', async (e)=>{
   const p = prospects.find(x => x.id === row.dataset.pid);
   if(!p) return;
 
+  if(e.target.closest('[data-bilan]')){ ouvrirBilan({ prospect: p }); return; }
   if(e.target.closest('[data-convertir]')){ $('.p-convert', row).hidden = false; return; }
   if(e.target.closest('[data-conv-annuler]')){ $('.p-convert', row).hidden = true; return; }
   if(e.target.closest('[data-fiche]')){
@@ -3163,8 +3241,11 @@ $('#prospectList').addEventListener('click', async (e)=>{
     return;
   }
   if(e.target.closest('[data-suppr]')){
-    if(!confirm(`Supprimer le prospect ${[p.prenom, p.nom].filter(Boolean).join(' ')} ? Il disparaîtra aussi de tes taux de conversion.`)) return;
+    const bilansLies = bilans.filter(b => b.prospectId === p.id && !b.clientId);
+    if(!confirm(`Supprimer le prospect ${[p.prenom, p.nom].filter(Boolean).join(' ')} ? Il disparaîtra aussi de tes taux de conversion${bilansLies.length ? ', et son bilan sera effacé' : ''}.`)) return;
     try{
+      await Promise.all(bilansLies.map(b => deleteDoc(doc(db, 'bilans', b.id))));
+      bilans = bilans.filter(b => !bilansLies.includes(b));
       await deleteDoc(doc(db, 'prospects', p.id));
       prospects = prospects.filter(x => x.id !== p.id);
       renderBusiness();
@@ -3193,6 +3274,9 @@ async function convertirProspect(p, o, tarif, partenaire){
     const dates = { ...(p.dates || {}), converti: (p.dates && p.dates.converti) || aujourdhui };
     await updateDoc(doc(db, 'prospects', p.id), { statut: 'client', clientId: ref.id, dates });
     Object.assign(p, { statut: 'client', clientId: ref.id, dates });
+    // Le bilan fait en tant que prospect suit la personne sur sa fiche client.
+    await Promise.allSettled(bilans.filter(b => b.prospectId === p.id).map(b =>
+      updateDoc(doc(db, 'bilans', b.id), { clientId: ref.id }).then(()=>{ b.clientId = ref.id; })));
     await loadClients();
     renderBusiness();
     showToast(`${name} est maintenant client (${o.l}) ✓`);
@@ -3238,6 +3322,367 @@ $('#prospectForm').addEventListener('submit', async (e)=>{
     console.error('[ARD] Ajout du prospect refusé (code:', err && err.code, ')', err);
     showToast("Ajout refusé — la règle `prospects` est-elle publiée ?", true);
   } finally { spinner(false); }
+});
+
+/* ---------------------------------------------------------------- Bilans */
+// `bilans/{id}` : { prospectId, clientId, nom, date, accord, reponses:{…}, cree, maj }
+// Un bilan par personne, rempli par le coach pendant l'entretien. Il commence sur le
+// prospect et suit la personne sur sa fiche client à la conversion. Enregistrement
+// automatique 1,2 s après la dernière modification, UNIQUEMENT si l'accord est coché :
+// le bilan contient des données de santé.
+let bilans = [];
+let bilansCharges = false;
+let bilanCourant = null;          // { b, prospect, retour }
+let bilanMinuterie = null;
+let bilanModifie = false;
+
+async function loadBilans(){
+  try{
+    const snap = await getDocs(collection(db, 'bilans'));
+    bilans = [];
+    snap.forEach(d => bilans.push({ id: d.id, ...d.data() }));
+    bilansCharges = true;
+  } catch(e){
+    console.error('[ARD] Lecture des bilans refusée (code:', e && e.code, ')', e);
+    bilans = [];
+    bilansCharges = false;
+  }
+}
+
+const bilanDuProspect = pid => bilans.find(b => b.prospectId === pid) || null;
+function bilanDuClient(cid){
+  const direct = bilans.find(b => b.clientId === cid);
+  if(direct) return direct;
+  const p = prospects.find(x => x.clientId === cid);
+  return p ? bilanDuProspect(p.id) : null;
+}
+const estRempli = v => Array.isArray(v) ? v.some(x => (x || '').trim()) : !!(v && String(v).trim());
+function compteRemplis(reponses){
+  const r = reponses || {};
+  return SECTIONS_BILAN.map(sec => ({ k: sec.k, rempli: sec.champs.filter(c => estRempli(r[c.k])).length, total: sec.champs.length }));
+}
+
+async function ouvrirBilan({ prospect = null, client = null }){
+  if(!bilansCharges) await loadBilans();
+  if(!bilansCharges){ showToast("Impossible de lire les bilans — les règles Firestore sont-elles publiées ?", true); return; }
+  let b = prospect ? bilanDuProspect(prospect.id) : bilanDuClient(client.id);
+  if(!b){
+    b = { id: 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          prospectId: prospect ? prospect.id : '',
+          clientId: client ? client.id : ((prospect && prospect.clientId) || ''),
+          nom: client ? (client.name || '') : nomProspect(prospect),
+          date: todayISO(), accord: '', reponses: {}, cree: Date.now(), maj: 0 };
+  }
+  bilanModifie = false;
+  if(client && !b.clientId){ b.clientId = client.id; bilanModifie = !!b.maj; }
+  bilanCourant = {
+    b,
+    prospect: prospect || (b.prospectId ? prospects.find(x => x.id === b.prospectId) || null : null),
+    retour: client ? { client } : { vue: 'business' }
+  };
+  ['#viewClients', '#viewClient', '#viewBusiness', '#viewVeille'].forEach(v => { $(v).style.display = 'none'; });
+  $('#savebar').classList.remove('show');
+  $('#viewBilan').style.display = 'block';
+  renderBilanVue();
+  window.scrollTo(0, 0);
+}
+
+function champBilanHtml(c, v){
+  const id = `bch-${c.k}`;
+  const tete = `<label for="${id}">${escapeHtml(c.l)}</label>${c.aide ? `<div class="aide">${escapeHtml(c.aide)}</div>` : ''}`;
+  let corps;
+  if(c.type === 'choix'){
+    corps = `<div class="chips" id="${id}" data-champ="${c.k}" data-type="choix">${c.options.map(o =>
+      `<button type="button" class="chip-choix ${v === o ? 'on' : ''}" data-val="${escapeHtml(o)}">${escapeHtml(o)}</button>`).join('')}</div>`;
+  } else if(c.type === 'liste'){
+    const items = Array.isArray(v) && v.length ? v : [''];
+    corps = `<div id="${id}" data-champ="${c.k}" data-type="liste" data-exemple="${escapeHtml(c.exemple || '')}">${items.map(x => ligneListeBilan(x, c.exemple)).join('')}
+      <button type="button" class="mini-btn" data-liste-plus>+ Ajouter</button></div>`;
+  } else if(c.type === 'zone'){
+    corps = `<textarea id="${id}" data-champ="${c.k}" rows="2">${escapeHtml(v || '')}</textarea>`;
+  } else {
+    corps = `<input type="text" id="${id}" data-champ="${c.k}" value="${escapeHtml(v || '')}">`;
+  }
+  return `<div class="bilan-champ ${c.large ? 'large' : ''}">${tete}${corps}</div>`;
+}
+const ligneListeBilan = (x, exemple) => `<div class="liste-ligne"><input type="text" value="${escapeHtml(x || '')}" placeholder="${escapeHtml(exemple || '')}">
+  <button type="button" class="mini-btn" data-liste-moins aria-label="Retirer cette ligne">✕</button></div>`;
+
+function ajusterHauteur(t){ t.style.height = 'auto'; t.style.height = Math.max(66, t.scrollHeight + 2) + 'px'; }
+
+function renderBilanVue(){
+  const { b, prospect } = bilanCourant;
+  $('#bilanTitre').textContent = `Bilan — ${b.nom || 'Sans nom'}`;
+  const meta = [];
+  if(prospect){
+    meta.push(sourceDe(prospect.source).l);
+    if(prospect.tel) meta.push(prospect.tel);
+    if(prospect.createdAt) meta.push('contact le ' + fmtDate(prospect.createdAt));
+  }
+  if(b.clientId) meta.push('client');
+  $('#bilanMeta').textContent = meta.join(' · ');
+  $('#bilanDate').value = b.date || todayISO();
+  $('#bilanAccord').checked = !!b.accord;
+  const r = b.reponses || {};
+  $('#bilanSections').innerHTML = SECTIONS_BILAN.map(sec => `<div class="card bilan-sec" id="bsec-${sec.k}">
+      <h2>${escapeHtml(sec.titre)}</h2>
+      ${sec.intro ? `<p class="intro">${escapeHtml(sec.intro)}</p>` : ''}
+      <div class="bilan-grille">${sec.champs.map(c => champBilanHtml(c, r[c.k])).join('')}</div>
+    </div>`).join('');
+  // Objectif du formulaire du site : repris d'office s'il n'y a encore rien de noté.
+  if(prospect && prospect.objectif && !estRempli(r.objectifPrincipal)){
+    $('#bch-objectifPrincipal').placeholder = 'Demande du site : ' + prospect.objectif;
+  }
+  $$('#bilanSections textarea').forEach(ajusterHauteur);
+  $('#bilanFaitBtn').style.display = prospect && ['nouveau', 'appele', 'bilan_planifie'].includes(prospect.statut || 'nouveau') ? '' : 'none';
+  $('#bilanSupprBtn').style.display = b.maj ? '' : 'none';
+  majNavBilan();
+  majEtatBilan(b.maj ? 'ok' : (b.accord ? '' : 'accord'));
+}
+
+function lireReponsesBilan(){
+  const r = {};
+  $$('#bilanSections [data-champ]').forEach(el => {
+    const k = el.dataset.champ, t = el.dataset.type;
+    if(t === 'choix'){ const on = $('.chip-choix.on', el); r[k] = on ? on.dataset.val : ''; }
+    else if(t === 'liste'){ r[k] = $$('input', el).map(i => i.value.trim()).filter(Boolean); }
+    else r[k] = el.value;
+  });
+  return r;
+}
+
+function majNavBilan(){
+  const comptes = compteRemplis(lireReponsesBilan());
+  $('#bilanNav').innerHTML = SECTIONS_BILAN.map((sec, i) => {
+    const c = comptes[i];
+    return `<button type="button" data-aller="${sec.k}" class="${c.rempli === c.total ? 'complet' : ''}">${escapeHtml(sec.titre)}<span class="n">${c.rempli}/${c.total}</span></button>`;
+  }).join('');
+}
+
+function majEtatBilan(etat){
+  const el = $('#bilanEtat');
+  const textes = {
+    '': 'Pas encore enregistré',
+    accord: "Coche l'accord pour enregistrer",
+    attente: 'Modifications en cours…',
+    envoi: 'Enregistrement…',
+    ok: 'Enregistré ✓',
+    erreur: "Échec de l'enregistrement — vérifie ta connexion"
+  };
+  el.textContent = textes[etat] || '';
+  el.className = 'bilan-etat' + (etat === 'ok' ? ' ok' : (etat === 'accord' || etat === 'erreur') ? ' alerte' : '');
+}
+
+function planifierSauvegardeBilan(){
+  if(!bilanCourant) return;
+  bilanModifie = true;
+  majNavBilan();
+  clearTimeout(bilanMinuterie);
+  if(!$('#bilanAccord').checked){ majEtatBilan('accord'); return; }
+  majEtatBilan('attente');
+  bilanMinuterie = setTimeout(sauverBilan, 1200);
+}
+
+async function sauverBilan(){
+  clearTimeout(bilanMinuterie);
+  if(!bilanCourant || !bilanModifie) return true;
+  if(!$('#bilanAccord').checked){ majEtatBilan('accord'); return false; }
+  const b = bilanCourant.b;
+  const data = {
+    prospectId: b.prospectId || '', clientId: b.clientId || '', nom: b.nom || '',
+    date: $('#bilanDate').value || todayISO(), accord: b.accord || todayISO(),
+    reponses: lireReponsesBilan(), cree: b.cree || Date.now(), maj: Date.now()
+  };
+  bilanModifie = false;
+  majEtatBilan('envoi');
+  try{
+    await setDoc(doc(db, 'bilans', b.id), data);
+    Object.assign(b, data);
+    if(!bilans.includes(b)) bilans.push(b);
+    if(bilanCourant && bilanCourant.b === b){
+      majEtatBilan(bilanModifie ? 'attente' : 'ok');
+      $('#bilanSupprBtn').style.display = '';
+    }
+    return true;
+  } catch(e){
+    console.error('[ARD] Bilan non enregistré (code:', e && e.code, ')', e);
+    bilanModifie = true;
+    if(bilanCourant && bilanCourant.b === b) majEtatBilan('erreur');
+    showToast("Le bilan n'a pas pu être enregistré — voir la console.", true);
+    return false;
+  }
+}
+
+$('#bilanSections').addEventListener('input', e => {
+  if(e.target.matches('textarea')) ajusterHauteur(e.target);
+  planifierSauvegardeBilan();
+});
+$('#bilanSections').addEventListener('click', e => {
+  const chip = e.target.closest('.chip-choix');
+  if(chip){
+    const deja = chip.classList.contains('on');
+    $$('.chip-choix', chip.parentElement).forEach(x => x.classList.remove('on'));
+    if(!deja) chip.classList.add('on');
+    planifierSauvegardeBilan();
+    return;
+  }
+  const plus = e.target.closest('[data-liste-plus]');
+  if(plus){
+    const zone = plus.parentElement;
+    plus.insertAdjacentHTML('beforebegin', ligneListeBilan('', zone.dataset.exemple));
+    const champs = $$('input', zone);
+    champs[champs.length - 1].focus();
+    return;
+  }
+  const moins = e.target.closest('[data-liste-moins]');
+  if(moins){
+    const zone = moins.closest('[data-type="liste"]');
+    if($$('.liste-ligne', zone).length > 1) moins.parentElement.remove();
+    else $('input', moins.parentElement).value = '';
+    planifierSauvegardeBilan();
+  }
+});
+$('#bilanDate').addEventListener('change', planifierSauvegardeBilan);
+$('#bilanNav').addEventListener('click', e => {
+  const b = e.target.closest('[data-aller]');
+  if(b) document.getElementById('bsec-' + b.dataset.aller).scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+$('#bilanAccord').addEventListener('change', async e => {
+  const b = bilanCourant && bilanCourant.b;
+  if(!b) return;
+  if(e.target.checked){
+    b.accord = b.accord || todayISO();
+    bilanModifie = true;
+    await sauverBilan();
+    return;
+  }
+  if(b.maj){
+    // Sans accord, on ne garde pas le bilan.
+    if(confirm("Sans l'accord de la personne, ce bilan ne peut pas être conservé.\n\nSupprimer le bilan ?")){
+      await supprimerBilanCourant();
+    } else {
+      e.target.checked = true;
+    }
+  } else {
+    b.accord = '';
+    majEtatBilan('accord');
+  }
+});
+
+// Ferme la vue bilan en enregistrant ce qui peut l'être. Renvoie false si l'utilisateur
+// préfère rester (modifications non enregistrables, faute d'accord).
+function fermerBilanSansRetour(){
+  if(!bilanCourant){ $('#viewBilan').style.display = 'none'; return true; }
+  if(bilanModifie && !$('#bilanAccord').checked
+     && !confirm("Ce bilan n'est pas enregistré : l'accord n'est pas coché. Quitter quand même ?")) return false;
+  if(bilanModifie && $('#bilanAccord').checked) sauverBilan();   // part en arrière-plan, données déjà lues
+  clearTimeout(bilanMinuterie);
+  bilanCourant = null;
+  bilanModifie = false;
+  $('#viewBilan').style.display = 'none';
+  return true;
+}
+
+$('#bilanRetour').addEventListener('click', async ()=>{
+  const retour = bilanCourant ? bilanCourant.retour : null;
+  if(!fermerBilanSansRetour()) return;
+  if(retour && retour.client){
+    const c = allClients.find(x => x.id === retour.client.id) || retour.client;
+    await openClient(c);
+    switchPane('fiche');
+  } else {
+    afficherVue('business');
+  }
+});
+
+function bilanEnTexte(){
+  const b = bilanCourant.b, r = lireReponsesBilan();
+  const lignes = [`BILAN — ${b.nom || ''}`, `Date : ${fmtDate($('#bilanDate').value || b.date)}`];
+  SECTIONS_BILAN.forEach(sec => {
+    const remplis = sec.champs.filter(c => estRempli(r[c.k]));
+    if(!remplis.length) return;
+    lignes.push('', sec.titre.toUpperCase());
+    remplis.forEach(c => {
+      const v = r[c.k];
+      lignes.push(Array.isArray(v) ? `${c.l} :\n${v.map(x => '- ' + x).join('\n')}` : `${c.l} : ${String(v).trim()}`);
+    });
+  });
+  return lignes.join('\n');
+}
+$('#bilanCopierBtn').addEventListener('click', async ()=>{
+  if(!bilanCourant) return;
+  const texte = bilanEnTexte();
+  try{
+    await navigator.clipboard.writeText(texte);
+    showToast('Bilan copié ✓');
+  } catch(e){
+    const t = document.createElement('textarea');
+    t.value = texte; document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); showToast('Bilan copié ✓'); } catch(_){ showToast('Copie impossible sur ce navigateur.', true); }
+    t.remove();
+  }
+});
+
+$('#bilanFaitBtn').addEventListener('click', async ()=>{
+  const p = bilanCourant && bilanCourant.prospect;
+  if(!p) return;
+  const dates = { ...(p.dates || {}) };
+  if(!dates.bilanFait) dates.bilanFait = todayISO();
+  try{
+    await updateDoc(doc(db, 'prospects', p.id), { statut: 'bilan_fait', dates });
+    Object.assign(p, { statut: 'bilan_fait', dates });
+    $('#bilanFaitBtn').style.display = 'none';
+    showToast('Prospect passé en « Bilan fait » ✓');
+  } catch(e){
+    console.error('[ARD] Statut du prospect non modifié', e);
+    showToast('Changement de statut refusé.', true);
+  }
+});
+
+async function supprimerBilanCourant(){
+  const cur = bilanCourant;
+  if(!cur) return;
+  try{
+    if(cur.b.maj) await deleteDoc(doc(db, 'bilans', cur.b.id));
+    bilans = bilans.filter(x => x !== cur.b);
+    bilanModifie = false;
+    showToast('Bilan supprimé');
+    $('#bilanRetour').click();
+  } catch(e){
+    console.error('[ARD] Suppression du bilan refusée', e);
+    showToast('Suppression refusée.', true);
+    $('#bilanAccord').checked = true;
+  }
+}
+$('#bilanSupprBtn').addEventListener('click', async ()=>{
+  if(!bilanCourant || !confirm(`Supprimer définitivement le bilan de ${bilanCourant.b.nom || 'cette personne'} ?`)) return;
+  await supprimerBilanCourant();
+});
+
+// Carte « Bilan » sur la fiche client.
+async function afficherBilanFiche(client){
+  $('#bilanClientInfo').textContent = '';
+  if(!bilansCharges) await loadBilans();
+  if(!currentClient || currentClient.id !== client.id) return;
+  if(!bilansCharges){
+    $('#bilanClientInfo').textContent = 'Lecture des bilans impossible (règles Firestore à jour ?).';
+    return;
+  }
+  const b = bilanDuClient(client.id);
+  $('#bilanClientBtn').textContent = b ? 'Ouvrir le bilan' : 'Faire le bilan';
+  if(b){
+    const c = compteRemplis(b.reponses);
+    const rempli = c.reduce((n, x) => n + x.rempli, 0), total = c.reduce((n, x) => n + x.total, 0);
+    $('#bilanClientInfo').textContent = `Bilan du ${fmtDate(b.date)} · ${rempli}/${total} réponses renseignées.`;
+  } else {
+    $('#bilanClientInfo').textContent = "Pas encore de bilan pour ce client. Tu peux le remplir ici, par exemple au démarrage de son suivi.";
+  }
+}
+$('#bilanClientBtn').addEventListener('click', ()=>{
+  if(isDirty && !confirm("Le programme n'est pas enregistré. Quitter la fiche quand même ?")) return;
+  isDirty = false;
+  ouvrirBilan({ client: currentClient });
 });
 
 function renderCa(){

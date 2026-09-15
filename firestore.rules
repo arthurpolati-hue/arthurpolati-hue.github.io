@@ -112,6 +112,12 @@ service cloud.firestore {
       allow delete: if coach();
     }
 
+    // Bilans (entretien avec le prospect ou le client) : réservés au coach.
+    // Contiennent des données de santé : aucune lecture publique.
+    match /bilans/{bilanId} {
+      allow read, write: if coach();
+    }
+
     // Tâches et ventes à l'unité (onglet Business) : réservées au coach.
     match /taches/{tacheId} {
       allow read, write: if coach();
