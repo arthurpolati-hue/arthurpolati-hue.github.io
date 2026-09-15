@@ -19,12 +19,28 @@ export const OFFRES = [
 ];
 export const offreDe = k => OFFRES.find(o => o.k === k) || null;
 
-/** Tarif mensuel effectif d'un client : le tarif saisi, sinon le prix de l'offre. */
-export function tarifClient(c){
+// Adhérents de la salle partenaire : remise sur le tarif mensuel.
+export const REMISE_PARTENAIRE = 0.20;
+export const fmtRemise = () => `−${Math.round(REMISE_PARTENAIRE * 100)} %`;
+
+/** Tarif mensuel AVANT remise : le tarif saisi, sinon le prix de l'offre. */
+export function tarifBase(c){
   if(!c || !c.offre) return 0;
   if(typeof c.tarif === 'number' && c.tarif >= 0) return c.tarif;
   const o = offreDe(c.offre);
   return o ? o.prix : 0;
+}
+/** Montant appliqué au tarif, arrondi au centime. */
+export const avecRemise = (montant, partenaire) =>
+  partenaire ? Math.round(montant * (1 - REMISE_PARTENAIRE) * 100) / 100 : montant;
+
+/**
+ * Tarif mensuel effectif (celui qui compte dans le CA). `c.tarif` est TOUJOURS le prix
+ * avant remise : la remise partenaire s'applique ici, jamais dans le champ saisi,
+ * sinon elle serait déduite deux fois à chaque enregistrement de la fiche.
+ */
+export function tarifClient(c){
+  return avecRemise(tarifBase(c), !!(c && c.partenaire));
 }
 
 /* ───────────────────────────── Prospects ───────────────────────────── */
@@ -118,8 +134,11 @@ export function caMensuel(clients){
     return { k:o.k, l:o.l, nb:cs.length, ca: cs.reduce((n, c) => n + tarifClient(c), 0) };
   });
   const total = parOffre.reduce((n, o) => n + o.ca, 0);
+  const partenaires = avecOffre.filter(c => c.partenaire);
   return {
     total,
+    nbPartenaires: partenaires.length,
+    remises: Math.round(partenaires.reduce((n, c) => n + tarifBase(c) - tarifClient(c), 0) * 100) / 100,
     annuel: total * 12,
     nbPayants: avecOffre.length,
     panierMoyen: avecOffre.length ? Math.round(total / avecOffre.length) : 0,

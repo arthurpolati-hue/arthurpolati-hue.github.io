@@ -18,6 +18,8 @@
   .consent-info{font-size:0.8rem;color:var(--fog);line-height:1.5;margin:0 0 12px;}
   .consent-info b{color:var(--paper);font-weight:600;}
   .consent-info .alerte{color:#E7B45A;}
+  .check-partenaire{display:flex;align-items:center;gap:8px;font-size:0.86rem;color:var(--paper);margin:0 0 10px;cursor:pointer;}
+  .check-partenaire input{width:18px;height:18px;accent-color:var(--blue);}
   .export-photos{display:flex;align-items:center;gap:8px;font-size:0.84rem;color:var(--fog);margin:0 0 12px;cursor:pointer;}
   .export-photos input{width:18px;height:18px;accent-color:var(--blue);}
   :root{
@@ -690,9 +692,10 @@
           </div>
           <div class="row">
             <div class="field"><label>Offre</label><select id="editClientOffre"></select></div>
-            <div class="field"><label>Tarif mensuel (€)</label><input type="number" id="editClientTarif" min="0" step="10"></div>
+            <div class="field"><label>Tarif mensuel avant remise (€)</label><input type="number" id="editClientTarif" min="0" step="10"></div>
             <div class="field"><label>Offre depuis</label><input type="date" id="editClientOffreDepuis"></div>
           </div>
+          <label class="check-partenaire"><input type="checkbox" id="editClientPartenaire"> Adhérent de la salle partenaire (<span class="remise-taux"></span>)</label>
           <p class="sub" id="offreDetail" style="margin:0 0 12px;font-size:0.8rem;"></p>
           <p class="sub" style="margin:0 0 12px;font-size:0.8rem;">L'objectif décide de ce que le bilan met en avant : on ne félicite pas quelqu'un d'avoir pris 2 kg s'il vient pour en perdre. Le cycle sert de période de référence (4 semaines).</p>
           <div class="row" style="margin-bottom:12px;">
@@ -747,7 +750,7 @@ import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue } from "./analyse.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
-import { OFFRES, offreDe, tarifClient, ETAPES, SOURCES, sourceDe, CLE_DATE,
+import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, ETAPES, SOURCES, sourceDe, CLE_DATE,
          tunnel, caMensuel, caHistorique, fmtEuros } from "./offres.js";
 import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
 injecterStylesViz();
@@ -1432,7 +1435,8 @@ async function openClient(client){
       + OFFRES.map(o => `<option value="${o.k}">${escapeHtml(o.l)} — ${o.prixMax && o.prixMax !== o.prix ? o.prix + ' à ' + o.prixMax : o.prix} €/mois</option>`).join('');
   }
   $('#editClientOffre').value = client.offre || '';
-  $('#editClientTarif').value = client.offre ? tarifClient(client) : '';
+  $('#editClientTarif').value = client.offre ? tarifBase(client) : '';
+  $('#editClientPartenaire').checked = !!client.partenaire;
   $('#editClientOffreDepuis').value = client.offreDepuis || '';
   majDetailOffre();
   majBoutonActif();
@@ -1763,7 +1767,8 @@ $('#saveClientBtn').addEventListener('click', async ()=>{
   if(!name){ showToast("Le nom ne peut pas être vide.", true); return; }
   spinner(true);
   try{
-    const maj = { name, phone, objectif, cycleStart, offre: offre || '', tarif, offreDepuis };
+    const partenaire = $('#editClientPartenaire').checked;
+    const maj = { name, phone, objectif, cycleStart, offre: offre || '', tarif, offreDepuis, partenaire };
     await updateDoc(doc(db, 'clients', currentClient.id), maj);
     Object.assign(currentClient, maj);
     const inList = allClients.find(c => c.id === currentClient.id);
@@ -2687,10 +2692,18 @@ $('#avatarDelBtn').addEventListener('click', async ()=>{
 // (Full sur devis, séances en présentiel supplémentaires en Hybride).
 function majDetailOffre(){
   const o = offreDe($('#editClientOffre').value);
-  $('#offreDetail').textContent = o
-    ? o.detail + '. Le tarif mensuel compte dans ton chiffre d\'affaires.'
+  const partenaire = $('#editClientPartenaire').checked;
+  const saisi = parseFloat($('#editClientTarif').value);
+  const base = isNaN(saisi) ? (o ? o.prix : 0) : saisi;
+  $('#offreDetail').innerHTML = o
+    ? escapeHtml(o.detail) + '. ' + (partenaire
+        ? `Remise partenaire : <b>${fmtEuros(avecRemise(base, true))}/mois</b> au lieu de ${fmtEuros(base)} — c'est ce montant qui compte dans ton chiffre d'affaires.`
+        : "Le tarif mensuel compte dans ton chiffre d'affaires.")
     : "Sans offre, ce client ne compte pas dans ton chiffre d'affaires.";
 }
+$$('.remise-taux').forEach(el => { el.textContent = fmtRemise(); });
+$('#editClientPartenaire').addEventListener('change', majDetailOffre);
+$('#editClientTarif').addEventListener('input', majDetailOffre);
 $('#editClientOffre').addEventListener('change', ()=>{
   const o = offreDe($('#editClientOffre').value);
   $('#editClientTarif').value = o ? o.prix : '';
@@ -2814,8 +2827,9 @@ function renderProspects(){
         <div class="row">
           <div class="field"><label>Offre choisie</label>
             <select data-conv-offre>${OFFRES.map(o => `<option value="${o.k}">${escapeHtml(o.l)}</option>`).join('')}</select></div>
-          <div class="field"><label>Tarif mensuel (€)</label><input type="number" data-conv-tarif min="0" step="10" value="${OFFRES[0].prix}"></div>
+          <div class="field"><label>Tarif mensuel avant remise (€)</label><input type="number" data-conv-tarif min="0" step="10" value="${OFFRES[0].prix}"></div>
         </div>
+        <label class="check-partenaire"><input type="checkbox" data-conv-partenaire> Adhérent de la salle partenaire (${fmtRemise()})</label>
         <div class="row">
           <button class="btn btn-blue btn-sm" type="button" data-conv-ok>Créer la fiche client</button>
           <button class="btn btn-ghost btn-sm" type="button" data-conv-annuler>Annuler</button>
@@ -2892,18 +2906,18 @@ $('#prospectList').addEventListener('click', async (e)=>{
     const o = offreDe($('[data-conv-offre]', row).value);
     const tarif = parseFloat($('[data-conv-tarif]', row).value);
     if(!o){ showToast('Choisis une offre.', true); return; }
-    await convertirProspect(p, o, isNaN(tarif) ? o.prix : tarif);
+    await convertirProspect(p, o, isNaN(tarif) ? o.prix : tarif, $('[data-conv-partenaire]', row).checked);
   }
 });
 
-async function convertirProspect(p, o, tarif){
+async function convertirProspect(p, o, tarif, partenaire){
   const name = [p.prenom, p.nom].filter(Boolean).join(' ').trim() || 'Nouveau client';
   const aujourdhui = todayISO();
   spinner(true);
   try{
     const ref = await addDoc(collection(db, 'clients'), {
       name, phone: p.tel || '', createdAt: serverTimestamp(),
-      offre: o.k, tarif, offreDepuis: aujourdhui, cycleStart: aujourdhui
+      offre: o.k, tarif, partenaire: !!partenaire, offreDepuis: aujourdhui, cycleStart: aujourdhui
     });
     await setDoc(doc(db, 'programs', ref.id), {});
     const dates = { ...(p.dates || {}), converti: (p.dates && p.dates.converti) || aujourdhui };
@@ -2972,6 +2986,7 @@ function renderCa(){
       <div class="ap-kpi"><div class="v">${m.nbPayants}</div><div class="k">clients payants</div></div>
       <div class="ap-kpi"><div class="v">${fmtEuros(m.panierMoyen)}</div><div class="k">panier moyen</div></div>
     </div>
+    ${m.nbPartenaires ? `<p class="viz-note" style="margin:4px 0 0;">Dont <b>${m.nbPartenaires} adhérent(s) de la salle partenaire</b> (${fmtRemise()}) : ${fmtEuros(m.remises)}/mois de remise, déjà déduits du CA.</p>` : ''}
     <div class="biz-titre">Répartition par offre</div>
     ${m.parOffre.map(o => `<div class="ap-bar">
       <span class="nom">${escapeHtml(o.l)}</span>
