@@ -49,7 +49,7 @@ export function tarifClient(c){
 export const VENTES = [
   { k:'essai',     l:"Séance d'essai",        prix:30 },
   { k:'seance',    l:"Séance à l'unité",      prix:50 },
-  { k:'programme', l:'Création de programme', prix:50 }
+  { k:'programme', l:'Création de programme sans suivi', prix:50 }
 ];
 export const venteDe = k => VENTES.find(v => v.k === k) || null;
 
