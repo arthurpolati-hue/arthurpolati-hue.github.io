@@ -91,10 +91,14 @@
 
   /* ---- Grille des séries ---- */
   .sets{display:flex;flex-direction:column;gap:7px;margin-bottom:12px;}
-  .set-head{display:grid;grid-template-columns:32px 1fr 1fr 44px;gap:7px;align-items:center;}
+  .set-head{display:grid;grid-template-columns:30px 1fr 1fr 58px 42px;gap:6px;align-items:center;}
+  .set-head em{font-style:normal;color:var(--blue);display:block;font-size:0.58rem;}
   .set-head span{font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);text-align:center;}
   .set-head span:first-child{text-align:left;}
-  .set-row{display:grid;grid-template-columns:32px 1fr 1fr 44px;gap:7px;align-items:center;}
+  .set-row{display:grid;grid-template-columns:30px 1fr 1fr 58px 42px;gap:6px;align-items:center;}
+  .set-rpe{padding:10px 2px;font-size:0.9rem;font-weight:600;text-align:center;text-align-last:center;min-width:0;}
+  .set-rpe.cible{border-style:dashed;border-color:rgba(62,142,255,0.55);}
+  .set-row.done .set-rpe{border-color:rgba(62,142,255,0.4);background:var(--blue-deep);}
   .set-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--fog);}
   .set-row input{padding:10px 8px;text-align:center;font-size:1rem;font-weight:600;}
   .set-row.done .set-label{color:var(--blue);}
@@ -108,15 +112,8 @@
     100%{transform:scale(1);box-shadow:0 0 0 0 rgba(62,142,255,0);}
   }
   .set-hint{font-size:0.72rem;color:var(--fog);margin:-4px 0 12px;}
-  .add-set{background:none;border:none;color:var(--blue);font-size:0.8rem;font-weight:700;cursor:pointer;padding:0 0 8px;font-family:'Work Sans',sans-serif;}
 
   /* ---- Ressenti / réussite en boutons ---- */
-  .rpe-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;}
-  .rpe-btn{flex:1 1 44px;min-width:44px;padding:9px 4px;border-radius:9px;background:var(--ink);
-    border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.86rem;font-weight:700;
-    cursor:pointer;font-family:'Work Sans',sans-serif;text-align:center;}
-  .rpe-btn.on{background:var(--blue-dim);border-color:var(--blue);color:#CFE3FF;}
-  .rpe-btn.cible{border-style:dashed;border-color:rgba(62,142,255,0.55);}
   .rpe-aide{font-size:0.72rem;color:var(--fog);line-height:1.45;margin:0 0 12px;}
   .rpe-aide b{color:var(--paper);}
   .rpe-aide summary{cursor:pointer;color:var(--blue);font-weight:700;list-style:none;}
@@ -148,6 +145,24 @@
   .success p,.state-msg p{color:var(--fog);font-size:0.95rem;line-height:1.5;margin:0 auto;max-width:32ch;}
   .state-msg .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--steel-line);border-top-color:var(--blue);margin:0 auto 20px;animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  /* --- carte de fin de séance (pensée pour être capturée et partagée) --- */
+  .fin-card{margin:24px auto 0;max-width:380px;text-align:center;border-radius:20px;padding:26px 20px 20px;
+    background:radial-gradient(120% 90% at 50% 0%,#1E3A66 0%,#122138 55%,var(--steel) 100%);
+    border:1px solid rgba(62,142,255,0.5);box-shadow:0 18px 40px rgba(0,0,0,0.45);}
+  .fin-label{font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--blue-soft);}
+  .fin-kg{font-family:'Bebas Neue',sans-serif;font-size:3.6rem;line-height:1;margin:6px 0 4px;color:#fff;}
+  .fin-eq{font-size:1rem;color:var(--blue-soft);line-height:1.45;margin:0 auto;max-width:28ch;}
+  .fin-eq b{color:#fff;}
+  .fin-emoji{display:block;font-size:2.2rem;margin:12px 0 2px;}
+  .fin-stats{font-size:0.82rem;color:var(--fog);margin-top:12px;}
+  .fin-quote{font-size:0.86rem;color:var(--paper);margin:16px auto 0;max-width:30ch;line-height:1.45;font-style:italic;}
+  .fin-brand{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;padding-top:14px;
+    border-top:1px solid rgba(62,142,255,0.3);}
+  .fin-brand .brand-text{font-size:0.9rem;}
+  .fin-insta{display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:11px 16px;border-radius:12px;
+    background:var(--blue);color:#071527;font-weight:800;font-size:0.92rem;text-decoration:none;}
+  .fin-share{font-size:0.76rem;color:var(--fog);margin-top:10px;}
+
   .recap{margin:22px auto 0;max-width:340px;text-align:left;background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;padding:14px 16px;font-size:0.86rem;color:var(--fog);line-height:1.6;}
   .recap b{color:var(--paper);}
 
@@ -431,8 +446,9 @@
 
   <div class="success" id="fillSuccess">
     <div class="check">✓</div>
-    <h2>MERCI ! 💪</h2>
-    <p>C'est bien reçu par ton coach. Continue comme ça, les petites habitudes font les grandes transformations.</p>
+    <h2>SÉANCE BOUCLÉE 💪</h2>
+    <p>C'est bien reçu par Arthur.</p>
+    <div class="fin-card" id="finCard" style="display:none;"></div>
     <div class="recap" id="successRecap" style="display:none;"></div>
   </div>
 
@@ -459,7 +475,7 @@ import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.
 import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
-         parseSetCount, parseRestSeconds } from "./commun.js";
+         parseSetCount, parseRestSeconds, nombreDe } from "./commun.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -525,55 +541,73 @@ let lastTimeMap = new Map();   // nom d'exercice -> {date, r} de la dernière s�
 
 /* ---------------------------------------------------------------- Chrono */
 const restBar = $('#restBar');
-let rest = { interval:null, remaining:0, total:0, elapsedOver:0 };
+// Le chrono ne compte PAS les secondes une à une : il retient l'heure de fin et
+// recalcule le temps restant à chaque affichage. Téléphone verrouillé ou Safari en
+// arrière-plan, iOS gèle les minuteries : un compteur incrémental reprenait là où il
+// s'était arrêté, avec des minutes de retard. Avec l'heure de fin, il est juste au
+// retour. L'état est aussi gardé en mémoire locale, pour survivre au rechargement de
+// la page que Safari fait parfois après un long passage en arrière-plan.
+// ⚠️ Limite : sans application installée ni serveur, la vibration de fin ne peut
+// pas partir quand l'écran est éteint — seulement quand la page est visible.
+let rest = { interval:null, fin:0, total:0, label:'', vibre:false };
+const CLE_CHRONO = 'ard:chrono:' + new URLSearchParams(window.location.search).get('c');
 
-function stopRest(){
+function memoriserChrono(){
+  try{ localStorage.setItem(CLE_CHRONO, JSON.stringify({ fin:rest.fin, total:rest.total, label:rest.label })); }catch(e){}
+}
+function stopRest(effacer = true){
   if(rest.interval){ clearInterval(rest.interval); rest.interval = null; }
   restBar.classList.remove('show','over');
+  if(effacer){ try{ localStorage.removeItem(CLE_CHRONO); }catch(e){} }
 }
-function startRest(seconds, exName){
-  stopRest();
+function startRest(seconds, exName, finExistante){
+  stopRest(false);
   rest.total = seconds;
-  rest.remaining = seconds;
-  rest.elapsedOver = 0;
-  $('#restEx').textContent = exName || '';
-  $('#restTitle').textContent = 'Repos';
+  rest.fin = finExistante || (Date.now() + seconds * 1000);
+  rest.label = exName || '';
+  rest.vibre = !!finExistante && Date.now() >= rest.fin;   // pas de vibration rétroactive
+  $('#restEx').textContent = rest.label;
   restBar.classList.add('show');
-  restBar.classList.remove('over');
+  memoriserChrono();
   paintRest();
-  rest.interval = setInterval(()=>{
-    if(rest.remaining > 0){
-      rest.remaining--;
-      if(rest.remaining === 0){
-        restBar.classList.add('over');
-        $('#restTitle').textContent = 'Repos terminé — go !';
-        if(navigator.vibrate) navigator.vibrate([200,100,200]);
-      }
-    } else {
-      rest.elapsedOver++;
-      // Au-delà de 2 min de dépassement, on arrête d'encombrer l'écran.
-      if(rest.elapsedOver > 120){ stopRest(); return; }
-    }
-    paintRest();
-  }, 1000);
+  rest.interval = setInterval(paintRest, 500);
 }
 function paintRest(){
-  if(rest.remaining > 0){
-    $('#restTime').textContent = fmtClock(rest.remaining);
-    $('#restProgress').style.width = (rest.total ? (rest.remaining/rest.total)*100 : 0) + '%';
-  } else {
-    $('#restTime').textContent = '+' + fmtClock(rest.elapsedOver);
-    $('#restProgress').style.width = '100%';
+  const restant = Math.ceil((rest.fin - Date.now()) / 1000);
+  if(restant > 0){
+    restBar.classList.remove('over');
+    $('#restTitle').textContent = 'Repos';
+    $('#restTime').textContent = fmtClock(restant);
+    $('#restProgress').style.width = (rest.total ? Math.min(100, (restant / rest.total) * 100) : 0) + '%';
+    return;
   }
+  const depasse = -restant;
+  restBar.classList.add('over');
+  $('#restTitle').textContent = 'Repos terminé — go !';
+  $('#restTime').textContent = '+' + fmtClock(depasse);
+  $('#restProgress').style.width = '100%';
+  if(!rest.vibre){ rest.vibre = true; if(navigator.vibrate) navigator.vibrate([200,100,200]); }
+  // Au-delà de 2 min de dépassement, on arrête d'encombrer l'écran.
+  if(depasse > 120) stopRest();
 }
-$('#restStop').addEventListener('click', stopRest);
+// Retour au premier plan : mise à jour immédiate, sans attendre le prochain tic.
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && rest.interval) paintRest(); });
+
+function restaurerChrono(){
+  let m = null;
+  try{ m = JSON.parse(localStorage.getItem(CLE_CHRONO) || 'null'); }catch(e){}
+  if(!m || !m.fin) return;
+  if(Date.now() > m.fin + 120000){ stopRest(); return; }   // trop ancien
+  startRest(m.total, m.label, m.fin);
+}
+
+$('#restStop').addEventListener('click', ()=> stopRest());
 $('#restPlus').addEventListener('click', ()=>{
   if(!restBar.classList.contains('show')) return;
-  rest.remaining += 30;
-  rest.total = Math.max(rest.total, rest.remaining);
-  rest.elapsedOver = 0;
-  restBar.classList.remove('over');
-  $('#restTitle').textContent = 'Repos';
+  rest.fin = Math.max(rest.fin, Date.now()) + 30000;
+  rest.total = Math.max(rest.total, Math.ceil((rest.fin - Date.now()) / 1000));
+  rest.vibre = false;
+  memoriserChrono();
   paintRest();
 });
 
@@ -675,7 +709,7 @@ function renderWeekStrip(){
 /* ------------------------------------------------------------ Rendu du jour */
 async function renderDay(key){
   const token = ++renderToken;
-  stopRest();
+  stopRest(false);      // masque la barre, mais garde le chrono en mémoire
   const wrap = $('#dayContent');
   wrap.innerHTML = '';
   $('#progressBar').classList.remove('show');
@@ -726,7 +760,7 @@ async function renderDay(key){
     const count = parseSetCount(pe.series);
     let sets;
     if(prev && Array.isArray(prev.sets) && prev.sets.length){
-      sets = prev.sets.map(s => ({ reps: s.reps||'', charge: s.charge||'', done: !!s.done }));
+      sets = prev.sets.map(s => ({ reps: s.reps||'', charge: s.charge||'', rpe: s.rpe||'', done: !!s.done }));
     } else if(prev){
       // Ancien format (un seul couple reps/charge pour tout l'exercice).
       sets = Array.from({length:count}, (_,i) => ({
@@ -742,7 +776,6 @@ async function renderDay(key){
       rpeCible: pe.rpe || '',
       sets,
       reussi: prev ? prev.reussi||'' : '',
-      rpe: prev ? prev.rpe||'' : '',
       ressenti: prev ? prev.ressenti||'' : ''
     };
   });
@@ -790,6 +823,7 @@ async function renderDay(key){
   lastTimeMap = new Map();
   const exWrap = $('#exercicesWrap');
   exercices.forEach((ex, idx)=> exWrap.appendChild(buildExerciseCard(ex, idx, exercices, draftKey)));
+  restaurerChrono();
 
   $('#progressBar').classList.add('show');
   $('#progressLabel').textContent = isYesterday ? 'Rattrapage — séance d\'hier' : 'Séance du jour';
@@ -836,8 +870,8 @@ async function renderDay(key){
         results: exercices.map(ex => ({
           nom: ex.nom, seriesCible: ex.seriesCible, repCible: ex.repCible,
           chargeCible: ex.chargeCible, reposCible: ex.reposCible,
-          rpeCible: ex.rpeCible, rpe: ex.rpe,
-          sets: ex.sets.map(s => ({ reps: s.reps, charge: s.charge, done: !!s.done })),
+          rpeCible: ex.rpeCible,
+          sets: ex.sets.map(s => ({ reps: s.reps, charge: s.charge, rpe: s.rpe || '', done: !!s.done })),
           // Résumés lisibles, conservés pour l'affichage côté coach.
           reps: ex.sets.map(s=>s.reps||'—').join(' / '),
           charge: ex.sets.map(s=>s.charge||'—').join(' / '),
@@ -885,6 +919,9 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
       <span class="set-label">S${i+1}</span>
       <input type="text" inputmode="numeric" data-f="reps" placeholder="${escapeHtml(ex.repCible || 'reps')}" value="${escapeHtml(s.reps)}" aria-label="Répétitions série ${i+1}">
       <input type="text" inputmode="decimal" data-f="charge" placeholder="${escapeHtml(ex.chargeCible || 'charge')}" value="${escapeHtml(s.charge)}" aria-label="Charge série ${i+1}">
+      <select class="set-rpe${ex.rpeCible ? ' cible' : ''}" data-f="rpe" aria-label="RPE série ${i+1}">
+        ${['','6','7','7.5','8','8.5','9','10'].map(v=>`<option value="${v}" ${v===(s.rpe||'')?'selected':''}>${v ? v.replace('.', ',') : '—'}</option>`).join('')}
+      </select>
       <button type="button" class="set-check${s.done ? ' on' : ''}" data-check title="Série faite">✓</button>
     </div>`).join('');
 
@@ -896,17 +933,13 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
     <div class="objectif-box"><b>Objectif :</b> ${objectifLine(ex.seriesCible, ex.repCible, ex.chargeCible, ex.reposCible, ex.notesCible, ex.rpeCible)}</div>
     <div class="lastime" data-lastime style="display:none;"></div>
     <div class="section-tag">Ce que tu as fait</div>
-    <div class="set-head"><span></span><span>Répét.</span><span>Charge</span><span></span></div>
+    <div class="set-head"><span></span><span>Répét.</span><span>Charge</span><span>RPE${ex.rpeCible ? ' <em>cible ' + escapeHtml(String(ex.rpeCible).replace('.', ',')) + '</em>' : ''}</span><span></span></div>
     <div class="sets">${setsHtml}</div>
-    <button type="button" class="add-set" data-addset>+ une série de plus</button>
     <div class="set-hint">${restSec ? 'Coche ✓ à la fin de chaque série : le chrono de repos part tout seul.' : 'Coche ✓ à la fin de chaque série.'}</div>
-    <div class="section-tag">RPE — difficulté ressentie <span style="text-transform:none;letter-spacing:0;font-weight:400;">(facultatif)</span></div>
-    <div class="rpe-row" data-rpe>
-      ${['6','7','7.5','8','8.5','9','10'].map(v=>`<button type="button" class="rpe-btn${ex.rpe===v?' on':''}${ex.rpeCible===v?' cible':''}" data-v="${v}">${v.replace('.', ',')}</button>`).join('')}
-    </div>
     <details class="rpe-aide">
-      <summary>C'est quoi le RPE ?</summary>
-      <div>C'est la difficulté de la série, sur une échelle de 6 à 10. On la juge par
+      <summary>C'est quoi le RPE ? (facultatif, une note par série)</summary>
+      <div>C'est la difficulté de <b>chaque série</b>, sur une échelle de 6 à 10 : elle
+      change souvent d'une série à l'autre, c'est normal. On la juge par
       le nombre de répétitions qu'on aurait <b>encore pu faire</b> à la fin :
       <ul>
         <li><b>6</b> — facile, il m'en restait 4 ou plus</li>
@@ -915,7 +948,7 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
         <li><b>9</b> — il m'en restait 1</li>
         <li><b>10</b> — impossible d'en faire une de plus</li>
       </ul>
-      ${ex.rpeCible ? `Arthur vise <b>RPE ${escapeHtml(String(ex.rpeCible).replace('.', ','))}</b> sur cet exercice (repère en pointillés).` : `Tu peux laisser vide, ça reste utile sans.`}
+      ${ex.rpeCible ? `Arthur vise <b>RPE ${escapeHtml(String(ex.rpeCible).replace('.', ','))}</b> sur cet exercice.` : `Tu peux laisser vide, ça reste utile sans.`}
       </div>
     </details>
     <div class="section-tag">Objectif atteint ?</div>
@@ -936,8 +969,9 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
 
   $$('.set-row', card).forEach(row=>{
     const i = +row.dataset.set;
-    $$('input', row).forEach(inp=>{
-      inp.addEventListener('input', ()=>{ ex.sets[i][inp.dataset.f] = inp.value; sync(); });
+    $$('input, select', row).forEach(inp=>{
+      inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input',
+        ()=>{ ex.sets[i][inp.dataset.f] = inp.value; sync(); });
     });
     $('[data-check]', row).addEventListener('click', ()=>{
       const now = !ex.sets[i].done;
@@ -965,15 +999,6 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
     });
   });
 
-  const rpeGroup = $('[data-rpe]', card);
-  $$('.rpe-btn', rpeGroup).forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      ex.rpe = (ex.rpe === btn.dataset.v) ? '' : btn.dataset.v;   // re-tap = désélection
-      $$('.rpe-btn', rpeGroup).forEach(b => b.classList.toggle('on', b.dataset.v === ex.rpe));
-      sync();
-    });
-  });
-
   $$('.choice-row', card).forEach(group=>{
     const field = group.dataset.group;
     $$('.choice', group).forEach(btn=>{
@@ -984,12 +1009,6 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
         sync();
       });
     });
-  });
-
-  $('[data-addset]', card).addEventListener('click', ()=>{
-    ex.sets.push({ reps:'', charge:'', done:false });
-    card.replaceWith(buildExerciseCard(ex, idx, exercices, draftKey));
-    sync();
   });
 
   applyLastTime(card, ex);
@@ -1023,7 +1042,7 @@ function saveDraft(key, exercices, notes){
     try{
       localStorage.setItem(key, JSON.stringify({
         savedAt: Date.now(), notes,
-        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets, reussi:e.reussi, rpe:e.rpe, ressenti:e.ressenti }))
+        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets, reussi:e.reussi, ressenti:e.ressenti }))
       }));
     }catch(e){ /* quota plein / navigation privée : on continue sans brouillon */ }
   }, 400);
@@ -1041,13 +1060,12 @@ function restoreDraft(key, exercices, setNotes){
     if(!target || !Array.isArray(saved.sets)) return;
     saved.sets.forEach((s,i)=>{
       if(!target.sets[i]) return;
-      if(s.reps || s.charge || s.done){
-        target.sets[i] = { reps: s.reps||'', charge: s.charge||'', done: !!s.done };
+      if(s.reps || s.charge || s.rpe || s.done){
+        target.sets[i] = { reps: s.reps||'', charge: s.charge||'', rpe: s.rpe||'', done: !!s.done };
         touched = true;
       }
     });
     if(saved.reussi){ target.reussi = saved.reussi; touched = true; }
-    if(saved.rpe){ target.rpe = saved.rpe; touched = true; }
     if(saved.ressenti){ target.ressenti = saved.ressenti; touched = true; }
   });
   if(typeof d.notes === 'string' && d.notes.trim()){ setNotes(d.notes); touched = true; }
@@ -1099,7 +1117,6 @@ $$('.maintab').forEach(b=>{
     $('#paneSeance').style.display    = nom === 'seance'    ? 'block' : 'none';
     $('#paneResultats').style.display = nom === 'resultats' ? 'block' : 'none';
     if(nom === 'resultats') ouvrirResultats();
-    if(nom !== 'seance') stopRest();
     window.scrollTo(0, 0);
   });
 });
@@ -1500,12 +1517,55 @@ $('#saveMesureBtn').addEventListener('click', async ()=>{
 });
 
 /* ------------------------------------------------------------- Confirmation */
+// Équivalences de poids pour la carte de fin — des ordres de grandeur, annoncés
+// comme tels (« environ »). On prend la plus grande référence que la charge dépasse.
+const EQUIVALENTS = [
+  { kg:4,    un:"d'un chat",                des:'chats',                 e:'🐈' },
+  { kg:30,   un:"d'un labrador",            des:'labradors',             e:'🐕' },
+  { kg:70,   un:"d'une machine à laver",    des:'machines à laver',      e:'🧺' },
+  { kg:250,  un:"d'un piano droit",         des:'pianos droits',         e:'🎹' },
+  { kg:500,  un:"d'un cheval",              des:'chevaux',               e:'🐎' },
+  { kg:1200, un:"d'une voiture citadine",   des:'voitures citadines',    e:'🚗' },
+  { kg:2500, un:"d'un hippopotame",         des:'hippopotames',          e:'🦛' },
+  { kg:6000, un:"d'un éléphant d'Afrique",  des:"éléphants d'Afrique",   e:'🐘' }
+];
+function equivalence(kg){
+  const ref = EQUIVALENTS.filter(x => kg >= x.kg).pop();
+  if(!ref) return null;
+  const n = kg / ref.kg;
+  if(n < 1.5) return { texte:`soit environ le poids <b>${ref.un}</b>`, e:ref.e };
+  const nb = n < 10 ? (Math.round(n * 10) / 10).toLocaleString('fr-FR') : Math.round(n).toLocaleString('fr-FR');
+  return { texte:`soit environ le poids de <b>${nb} ${ref.des}</b>`, e:ref.e };
+}
+
 function showSuccess(exercices){
-  const totalSets = exercices.reduce((n,e)=> n + e.sets.filter(s=>(s.reps||'').trim()||s.done).length, 0);
+  let tonnage = 0, reps = 0, series = 0;
+  exercices.forEach(e => e.sets.forEach(st=>{
+    const r = nombreDe(st.reps), c = nombreDe(st.charge);
+    if(r === null && !st.done) return;
+    series++;
+    if(r !== null){ reps += r; if(c !== null) tonnage += r * c; }
+  }));
+
+  const carte = $('#finCard');
+  const eq = tonnage > 0 ? equivalence(tonnage) : null;
+  carte.innerHTML = (tonnage > 0
+      ? `<div class="fin-label">Aujourd'hui, tu as soulevé</div>
+         <div class="fin-kg">${Math.round(tonnage).toLocaleString('fr-FR')} kg</div>
+         ${eq ? `<span class="fin-emoji">${eq.e}</span><div class="fin-eq">${eq.texte}.</div>` : ''}`
+      : `<div class="fin-label">Aujourd'hui, tu as enchaîné</div>
+         <div class="fin-kg">${reps.toLocaleString('fr-FR')} rép.</div>`)
+    + `<div class="fin-stats">${series} série${series > 1 ? 's' : ''} · ${reps.toLocaleString('fr-FR')} répétitions</div>
+       <div class="fin-quote">Les grandes transformations naissent de petites habitudes.</div>
+       <div class="fin-brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
+       <a class="fin-insta" href="https://www.instagram.com/ard.coaching/" target="_blank" rel="noopener">📸 Suis @ard.coaching sur Instagram</a>
+       <div class="fin-share">Fais une capture et partage ta séance en story 🔥</div>`;
+  carte.style.display = series ? 'block' : 'none';
+
   const lines = exercices.filter(hasInput).map(e => `• <b>${escapeHtml(e.nom)}</b> — ${escapeHtml(summarise({sets:e.sets}))}`);
   const recap = $('#successRecap');
   if(lines.length){
-    recap.innerHTML = `<div style="margin-bottom:8px;"><b>${lines.length}</b> exercice(s), <b>${totalSets}</b> série(s) notée(s).</div>` + lines.join('<br>');
+    recap.innerHTML = `<div style="margin-bottom:8px;">Le détail de ta séance :</div>` + lines.join('<br>');
     recap.style.display = 'block';
   }
   hide('#mainView');

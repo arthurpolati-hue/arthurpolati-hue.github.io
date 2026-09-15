@@ -279,6 +279,19 @@
   .lightbox button{position:absolute;top:16px;right:18px;background:var(--steel);border:1px solid var(--steel-line);
     color:var(--paper);border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;}
 
+  /* --- photos des clients --- */
+  .avatar{flex:0 0 auto;width:40px;height:40px;border-radius:50%;padding:0;position:relative;
+    border:1.5px solid var(--steel-line);background:var(--blue-dim);font-family:'Work Sans',sans-serif;}
+  .avatar .av-in{position:absolute;inset:0;border-radius:50%;overflow:hidden;display:flex;align-items:center;
+    justify-content:center;color:var(--blue-soft);font-weight:800;font-size:0.85rem;letter-spacing:0.02em;}
+  .avatar .av-in img{width:100%;height:100%;object-fit:cover;display:block;}
+  .avatar-lg{width:64px;height:64px;cursor:pointer;border-color:var(--blue);}
+  .avatar-lg .av-in{font-size:1.3rem;}
+  .avatar-lg .cam{position:absolute;right:-3px;bottom:-3px;width:24px;height:24px;border-radius:50%;
+    background:var(--blue);border:2px solid var(--ink);font-size:0.68rem;display:flex;align-items:center;justify-content:center;}
+  .fiche-head{display:flex;align-items:center;gap:14px;margin:8px 0 2px;}
+  .fiche-head h1{margin:0;}
+
   /* --- navigation Clients / Business --- */
   .navtabs{display:flex;gap:6px;margin:-6px 0 20px;}
   .navtab{flex:1;background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);
@@ -430,7 +443,13 @@
 
     <div id="viewClient" style="display:none;">
       <button class="backlink" id="backToClients">← Tous les clients</button>
-      <h1 class="sm" id="clientTitle"></h1>
+      <div class="fiche-head">
+        <button type="button" class="avatar avatar-lg" id="clientAvatar" title="Ajouter ou changer la photo">
+          <span class="av-in" id="clientAvatarIn"></span><span class="cam">📷</span>
+        </button>
+        <h1 class="sm" id="clientTitle"></h1>
+        <input type="file" accept="image/*" id="avatarInput" hidden>
+      </div>
 
       <div class="subtabs" id="subtabs">
         <button class="subtab active" type="button" data-pane="entrainement">Entraînement</button>
@@ -584,6 +603,11 @@
 
         <div class="card">
           <h2>Coordonnées</h2>
+          <div class="row" style="align-items:center;margin-bottom:12px;">
+            <button class="btn btn-ghost btn-sm" id="avatarChangeBtn" type="button">📷 Photo du client</button>
+            <button class="btn btn-danger btn-sm" id="avatarDelBtn" type="button" style="display:none;">Retirer la photo</button>
+            <span class="sub" style="margin:0;font-size:0.78rem;">Pour te souvenir de chacun. Visible uniquement dans ton espace, jamais sur son lien.</span>
+          </div>
           <div class="row">
             <div class="field"><label>Nom</label><input type="text" id="editClientName"></div>
             <div class="field"><label>Téléphone</label><input type="tel" id="editClientPhone" placeholder="06 12 34 56 78"></div>
@@ -766,6 +790,7 @@ async function loadClients(){
   loadInactivity();
   loadReprises();
   loadProspects();
+  chargerAvatars();
 }
 
 // Statut du jour par client. On interroge l'ID déterministe de la séance du jour
@@ -818,12 +843,12 @@ function renderClientList(){
     const li = document.createElement('li');
     if(enPause) li.className = 'pause';
     li.innerHTML = enPause
-      ? `<span style="flex:1;min-width:0;">
+      ? `${avatarHtml(c)}<span style="flex:1;min-width:0;">
            <span class="name">${escapeHtml(c.name)}</span>
            <span class="cmeta">Suivi en pause — son lien affiche un message d'invitation à reprendre</span>
          </span>
          <span class="badge-pause">En pause</span>`
-      : `<i class="dot ${st||''}"></i>
+      : `${avatarHtml(c)}<i class="dot ${st||''}"></i>
          <span style="flex:1;min-width:0;">
            <span class="name">${escapeHtml(c.name)}</span>
            <span class="cmeta">${st ? labels[st] : '…'}</span>
@@ -1341,6 +1366,7 @@ async function openClient(client){
   $('#editClientOffreDepuis').value = client.offreDepuis || '';
   majDetailOffre();
   majBoutonActif();
+  afficherAvatarFiche();
   window.scrollTo(0,0);
 
   spinner(true);
@@ -1690,6 +1716,8 @@ $('#deleteClientBtn').addEventListener('click', async ()=>{
   spinner(true);
   try{
     await deleteDoc(doc(db, 'programs', currentClient.id));
+    await deleteDoc(doc(db, 'photos', avatarId(currentClient.id))).catch(()=>{});
+    avatars.delete(currentClient.id);
     await deleteDoc(doc(db, 'clients', currentClient.id));
     isDirty = false;
     showToast('Client supprimé');
@@ -2159,6 +2187,109 @@ async function loadReprises(){
     finally { spinner(false); }
   }));
 }
+
+/* ------------------------------------------------------- Photos des clients */
+// Rangées dans `photos/avatar-{clientId}`, pas dans `clients/{id}` : la fiche client est
+// lisible par son lien public (le client y lit son prénom), alors que `photos` n'est
+// lisible que par le coach. Le document ne porte PAS de champ `clientId`, pour ne jamais
+// apparaître dans la galerie des photos de suivi. Aucune règle Firestore supplémentaire :
+// l'écriture passe par `coach()`.
+const avatars = new Map();          // clientId -> dataUrl, ou null si pas de photo
+const avatarId = id => `avatar-${id}`;
+
+function initiales(nom){
+  return (nom || '?').trim().split(/\s+/).slice(0, 2).map(m => m[0] || '').join('').toUpperCase() || '?';
+}
+function avatarHtml(c){
+  const url = avatars.get(c.id);
+  return `<span class="avatar"><span class="av-in">${url
+    ? `<img src="${escapeHtml(url)}" alt="">` : escapeHtml(initiales(c.name))}</span></span>`;
+}
+
+async function chargerAvatars(){
+  const manquants = allClients.filter(c => !avatars.has(c.id));
+  if(manquants.length === 0) return;
+  await Promise.all(manquants.map(async c=>{
+    try{
+      const sn = await getDoc(doc(db, 'photos', avatarId(c.id)));
+      avatars.set(c.id, sn.exists() ? (sn.data().dataUrl || null) : null);
+    } catch(e){ avatars.set(c.id, null); }
+  }));
+  renderClientList();
+}
+
+async function afficherAvatarFiche(){
+  const c = currentClient;
+  if(!c) return;
+  if(!avatars.has(c.id)){
+    try{
+      const sn = await getDoc(doc(db, 'photos', avatarId(c.id)));
+      avatars.set(c.id, sn.exists() ? (sn.data().dataUrl || null) : null);
+    } catch(e){ avatars.set(c.id, null); }
+  }
+  if(currentClient !== c) return;
+  const url = avatars.get(c.id);
+  $('#clientAvatarIn').innerHTML = url ? `<img src="${escapeHtml(url)}" alt="">` : escapeHtml(initiales(c.name));
+  $('#avatarDelBtn').style.display = url ? 'inline-block' : 'none';
+}
+
+// Recadrage carré au centre et compression : ~15 Ko, une vignette suffit à reconnaître.
+function compresserAvatar(file, cote = 240){
+  return new Promise((resolve, reject)=>{
+    const lecteur = new FileReader();
+    lecteur.onerror = reject;
+    lecteur.onload = ()=>{
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = ()=>{
+        const t = Math.min(img.width, img.height);
+        const c = document.createElement('canvas');
+        c.width = c.height = cote;
+        c.getContext('2d').drawImage(img, (img.width - t) / 2, (img.height - t) / 2, t, t, 0, 0, cote, cote);
+        resolve(c.toDataURL('image/jpeg', 0.78));
+      };
+      img.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(file);
+  });
+}
+
+const ouvrirSelecteurAvatar = ()=> $('#avatarInput').click();
+$('#clientAvatar').addEventListener('click', ouvrirSelecteurAvatar);
+$('#avatarChangeBtn').addEventListener('click', ouvrirSelecteurAvatar);
+
+// Enregistrement immédiat dès la photo choisie : pas de bouton à penser à cliquer.
+$('#avatarInput').addEventListener('change', async ()=>{
+  const f = $('#avatarInput').files && $('#avatarInput').files[0];
+  $('#avatarInput').value = '';
+  if(!f || !currentClient) return;
+  const id = currentClient.id;
+  spinner(true);
+  try{
+    const dataUrl = await compresserAvatar(f);
+    await setDoc(doc(db, 'photos', avatarId(id)), { dataUrl, maj: todayISO() });
+    avatars.set(id, dataUrl);
+    afficherAvatarFiche();
+    renderClientList();
+    showToast('Photo enregistrée ✓');
+  } catch(err){
+    console.error('[ARD] Photo du client refusée (code:', err && err.code, ')', err);
+    showToast("Photo non enregistrée — voir la console.", true);
+  } finally { spinner(false); }
+});
+
+$('#avatarDelBtn').addEventListener('click', async ()=>{
+  if(!currentClient || !confirm('Retirer la photo de ce client ?')) return;
+  spinner(true);
+  try{
+    await deleteDoc(doc(db, 'photos', avatarId(currentClient.id)));
+    avatars.set(currentClient.id, null);
+    afficherAvatarFiche();
+    renderClientList();
+    showToast('Photo retirée');
+  } catch(err){ showToast('Suppression refusée.', true); }
+  finally { spinner(false); }
+});
 
 /* ------------------------------------------------------------- Business */
 // Offre sur la fiche : changer d'offre propose son tarif de base, qui reste modifiable
@@ -2787,7 +2918,7 @@ function renderSessionDetail(s){
     let setsHtml;
     if(Array.isArray(r.sets) && r.sets.length){
       setsHtml = r.sets.map((st,i)=>
-        `<span class="res-set${st.done ? ' done' : ''}">S${i+1} · ${escapeHtml(st.reps||'—')} × ${escapeHtml(st.charge||'—')}</span>`
+        `<span class="res-set${st.done ? ' done' : ''}">S${i+1} · ${escapeHtml(st.reps||'—')} × ${escapeHtml(st.charge||'—')}${st.rpe ? ` · RPE ${escapeHtml(String(st.rpe).replace('.', ','))}` : ''}</span>`
       ).join('');
     } else {
       // Ancien format : un seul couple reps/charge pour tout l'exercice.
@@ -2796,7 +2927,8 @@ function renderSessionDetail(s){
 
     const tags = [
       r.reussi ? `Objectif : <b style="color:var(--paper);">${escapeHtml(r.reussi)}</b>` : '',
-      r.rpe ? `RPE <b style="color:var(--paper);">${escapeHtml(String(r.rpe).replace('.', ','))}</b>${r.rpeCible ? ` <span style="opacity:0.7;">(cible ${escapeHtml(String(r.rpeCible).replace('.', ','))})</span>` : ''}` : '',
+      // RPE global : seulement pour les anciennes séances, avant le RPE par série.
+      r.rpe && !(Array.isArray(r.sets) && r.sets.some(st => st.rpe)) ? `RPE <b style="color:var(--paper);">${escapeHtml(String(r.rpe).replace('.', ','))}</b>${r.rpeCible ? ` <span style="opacity:0.7;">(cible ${escapeHtml(String(r.rpeCible).replace('.', ','))})</span>` : ''}` : '',
       r.ressenti ? `Ressenti : <b style="color:var(--paper);">${escapeHtml(r.ressenti)}</b>` : ''
     ].filter(Boolean).join(' · ');
 

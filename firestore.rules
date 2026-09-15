@@ -100,6 +100,8 @@ service cloud.firestore {
     }
 
     // Photos de suivi : le client les ENVOIE mais ne peut jamais les relire.
+    // Contient aussi les photos de fiche du coach (`avatar-{clientId}`) : pour elles,
+    // clientDeLId() ne renvoie pas un vrai client, donc seul coach() peut les écrire.
     // C'est volontaire : son lien est public dès qu'il est transféré ou retrouvé
     // dans un historique de navigation, et des photos de corps ne doivent pas
     // être accessibles derrière une simple URL.
