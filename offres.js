@@ -43,6 +43,32 @@ export function tarifClient(c){
   return avecRemise(tarifBase(c), !!(c && c.partenaire));
 }
 
+/* ─────────────────────────── Ventes à l'unité ─────────────────────────── */
+// Prestations ponctuelles, hors abonnement. `prix` est proposé par défaut, le prix
+// réel est saisi à chaque vente. Une vente compte dans le CA du mois de sa `date`.
+export const VENTES = [
+  { k:'essai',     l:"Séance d'essai",        prix:30 },
+  { k:'seance',    l:"Séance à l'unité",      prix:50 },
+  { k:'programme', l:'Création de programme', prix:50 }
+];
+export const venteDe = k => VENTES.find(v => v.k === k) || null;
+
+const arrondi = n => Math.round(n * 100) / 100;
+const prixDe = v => (typeof v.prix === 'number' && v.prix >= 0) ? v.prix : 0;
+
+/** Ventes d'un mois ('YYYY-MM') : total et détail par type. */
+export function ventesDuMois(ventes, mois){
+  const liste = (ventes || []).filter(v => (v.date || '').slice(0, 7) === mois);
+  return {
+    liste,
+    total: arrondi(liste.reduce((n, v) => n + prixDe(v), 0)),
+    parType: VENTES.map(t => {
+      const vs = liste.filter(v => v.type === t.k);
+      return { k:t.k, l:t.l, nb:vs.length, ca: arrondi(vs.reduce((n, v) => n + prixDe(v), 0)) };
+    })
+  };
+}
+
 /* ───────────────────────────── Prospects ───────────────────────────── */
 export const ETAPES = [
   { k:'nouveau',        l:'Nouveau contact' },
@@ -156,11 +182,12 @@ const MOIS = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.
  * Le MOIS EN COURS suit la règle de caMensuel() (clients actifs aujourd'hui) : le
  * dernier point de la courbe doit être égal au CA mensuel affiché. Sans ça, un client
  * mis en pause le 1er du mois gonflait la courbe par rapport au chiffre du dessus.
+ * Les ventes à l'unité (`ventes`) s'ajoutent au mois de leur date.
  * ⚠️ Estimation : le tarif actuel est appliqué à tout l'historique (un changement de
  * tarif n'est pas daté), et une pause suivie d'une reprise n'est pas retirée des
  * mois intermédiaires.
  */
-export function caHistorique(clients, nbMois = 12, reference = new Date()){
+export function caHistorique(clients, nbMois = 12, reference = new Date(), ventes = []){
   const out = [];
   for(let i = nbMois - 1; i >= 0; i--){
     const debutMois = new Date(reference.getFullYear(), reference.getMonth() - i, 1);
@@ -175,7 +202,10 @@ export function caHistorique(clients, nbMois = 12, reference = new Date()){
       if(c.actif === false && c.pauseLe && c.pauseLe < d0) return;
       ca += tarifClient(c); nb++;
     });
-    out.push({ mois: d0.slice(0, 7), x: d1, libelle: `${MOIS[debutMois.getMonth()]} ${String(debutMois.getFullYear()).slice(2)}`, ca, nb });
+    // Ventes à l'unité du mois, ajoutées aux abonnements.
+    const vm = ventesDuMois(ventes, d0.slice(0, 7));
+    out.push({ mois: d0.slice(0, 7), x: d1, libelle: `${MOIS[debutMois.getMonth()]} ${String(debutMois.getFullYear()).slice(2)}`,
+               abonnements: arrondi(ca), ventes: vm.total, nbVentes: vm.liste.length, ca: arrondi(ca + vm.total), nb });
   }
   return out;
 }

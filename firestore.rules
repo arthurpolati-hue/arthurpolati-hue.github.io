@@ -112,6 +112,14 @@ service cloud.firestore {
       allow delete: if coach();
     }
 
+    // Tâches et ventes à l'unité (onglet Business) : réservées au coach.
+    match /taches/{tacheId} {
+      allow read, write: if coach();
+    }
+    match /ventes/{venteId} {
+      allow read, write: if coach();
+    }
+
     // Photos de suivi : le client les ENVOIE mais ne peut jamais les relire.
     // Contient aussi les photos de fiche du coach (`avatar-{clientId}`) : pour elles,
     // clientDeLId() ne renvoie pas un vrai client, donc seul coach() peut les écrire.

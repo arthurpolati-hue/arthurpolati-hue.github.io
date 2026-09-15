@@ -18,6 +18,27 @@
   .consent-info{font-size:0.8rem;color:var(--fog);line-height:1.5;margin:0 0 12px;}
   .consent-info b{color:var(--paper);font-weight:600;}
   .consent-info .alerte{color:#E7B45A;}
+  .tache-form{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
+  .tache-form input{flex:1 1 220px;width:auto;}
+  .tache-form select{width:auto;flex:0 0 auto;}
+  .taches{list-style:none;margin:0 0 12px;padding:0;}
+  .tache{display:flex;align-items:center;gap:10px;background:var(--ink);border:1px solid var(--steel-line);
+    border-radius:10px;padding:9px 10px;margin-bottom:6px;}
+  .tache.en_cours{border-left:3px solid var(--blue);}
+  .tache input[type=checkbox]{width:22px;height:22px;flex:0 0 auto;margin:0;accent-color:var(--blue);cursor:pointer;}
+  .tache .t{flex:1;min-width:0;font-size:0.9rem;line-height:1.35;overflow-wrap:anywhere;}
+  .tache .t .quand{color:var(--fog);font-size:0.74rem;}
+  .tache.fait .t{color:var(--fog);text-decoration:line-through;}
+  .mini-btn{background:none;border:1px solid var(--steel-line);color:var(--fog);border-radius:8px;
+    padding:5px 9px;font-size:0.74rem;font-family:inherit;cursor:pointer;flex:0 0 auto;white-space:nowrap;}
+  .mini-btn:hover{color:var(--paper);border-color:var(--fog);}
+  .taches-vide{font-size:0.8rem;color:var(--fog);margin:0 0 12px;}
+  .taches-faites summary{cursor:pointer;font-size:0.8rem;color:var(--fog);margin:4px 0 8px;}
+  .vente-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-line);font-size:0.86rem;}
+  .vente-row:last-child{border-bottom:none;}
+  .vente-row .q{flex:1;min-width:0;}
+  .vente-row .q span{display:block;font-size:0.74rem;color:var(--fog);}
+  .vente-row .p{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
   .check-partenaire{display:flex;align-items:center;gap:8px;font-size:0.86rem;color:var(--paper);margin:0 0 10px;cursor:pointer;}
   .check-partenaire input{width:18px;height:18px;accent-color:var(--blue);}
   .export-photos{display:flex;align-items:center;gap:8px;font-size:0.84rem;color:var(--fog);margin:0 0 12px;cursor:pointer;}
@@ -432,7 +453,23 @@
 
     <div id="viewBusiness" style="display:none;">
       <h1>Business</h1>
-      <p class="sub">Tes prospects, tes taux de conversion et ton chiffre d'affaires.</p>
+      <p class="sub">Tes tâches, tes prospects, tes ventes et ton chiffre d'affaires.</p>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Tâches</h2>
+          <span class="sub" id="tachesCompte" style="margin:0;font-size:0.8rem;"></span>
+        </div>
+        <form id="tacheForm" class="tache-form">
+          <input type="text" id="tacheTitre" placeholder="Nouvelle tâche… (ex. rappeler Léa)" maxlength="200">
+          <select id="tacheStatut">
+            <option value="a_faire">À faire</option>
+            <option value="en_cours">En cours</option>
+          </select>
+          <button class="btn btn-blue btn-sm" type="submit">Ajouter</button>
+        </form>
+        <div id="tachesZone"><p class="sub" style="margin:0;">Chargement...</p></div>
+      </div>
 
       <div class="card">
         <div class="card-head">
@@ -478,6 +515,26 @@
       </div>
 
       <div class="card">
+        <div class="card-head">
+          <h2>Ventes à l'unité</h2>
+          <button class="btn btn-blue btn-sm" id="venteAddBtn" type="button">+ Enregistrer une vente</button>
+        </div>
+        <form id="venteForm" class="prospect-form" style="display:none;">
+          <div class="row">
+            <div class="field"><label>Prestation</label><select id="vType"></select></div>
+            <div class="field"><label>Prix (€)</label><input type="number" id="vPrix" min="0" step="5"></div>
+            <div class="field"><label>Date</label><input type="date" id="vDate"></div>
+          </div>
+          <div class="field"><label>Pour qui (facultatif)</label><input type="text" id="vQui" list="vQuiListe" maxlength="120" placeholder="Client, prospect ou autre"><datalist id="vQuiListe"></datalist></div>
+          <div class="row">
+            <button class="btn btn-blue btn-sm" type="submit">Enregistrer la vente</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="venteCancelBtn">Annuler</button>
+          </div>
+        </form>
+        <div id="venteZone"><p class="sub" style="margin:0;">Chargement...</p></div>
+      </div>
+
+      <div class="card">
         <h2>Chiffre d'affaires</h2>
         <div id="bizCa"></div>
       </div>
@@ -485,7 +542,7 @@
       <div class="card">
         <h2>Sauvegarde</h2>
         <p class="sub" style="margin:0 0 12px;font-size:0.84rem;">Télécharge une copie complète de ta base (clients, programmes,
-        séances, mesures, rendez-vous, prospects, consentements) dans un fichier JSON. Fais-le une fois par mois et range le fichier
+        séances, mesures, rendez-vous, prospects, ventes, tâches, consentements) dans un fichier JSON. Fais-le une fois par mois et range le fichier
         dans un endroit sûr : il contient des données de santé.</p>
         <label class="export-photos"><input type="checkbox" id="exportPhotos"> Inclure les photos (fichier beaucoup plus lourd)</label>
         <button class="btn btn-blue btn-sm" id="exportAllBtn" type="button">Exporter toutes mes données</button>
@@ -750,7 +807,8 @@ import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue } from "./analyse.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
-import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, ETAPES, SOURCES, sourceDe, CLE_DATE,
+import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES, venteDe, ventesDuMois,
+         ETAPES, SOURCES, sourceDe, CLE_DATE,
          tunnel, caMensuel, caHistorique, fmtEuros } from "./offres.js";
 import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
 injecterStylesViz();
@@ -1822,7 +1880,7 @@ async function effacerRefs(refs){
 
 $('#deleteClientBtn').addEventListener('click', async ()=>{
   const name = currentClient.name || '';
-  if(!confirm(`Supprimer définitivement ${name} et TOUTES ses données ?\n\nFiche, programme, séances, mesures, photos, rendez-vous et consentements sont effacés, et son lien cesse de fonctionner. Sa fiche prospect est anonymisée (tes taux de conversion restent justes).\n\nC'est irréversible : exporte ses données avant si tu veux en garder une trace.`)) return;
+  if(!confirm(`Supprimer définitivement ${name} et TOUTES ses données ?\n\nFiche, programme, séances, mesures, photos, rendez-vous et consentements sont effacés, et son lien cesse de fonctionner. Sa fiche prospect et ses ventes à l'unité sont anonymisées (tes taux et ton CA restent justes).\n\nC'est irréversible : exporte ses données avant si tu veux en garder une trace.`)) return;
   const typed = window.prompt(`Pour confirmer, retape le nom exact du client :`, '');
   if((typed||'').trim() !== name.trim()){ showToast("Nom non confirmé — rien n'a été supprimé.", true); return; }
   spinner(true);
@@ -1837,6 +1895,14 @@ $('#deleteClientBtn').addEventListener('click', async ()=>{
     ps.forEach(d => anonymes.push(updateDoc(doc(db, 'prospects', d.id),
       { prenom:'(client supprimé)', nom:'', tel:'', ville:'', format:'', objectif:'', notes:'' })));
     (await Promise.allSettled(anonymes)).forEach(r => { if(r.status === 'rejected'){ echecs++; console.error('[ARD] Anonymisation refusée', r.reason); } });
+
+    // Ventes : gardées pour la comptabilité, sans l'identité du client.
+    try{
+      const vs = await getDocs(query(collection(db, 'ventes'), where('clientId', '==', id)));
+      const ventesAnon = [];
+      vs.forEach(d => ventesAnon.push(updateDoc(doc(db, 'ventes', d.id), { nom:'(client supprimé)', clientId:'' })));
+      (await Promise.allSettled(ventesAnon)).forEach(r => { if(r.status === 'rejected'){ echecs++; console.error('[ARD] Anonymisation de vente refusée', r.reason); } });
+    } catch(e){ echecs++; console.error('[ARD] Lecture des ventes refusée', e); }
 
     if(echecs > 0){
       // La fiche est gardée : sans elle, impossible de relancer l'effacement du reste.
@@ -1882,7 +1948,7 @@ const nomSlug = t => norm(t || 'client').replace(/[^a-z0-9]+/g, '-').replace(/^-
 
 $('#exportAllBtn').addEventListener('click', async ()=>{
   const avecPhotos = $('#exportPhotos').checked;
-  const noms = ['clients', 'programs', 'sessions', 'measures', 'rdv', 'reprises', 'prospects', 'consentements'];
+  const noms = ['clients', 'programs', 'sessions', 'measures', 'rdv', 'reprises', 'prospects', 'ventes', 'taches', 'consentements'];
   if(avecPhotos) noms.push('photos');
   spinner(true);
   $('#exportInfo').textContent = 'Export en cours…';
@@ -1917,7 +1983,7 @@ $('#exportClientBtn').addEventListener('click', async ()=>{
     const lectures = await Promise.allSettled([
       ...COLLECTIONS_PAR_ID.map(coll => getDoc(doc(db, coll, c.id)).then(d => { if(d.exists()) ranger(coll, d.id, d.data()); })),
       getDoc(doc(db, 'photos', avatarId(c.id))).then(d => { if(d.exists()) ranger('photos', d.id, d.data()); }),
-      ...['sessions', 'photos', 'prospects'].map(coll =>
+      ...['sessions', 'photos', 'prospects', 'ventes'].map(coll =>
         getDocs(query(collection(db, coll), where('clientId', '==', c.id))).then(snap => snap.forEach(d => ranger(coll, d.id, d.data()))))
     ]);
     const refus = lectures.filter(r => r.status === 'rejected').length;
@@ -2748,10 +2814,214 @@ async function loadProspects(){
 }
 
 async function loadBusiness(){
-  await loadProspects();
+  await Promise.all([loadProspects(), loadTaches(), loadVentes()]);
   renderBusiness();
 }
-function renderBusiness(){ renderTunnel(); renderProspects(); renderCa(); }
+function renderBusiness(){ renderTaches(); renderTunnel(); renderProspects(); renderVentes(); renderCa(); }
+
+/* ---------------------------------------------------------------- Tâches */
+// `taches/{id}` : { titre, statut:'a_faire'|'en_cours'|'fait', createdAt, faitLe, cree }
+let taches = [];
+let tachesErreur = null;
+
+async function loadTaches(){
+  try{
+    const snap = await getDocs(collection(db, 'taches'));
+    taches = [];
+    snap.forEach(d => taches.push({ id: d.id, ...d.data() }));
+    tachesErreur = null;
+  } catch(e){
+    console.error('[ARD] Lecture des tâches refusée (code:', e && e.code, ')', e);
+    tachesErreur = (e && e.code) || 'erreur';
+    taches = [];
+  }
+}
+
+function ligneTache(t){
+  const fait = t.statut === 'fait';
+  const bascule = t.statut === 'en_cours' ? 'Remettre à faire' : fait ? '' : 'Commencer';
+  return `<li class="tache ${fait ? 'fait' : t.statut === 'en_cours' ? 'en_cours' : 'a_faire'}" data-tache="${escapeHtml(t.id)}">
+    <input type="checkbox" data-tfait ${fait ? 'checked' : ''} aria-label="${fait ? 'Remettre à faire' : 'Marquer comme faite'}">
+    <span class="t">${escapeHtml(t.titre || '')}${fait && t.faitLe ? `<span class="quand"> · faite le ${escapeHtml(fmtDate(t.faitLe))}</span>` : ''}</span>
+    ${bascule ? `<button class="mini-btn" type="button" data-tbascule>${bascule}</button>` : ''}
+    <button class="mini-btn" type="button" data-tsuppr aria-label="Supprimer la tâche">✕</button>
+  </li>`;
+}
+
+function renderTaches(){
+  const zone = $('#tachesZone');
+  if(tachesErreur){
+    zone.innerHTML = `<p class="sub" style="margin:0;">Impossible de lire les tâches (${escapeHtml(tachesErreur)}). Si c'est <code>permission-denied</code>, les nouvelles règles Firestore ne sont pas encore publiées.</p>`;
+    $('#tachesCompte').textContent = '';
+    return;
+  }
+  const ouvert = !!($('.taches-faites', zone) && $('.taches-faites', zone).open);
+  const tri = (a, b) => (a.cree || 0) - (b.cree || 0);
+  const enCours = taches.filter(t => t.statut === 'en_cours').sort(tri);
+  const aFaire  = taches.filter(t => t.statut !== 'en_cours' && t.statut !== 'fait').sort(tri);
+  const faites  = taches.filter(t => t.statut === 'fait')
+    .sort((a, b) => (b.faitLe || '').localeCompare(a.faitLe || '') || (b.cree || 0) - (a.cree || 0));
+  const bloc = (titre, liste, vide) => `<div class="biz-titre">${titre} (${liste.length})</div>`
+    + (liste.length ? `<ul class="taches">${liste.map(ligneTache).join('')}</ul>` : `<p class="taches-vide">${vide}</p>`);
+  zone.innerHTML = bloc('En cours', enCours, 'Rien en cours.')
+    + bloc('À faire', aFaire, "Rien à faire pour l'instant.")
+    + (faites.length ? `<details class="taches-faites"${ouvert ? ' open' : ''}><summary>Terminées (${faites.length})</summary>
+        <ul class="taches">${faites.slice(0, 30).map(ligneTache).join('')}</ul></details>` : '');
+  $('#tachesCompte').textContent = `${enCours.length} en cours · ${aFaire.length} à faire`;
+}
+
+async function majTache(t, maj){
+  const avant = { statut: t.statut, faitLe: t.faitLe };
+  Object.assign(t, maj);
+  renderTaches();                       // la case réagit tout de suite
+  try{
+    await updateDoc(doc(db, 'taches', t.id), maj);
+  } catch(e){
+    console.error('[ARD] Tâche non modifiée (code:', e && e.code, ')', e);
+    Object.assign(t, avant);
+    renderTaches();
+    showToast('Modification refusée — voir la console.', true);
+  }
+}
+
+$('#tachesZone').addEventListener('click', async e => {
+  const li = e.target.closest('[data-tache]');
+  if(!li) return;
+  const t = taches.find(x => x.id === li.dataset.tache);
+  if(!t) return;
+  if(e.target.matches('[data-tfait]')){
+    await majTache(t, e.target.checked ? { statut:'fait', faitLe: todayISO() } : { statut:'a_faire', faitLe:'' });
+  } else if(e.target.closest('[data-tbascule]')){
+    await majTache(t, { statut: t.statut === 'en_cours' ? 'a_faire' : 'en_cours' });
+  } else if(e.target.closest('[data-tsuppr]')){
+    if(!confirm(`Supprimer la tâche « ${t.titre} » ?`)) return;
+    try{
+      await deleteDoc(doc(db, 'taches', t.id));
+      taches = taches.filter(x => x !== t);
+      renderTaches();
+    } catch(err){ showToast('Suppression refusée.', true); }
+  }
+});
+
+$('#tacheForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const titre = $('#tacheTitre').value.trim();
+  if(!titre) return;
+  const data = { titre: titre.slice(0, 200), statut: $('#tacheStatut').value, createdAt: todayISO(), faitLe:'', cree: Date.now() };
+  try{
+    const ref = await addDoc(collection(db, 'taches'), data);
+    taches.push({ id: ref.id, ...data });
+    $('#tacheTitre').value = '';
+    renderTaches();
+    $('#tacheTitre').focus();
+  } catch(err){
+    console.error('[ARD] Ajout de tâche refusé (code:', err && err.code, ')', err);
+    showToast("Ajout refusé — la règle `taches` est-elle publiée ?", true);
+  }
+});
+
+/* ------------------------------------------------------- Ventes à l'unité */
+// `ventes/{id}` : { type, libelle, prix, date, nom, clientId, prospectId, cree }
+let ventes = [];
+let ventesErreur = null;
+
+async function loadVentes(){
+  try{
+    const snap = await getDocs(collection(db, 'ventes'));
+    ventes = [];
+    snap.forEach(d => ventes.push({ id: d.id, ...d.data() }));
+    ventesErreur = null;
+  } catch(e){
+    console.error('[ARD] Lecture des ventes refusée (code:', e && e.code, ')', e);
+    ventesErreur = (e && e.code) || 'erreur';
+    ventes = [];
+  }
+}
+
+const nomProspect = p => [p.prenom, p.nom].filter(Boolean).join(' ');
+
+function renderVentes(){
+  const zone = $('#venteZone');
+  if(ventesErreur){
+    zone.innerHTML = `<p class="sub" style="margin:0;">Impossible de lire les ventes (${escapeHtml(ventesErreur)}). Si c'est <code>permission-denied</code>, les nouvelles règles Firestore ne sont pas encore publiées.</p>`;
+    return;
+  }
+  const vm = ventesDuMois(ventes, todayISO().slice(0, 7));
+  const recentes = ventes.slice()
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.cree || 0) - (a.cree || 0))
+    .slice(0, 15);
+  zone.innerHTML = `<div class="ap-kpis">
+      ${vm.parType.map(t => `<div class="ap-kpi"><div class="v">${t.nb}</div><div class="k">${escapeHtml(t.l)} ce mois · ${fmtEuros(t.ca)}</div></div>`).join('')}
+    </div>`
+    + (recentes.length
+      ? `<div class="biz-titre">Dernières ventes</div>` + recentes.map(v => `<div class="vente-row">
+          <span class="q"><b>${escapeHtml((venteDe(v.type) || {}).l || v.libelle || 'Vente')}</b>
+            <span>${escapeHtml(fmtDate(v.date))}${v.nom ? ' · ' + escapeHtml(v.nom) : ''}</span></span>
+          <span class="p">${fmtEuros(v.prix)}</span>
+          <button class="mini-btn" type="button" data-vsuppr="${escapeHtml(v.id)}" aria-label="Supprimer la vente">✕</button>
+        </div>`).join('')
+      : `<p class="taches-vide">Aucune vente enregistrée pour l'instant.</p>`);
+}
+
+function preparerFormVente(){
+  const sel = $('#vType');
+  if(!sel.options.length){
+    sel.innerHTML = VENTES.map(v => `<option value="${v.k}">${escapeHtml(v.l)} — ${v.prix} €</option>`).join('');
+  }
+  $('#vPrix').value = (venteDe(sel.value) || {}).prix || '';
+  $('#vDate').value = todayISO();
+  $('#vQui').value = '';
+  const noms = [...allClients.map(c => c.name), ...prospects.filter(p => p.statut !== 'client').map(nomProspect)]
+    .filter(Boolean);
+  $('#vQuiListe').innerHTML = [...new Set(noms)].map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+$('#venteAddBtn').addEventListener('click', ()=>{
+  const f = $('#venteForm');
+  const ouvrir = f.style.display === 'none';
+  f.style.display = ouvrir ? 'block' : 'none';
+  if(ouvrir) preparerFormVente();
+});
+$('#venteCancelBtn').addEventListener('click', ()=>{ $('#venteForm').style.display = 'none'; });
+$('#vType').addEventListener('change', ()=>{ $('#vPrix').value = (venteDe($('#vType').value) || {}).prix || ''; });
+
+$('#venteForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const t = venteDe($('#vType').value);
+  const prix = parseFloat($('#vPrix').value);
+  if(!t){ showToast('Choisis une prestation.', true); return; }
+  if(isNaN(prix) || prix < 0){ showToast('Indique un prix valide.', true); return; }
+  const nom = $('#vQui').value.trim();
+  // Rattachement automatique si le nom correspond exactement à un client ou un prospect.
+  const client = nom ? allClients.find(c => norm(c.name || '') === norm(nom)) : null;
+  const prospect = (nom && !client) ? prospects.find(p => norm(nomProspect(p)) === norm(nom)) : null;
+  const data = { type: t.k, libelle: t.l, prix, date: $('#vDate').value || todayISO(), nom: nom.slice(0, 120),
+                 clientId: client ? client.id : '', prospectId: prospect ? prospect.id : '', cree: Date.now() };
+  spinner(true);
+  try{
+    const ref = await addDoc(collection(db, 'ventes'), data);
+    ventes.push({ id: ref.id, ...data });
+    $('#venteForm').style.display = 'none';
+    renderVentes();
+    renderCa();
+    showToast(`Vente enregistrée : ${t.l}, ${fmtEuros(prix)} ✓`);
+  } catch(err){
+    console.error('[ARD] Vente refusée (code:', err && err.code, ')', err);
+    showToast("Enregistrement refusé — la règle `ventes` est-elle publiée ?", true);
+  } finally { spinner(false); }
+});
+
+$('#venteZone').addEventListener('click', async e => {
+  const b = e.target.closest('[data-vsuppr]');
+  if(!b) return;
+  const v = ventes.find(x => x.id === b.dataset.vsuppr);
+  if(!v || !confirm(`Supprimer la vente « ${(venteDe(v.type) || {}).l || 'Vente'} » du ${fmtDate(v.date)} (${fmtEuros(v.prix)}) ?`)) return;
+  try{
+    await deleteDoc(doc(db, 'ventes', v.id));
+    ventes = ventes.filter(x => x !== v);
+    renderVentes();
+    renderCa();
+  } catch(err){ showToast('Suppression refusée.', true); }
+});
 
 $('#bizPeriode').addEventListener('change', renderTunnel);
 $('#prospectFiltre').addEventListener('change', renderProspects);
@@ -2973,25 +3243,35 @@ $('#prospectForm').addEventListener('submit', async (e)=>{
 function renderCa(){
   const zone = $('#bizCa');
   const m = caMensuel(allClients);
-  const hist = caHistorique(allClients, 12);
+  const hist = caHistorique(allClients, 12, new Date(), ventesErreur ? [] : ventes);
+  const vMois = ventesDuMois(ventesErreur ? [] : ventes, todayISO().slice(0, 7));
+  const caMois = m.total + vMois.total;
+  const ca12 = hist.reduce((n, h) => n + h.ca, 0);
   const premier = hist.findIndex(h => h.ca > 0);
   const points = (premier < 0 ? [] : hist.slice(Math.min(premier, hist.length - 2)))
-    .map(h => ({ x: h.x, y: h.ca, note: `${h.nb} client(s)`, libelle: h.libelle }));
-  const maxOffre = Math.max(...m.parOffre.map(o => o.ca), 1);
+    .map(h => ({ x: h.x, y: h.ca, note: `${h.nb} abonné(s)${h.nbVentes ? ` · ${h.nbVentes} vente(s) à l'unité` : ''}`, libelle: h.libelle }));
+  const maxOffre = Math.max(...m.parOffre.map(o => o.ca), ...vMois.parType.map(t => t.ca), 1);
 
   zone.innerHTML = `
     <div class="ap-kpis">
-      <div class="ap-kpi"><div class="v">${fmtEuros(m.total)}</div><div class="k">CA mensuel</div></div>
-      <div class="ap-kpi"><div class="v">${fmtEuros(m.annuel)}</div><div class="k">sur 12 mois à ce rythme</div></div>
-      <div class="ap-kpi"><div class="v">${m.nbPayants}</div><div class="k">clients payants</div></div>
-      <div class="ap-kpi"><div class="v">${fmtEuros(m.panierMoyen)}</div><div class="k">panier moyen</div></div>
+      <div class="ap-kpi"><div class="v">${fmtEuros(caMois)}</div><div class="k">CA ce mois</div></div>
+      <div class="ap-kpi"><div class="v">${fmtEuros(m.total)}</div><div class="k">abonnements / mois</div></div>
+      <div class="ap-kpi"><div class="v">${fmtEuros(vMois.total)}</div><div class="k">ventes à l'unité ce mois</div></div>
+      <div class="ap-kpi"><div class="v">${fmtEuros(ca12)}</div><div class="k">12 derniers mois</div></div>
+      <div class="ap-kpi"><div class="v">${m.nbPayants}</div><div class="k">clients abonnés</div></div>
+      <div class="ap-kpi"><div class="v">${fmtEuros(m.panierMoyen)}</div><div class="k">abonnement moyen</div></div>
     </div>
     ${m.nbPartenaires ? `<p class="viz-note" style="margin:4px 0 0;">Dont <b>${m.nbPartenaires} adhérent(s) de la salle partenaire</b> (${fmtRemise()}) : ${fmtEuros(m.remises)}/mois de remise, déjà déduits du CA.</p>` : ''}
-    <div class="biz-titre">Répartition par offre</div>
+    <div class="biz-titre">Répartition ce mois</div>
     ${m.parOffre.map(o => `<div class="ap-bar">
       <span class="nom">${escapeHtml(o.l)}</span>
       <span class="piste"><span class="fill" style="width:${Math.round((o.ca / maxOffre) * 100)}%"></span></span>
       <span class="val"><b>${fmtEuros(o.ca)}</b> · ${o.nb} client(s)</span>
+    </div>`).join('')}
+    ${vMois.parType.filter(t => t.nb).map(t => `<div class="ap-bar">
+      <span class="nom">${escapeHtml(t.l)}</span>
+      <span class="piste"><span class="fill" style="width:${Math.round((t.ca / maxOffre) * 100)}%"></span></span>
+      <span class="val"><b>${fmtEuros(t.ca)}</b> · ${t.nb} vente(s)</span>
     </div>`).join('')}
     <div class="biz-titre">Évolution sur 12 mois</div>
     <div id="caChart" class="viz-holder"></div>
@@ -3000,10 +3280,10 @@ function renderCa(){
       ${m.sansOffre.map(c => `<div class="ap-classer"><span class="n">${escapeHtml(c.name || '')}</span>
         <button class="btn btn-ghost btn-sm" type="button" data-sans-offre="${escapeHtml(c.id)}">Renseigner l'offre</button></div>`).join('')}
     </div>` : ''}
-    <p class="viz-note" style="margin-top:10px;">Chiffre d'affaires calculé à partir des offres et des tarifs saisis sur les fiches : c'est ce que tu dois encaisser, pas ce que tu as reçu. L'historique applique le tarif actuel de chaque client à tous les mois, et ne retire pas les mois d'une pause suivie d'une reprise.</p>`;
+    <p class="viz-note" style="margin-top:10px;">Chiffre d'affaires calculé à partir des offres et des tarifs saisis sur les fiches, plus les ventes à l'unité au mois de leur date : c'est ce que tu dois encaisser, pas ce que tu as reçu. L'historique applique le tarif actuel de chaque client à tous les mois, et ne retire pas les mois d'une pause suivie d'une reprise.</p>`;
 
   courbe($('#caChart'), {
-    points, unite: ' €', libelle: 'CA mensuel', colonneNote: 'Clients',
+    points, unite: ' €', libelle: 'CA mensuel', colonneNote: 'Détail',
     couleur: VIZ_COLORS.ligne, fond: '#1B1F22', hauteur: 150,
     formatX: x => (points.find(p => p.x === x) || {}).libelle || x
   });
