@@ -10,6 +10,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>ARD Coaching — Ta semaine</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<meta name="apple-mobile-web-app-title" content="ARD Coaching">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -278,6 +282,22 @@
 
   /* --- suivi en pause --- */
   .pause-view{display:none;padding:26px 0 10px;}
+  /* Consentement RGPD (première ouverture du lien) */
+  .consent-view{display:none;padding:22px 0 10px;}
+  .consent-view.show{display:block;}
+  .consent-view h2{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;margin:0 0 10px;}
+  .consent-view p{font-size:0.9rem;color:#D6D8DA;line-height:1.55;margin:0 0 14px;}
+  .consent-check{display:flex;gap:12px;align-items:flex-start;background:var(--ink);border:1px solid var(--steel-line);
+    border-radius:12px;padding:12px;margin-bottom:10px;font-size:0.86rem;line-height:1.45;color:#D6D8DA;cursor:pointer;}
+  .consent-check input{width:22px;height:22px;flex:0 0 auto;margin:0;accent-color:var(--blue);}
+  .consent-check b{color:var(--paper);}
+  .lien-conf{color:var(--blue);font-weight:600;}
+  .sante-accord{font-size:0.76rem;color:var(--fog);line-height:1.45;margin:14px 0 0;}
+  .sante-accord button{background:none;border:none;color:var(--blue);font:inherit;font-weight:600;padding:0;cursor:pointer;text-decoration:underline;}
+  /* Envois en attente de réseau */
+  .hors-ligne{display:none;background:var(--blue-dim);border:1px solid rgba(62,142,255,0.4);border-radius:12px;
+    padding:10px 12px;margin:0 0 14px;font-size:0.84rem;line-height:1.45;color:var(--paper);}
+  .hors-ligne.show{display:block;}
   .pause-view.show{display:block;}
   .pause-card{background:linear-gradient(160deg,#16233A,var(--steel) 65%);
     border:1px solid rgba(62,142,255,0.45);border-radius:18px;padding:28px 22px;text-align:center;}
@@ -327,6 +347,8 @@
       <button type="button" id="a2hsClose" aria-label="Fermer">✕</button>
     </div>
 
+    <div class="hors-ligne" id="horsLigne" role="status"></div>
+
     <div class="maintabs" id="mainTabs">
       <button class="maintab active" type="button" data-pane="seance">Ma séance</button>
       <button class="maintab" type="button" data-pane="resultats">Mes résultats</button>
@@ -359,7 +381,20 @@
         <p class="photo-note" id="poidsNote" style="margin-top:10px;"></p>
       </div>
 
-      <div class="card">
+      <div class="card" id="santeCard" style="display:none;">
+        <h2>Ton accord d'abord</h2>
+        <p class="photo-note" style="font-size:0.86rem;color:#D6D8DA;">Ton poids, tes mensurations et tes photos
+        sont des <b>données de santé</b>. Pour qu'Arthur puisse les recevoir, il faut ton accord explicite.
+        C'est <b>entièrement facultatif</b> : ton programme et ton suivi fonctionnent très bien sans,
+        et tu pourras retirer ton accord à tout moment.</p>
+        <label class="consent-check"><input type="checkbox" id="santeCheck">
+          <span>J'accepte que mon poids, mes mensurations et mes photos de suivi soient enregistrés
+          quand je choisis de les renseigner, et visibles uniquement par Arthur.</span></label>
+        <button class="btn btn-blue btn-full" id="santeBtn" type="button" disabled>Valider mon accord</button>
+        <p class="sante-accord"><a class="lien-conf" href="confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></p>
+      </div>
+
+      <div class="card" id="mesureCard">
         <h2>Nouvelle mesure</h2>
 
         <div class="optionnel">
@@ -426,7 +461,27 @@
 
         <button class="btn btn-blue btn-full" id="saveMesureBtn" type="button">Enregistrer ma mesure</button>
         <div class="error-msg" id="mesureError"></div>
+        <p class="sante-accord" id="santeAccord"></p>
       </div>
+    </div>
+  </div>
+
+  <div class="consent-view" id="consentView">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
+    <div class="card">
+      <h2 id="consentTitle">BIENVENUE !</h2>
+      <p>Avant de commencer, un mot sur tes données. Ce lien sert à ton suivi : ton programme, et ce que tu
+      notes à chaque séance (répétitions, charges, RPE, ressenti). <b>Seul Arthur y a accès.</b>
+      Rien n'est vendu ni utilisé pour de la publicité.</p>
+      <label class="consent-check"><input type="checkbox" id="consentSuivi">
+        <span>J'accepte que ces informations soient enregistrées pour mon suivi de coaching.
+        <b>Nécessaire pour utiliser ce lien.</b></span></label>
+      <label class="consent-check"><input type="checkbox" id="consentSante">
+        <span><b>Facultatif :</b> j'accepte aussi que mon poids, mes mensurations et mes photos de suivi
+        soient enregistrés si je choisis de les renseigner. Ce sont des données de santé ; je peux
+        retirer cet accord à tout moment.</span></label>
+      <p style="font-size:0.8rem;margin:12px 0 14px;"><a class="lien-conf" href="confidentialite.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a></p>
+      <button class="btn btn-blue btn-full" id="consentBtn" type="button" disabled>C'EST PARTI</button>
     </div>
   </div>
 
@@ -471,7 +526,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+         waitForPendingWrites, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
@@ -487,7 +543,17 @@ const firebaseConfig = {
   appId: "1:553782332925:web:ae2e6b7da5bf86156a1d94"
 };
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Cache local persistant : une écriture faite sans réseau (salle en sous-sol…) est
+// gardée sur le téléphone et envoyée toute seule au retour du réseau, même si la
+// page a été fermée entre-temps (elle part à la prochaine ouverture du lien).
+// Si le navigateur refuse le stockage (navigation privée), on retombe sur le mode normal.
+let db;
+try{
+  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch(e){
+  console.warn('[ARD] Cache hors ligne indisponible, mode normal.', e);
+  db = getFirestore(app);
+}
 
 const $ = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -633,6 +699,24 @@ async function boot(){
     // invitation à reprendre. `actif` absent = actif (aucune migration nécessaire).
     if(cd.actif === false){ montrerPause(); return; }
 
+    // RGPD : rien ne s'affiche (ni ne s'enregistre) avant l'accord de suivi.
+    consent = await lireConsentement();
+    if(!consent || !consent.suivi){
+      montrerConsentement(()=> demarrerSuivi(progSnap));
+      return;
+    }
+    demarrerSuivi(progSnap);
+  } catch(e){
+    // Ne jamais avaler l'erreur en silence : une règle Firestore refusée et un ID
+    // inexistant donnent le même écran, impossible à distinguer sans ce log.
+    console.error('[ARD] Echec du chargement (code:', e && e.code, ')', e);
+    hide('#loadingState');
+    show('#notFoundState');
+  }
+}
+
+function demarrerSuivi(progSnap){
+  try{
     program = progSnap.exists() ? progSnap.data() : {};
     $('#greeting').textContent = clientName ? `SALUT ${clientName.split(' ')[0].toUpperCase()}` : 'TA SEMAINE';
     renderWeekStrip();
@@ -642,14 +726,123 @@ async function boot(){
     majTeaserBilan();
     chargerRdv();
     loadWeekStatuses();
+    surveillerEnvois();
   } catch(e){
-    // Ne jamais avaler l'erreur en silence : une règle Firestore refusée et un ID
-    // inexistant donnent le même écran, impossible à distinguer sans ce log.
-    console.error('[ARD] Echec du chargement (code:', e && e.code, ')', e);
-    hide('#loadingState');
+    console.error('[ARD] Echec de l\'affichage du suivi', e);
     show('#notFoundState');
   }
 }
+
+/* ------------------------------------------------------- Consentement RGPD */
+// Stocké dans `consentements/{clientId}` : { suivi, sante, santeRetire, version }
+// (dates YYYY-MM-DD, '' = non donné). Copie locale en secours : si la lecture ou
+// l'écriture échoue (règles pas encore publiées, pas de réseau), le client n'est
+// pas bloqué et on ne lui redemande pas son accord à chaque ouverture.
+const VERSION_CONSENT = '2026-09-15';
+const cleConsent = () => 'ard:consent:' + clientId;
+let consent = null;
+const fmtJJMM = iso => iso ? `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}` : '';
+
+async function lireConsentement(){
+  let local = null;
+  try{ local = JSON.parse(localStorage.getItem(cleConsent()) || 'null'); }catch(e){}
+  try{
+    const snap = await getDoc(doc(db, 'consentements', clientId));
+    if(snap.exists()) return snap.data();
+  } catch(e){
+    console.warn('[ARD] Lecture du consentement impossible (code:', e && e.code, ')');
+  }
+  return local;
+}
+
+async function enregistrerConsentement(maj){
+  consent = { clientId, suivi:'', sante:'', santeRetire:'', version: VERSION_CONSENT, ...(consent || {}), ...maj };
+  try{ localStorage.setItem(cleConsent(), JSON.stringify(consent)); }catch(e){}
+  try{
+    await envoyer(setDoc(doc(db, 'consentements', clientId), consent, { merge:true }), 'ton accord');
+  } catch(e){
+    console.error('[ARD] Consentement non enregistré en ligne (code:', e && e.code, ')', e);
+  }
+}
+
+function montrerConsentement(suite){
+  const prenom = (clientName || '').split(' ')[0];
+  if(prenom) $('#consentTitle').textContent = `BIENVENUE ${prenom.toUpperCase()} !`;
+  $('#consentView').classList.add('show');
+  const btn = $('#consentBtn');
+  $('#consentSuivi').addEventListener('change', e => { btn.disabled = !e.target.checked; });
+  btn.addEventListener('click', async ()=>{
+    if(!$('#consentSuivi').checked) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    await enregistrerConsentement({ suivi: TODAY_ISO, sante: $('#consentSante').checked ? TODAY_ISO : '', santeRetire:'' });
+    $('#consentView').classList.remove('show');
+    window.scrollTo(0, 0);
+    suite();
+  });
+}
+
+/* ---------------------------------------------------- Envoi sans réseau */
+// Avec le cache persistant, setDoc ne se termine qu'à la confirmation du serveur :
+// hors ligne, la promesse reste en suspens alors que l'écriture est déjà gardée
+// sur le téléphone. On n'attend donc pas indéfiniment : passé quelques secondes
+// (ou tout de suite si le téléphone se sait hors ligne), on répond 'attente'.
+// Un refus du serveur arrivé AVANT ce délai remonte toujours en erreur.
+let enAttente = 0;
+function envoyer(promesse, quoi){
+  const suivie = promesse.then(()=>{
+    return 'envoye';
+  });
+  suivie.catch(e => console.error('[ARD] Envoi refusé :', quoi, '(code:', e && e.code, ')', e));
+  const delai = navigator.onLine === false ? 0 : 7000;
+  return Promise.race([
+    suivie,
+    new Promise(r => setTimeout(()=> r('attente'), delai))
+  ]).then(etat=>{
+    if(etat === 'attente'){
+      enAttente++;
+      majBandeauEnvois();
+      suivie.then(()=>{ enAttente = Math.max(0, enAttente - 1); majBandeauEnvois(true); }, ()=>{});
+    }
+    return etat;
+  });
+}
+
+function majBandeauEnvois(vientDArriver){
+  const b = $('#horsLigne');
+  if(!b) return;
+  if(enAttente > 0){
+    b.textContent = `📶 Pas de réseau : ${enAttente > 1 ? enAttente + ' envois sont' : '1 envoi est'} en attente. `
+      + "Tout est enregistré sur ce téléphone et partira tout seul dès que tu captes.";
+    b.classList.add('show');
+  } else if(vientDArriver){
+    b.textContent = '✓ Réseau retrouvé : tout est bien arrivé chez Arthur.';
+    b.classList.add('show');
+    setTimeout(()=>{ if(enAttente === 0) b.classList.remove('show'); }, 5000);
+  } else {
+    b.classList.remove('show');
+  }
+}
+
+// Écritures restées en file d'une visite précédente (page fermée hors ligne) :
+// elles repartent à l'ouverture. On l'indique jusqu'à la confirmation.
+function surveillerEnvois(){
+  let fini = false;
+  waitForPendingWrites(db).then(()=>{ fini = true; if(enAttente > 0){ enAttente = 0; majBandeauEnvois(true); } }).catch(()=>{});
+  setTimeout(()=>{
+    if(!fini && enAttente === 0 && navigator.onLine === false){
+      $('#horsLigne').textContent = '📶 Pas de réseau pour le moment. Ce que tu enregistres est gardé sur ce téléphone et partira dès que tu captes.';
+      $('#horsLigne').classList.add('show');
+    }
+  }, 1500);
+  window.addEventListener('online', ()=>{ if(enAttente === 0) $('#horsLigne').classList.remove('show'); });
+  window.addEventListener('offline', ()=>{
+    if(enAttente > 0) return;
+    $('#horsLigne').textContent = '📶 Pas de réseau pour le moment. Ce que tu enregistres est gardé sur ce téléphone et partira dès que tu captes.';
+    $('#horsLigne').classList.add('show');
+  });
+}
+
 show('#loadingState');
 boot();
 
@@ -859,7 +1052,7 @@ async function renderDay(key){
     stopRest();
 
     try{
-      await setDoc(doc(db, 'sessions', sessionId), {
+      const etat = await envoyer(setDoc(doc(db, 'sessions', sessionId), {
         clientId, clientName, date: dateISO, day: key,
         echauffement: dayData.echauffement || '',
         exercises: dayData.exercises,
@@ -877,9 +1070,13 @@ async function renderDay(key){
           charge: ex.sets.map(s=>s.charge||'—').join(' / '),
           reussi: ex.reussi, ressenti: ex.ressenti
         }))
-      }, { merge: true });
+      }, { merge: true }), 'ta séance');
       localStorage.removeItem(draftKey);
       showSuccess(exercices);
+      if(etat === 'attente'){
+        $('#fillSuccess > p').textContent = "Pas de réseau pour l'instant : ta séance est enregistrée sur ce téléphone "
+          + "et partira toute seule dès que tu captes (page ouverte, ou à ta prochaine ouverture du lien).";
+      }
     } catch(err){
       console.error('[ARD] Envoi de la séance refusé (code:', err && err.code, ')', err);
       submitBtn.disabled = false;
@@ -1350,7 +1547,30 @@ let resultatsCharges = false;
 const photosEnAttente = {};  // label -> dataUrl compressé
 const PHOTO_LABELS = ['Face', 'Profil', 'Dos'];
 
+// Données de santé : la saisie n'apparaît qu'avec l'accord explicite du client.
+function majAccordSante(){
+  const ok = !!(consent && consent.sante);
+  $('#santeCard').style.display = ok ? 'none' : 'block';
+  $('#mesureCard').style.display = ok ? 'block' : 'none';
+  $('#santeAccord').innerHTML = ok
+    ? `Tu as accepté l'enregistrement de ces données le ${fmtJJMM(consent.sante)}. <button type="button" id="santeRetirer">Retirer mon accord</button>`
+    : '';
+  const r = $('#santeRetirer');
+  if(r) r.addEventListener('click', async ()=>{
+    if(!confirm("Retirer ton accord ?\n\nTu ne pourras plus envoyer de poids, de mensurations ni de photos, et Arthur sera prévenu pour effacer celles déjà envoyées.")) return;
+    await enregistrerConsentement({ sante:'', santeRetire: TODAY_ISO });
+    majAccordSante();
+  });
+}
+$('#santeCheck').addEventListener('change', e => { $('#santeBtn').disabled = !e.target.checked; });
+$('#santeBtn').addEventListener('click', async ()=>{
+  $('#santeBtn').disabled = true;
+  await enregistrerConsentement({ sante: TODAY_ISO, santeRetire:'' });
+  majAccordSante();
+});
+
 async function ouvrirResultats(){
+  majAccordSante();
   construireFormulaireMesures();
   if(resultatsCharges){ renderBilanClient(); return; }
   resultatsCharges = true;
@@ -1444,6 +1664,7 @@ function compresserImage(file, maxCote = 1000, qualite = 0.72){
 $('#saveMesureBtn').addEventListener('click', async ()=>{
   const err = $('#mesureError');
   err.style.display = 'none';
+  if(!(consent && consent.sante)){ majAccordSante(); return; }
 
   const entree = { date: TODAY_ISO };
   let auMoinsUne = false;
@@ -1486,13 +1707,13 @@ $('#saveMesureBtn').addEventListener('click', async ()=>{
     if(photos.length) photoDates.add(TODAY_ISO);
 
     const maj = { clientId, entries, photoDates: [...photoDates].sort() };
-    await setDoc(doc(db, 'measures', clientId), maj, { merge:true });
-    mesures = maj;
-
+    const ecritures = [setDoc(doc(db, 'measures', clientId), maj, { merge:true })];
     if(photos.length){
-      await setDoc(doc(db, 'photos', `${clientId}_${TODAY_ISO}`),
-                   { clientId, date: TODAY_ISO, items: photos }, { merge:true });
+      ecritures.push(setDoc(doc(db, 'photos', `${clientId}_${TODAY_ISO}`),
+                   { clientId, date: TODAY_ISO, items: photos }, { merge:true }));
     }
+    const etat = await envoyer(Promise.all(ecritures), 'tes mesures');
+    mesures = maj;
     Object.keys(photosEnAttente).forEach(k => delete photosEnAttente[k]);
     $$('.photo-drop').forEach(z=>{
       const inp = $('input', z);
@@ -1503,8 +1724,8 @@ $('#saveMesureBtn').addEventListener('click', async ()=>{
     MESURES.forEach(m => { $('#m-' + m.k).value = ''; });
     renderPoidsClient();
     renderBilanClient();
-    btn.textContent = 'Enregistré ✓';
-    setTimeout(()=>{ btn.textContent = 'Enregistrer ma mesure'; btn.disabled = false; }, 1800);
+    btn.textContent = etat === 'attente' ? 'Enregistré ✓ — envoi dès que tu captes' : 'Enregistré ✓';
+    setTimeout(()=>{ btn.textContent = 'Enregistrer ma mesure'; btn.disabled = false; }, etat === 'attente' ? 3500 : 1800);
   } catch(e){
     console.error('[ARD] Envoi des mesures refusé (code:', e && e.code, ')', e);
     btn.disabled = false;

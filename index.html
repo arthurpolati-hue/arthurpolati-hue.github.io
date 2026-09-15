@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bilan offert</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -166,6 +169,10 @@
   textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
 
   .hint{font-size:0.78rem;color:var(--fog);margin-top:6px;}
+  .consent{display:flex;gap:10px;align-items:flex-start;margin:4px 0 14px;font-size:0.82rem;
+    color:var(--fog);line-height:1.45;cursor:pointer;}
+  .consent input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:var(--accent);}
+  .consent a{color:var(--accent);font-weight:600;}
 
   .submit-btn{
     position:relative;
@@ -300,6 +307,12 @@
           <textarea id="objectif" name="objectif" placeholder="Dis-m'en plus sur ce que tu veux atteindre..." required></textarea>
         </div>
 
+        <label class="consent">
+          <input type="checkbox" id="consent">
+          <span>J'accepte qu'Arthur Polati (ARD Coaching) utilise ces informations pour me recontacter
+          au sujet de mon bilan offert. <a href="confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></span>
+        </label>
+
         <button type="submit" class="submit-btn" id="submitBtn">
           <span class="fill" id="btnFill"></span>
           <span class="label" id="btnLabel">ENVOYER MA DEMANDE</span>
@@ -374,6 +387,12 @@
       errorMsg.style.display = 'block';
       return;
     }
+    // Consentement RGPD : sans lui, rien n'est envoyé ni enregistré.
+    if(!document.getElementById('consent').checked){
+      errorMsg.textContent = "Coche la case pour accepter d'être recontacté (c'est obligatoire pour envoyer ta demande).";
+      errorMsg.style.display = 'block';
+      return;
+    }
 
     submitBtn.disabled = true;
     btnLabel.textContent = 'ENVOI...';
@@ -396,7 +415,8 @@
       prenom: prenom.slice(0, 60), nom: nom.slice(0, 60), tel: tel.slice(0, 25),
       ville: ville.slice(0, 80), format: selectedFormat.slice(0, 40),
       objectif: objectif.slice(0, 1000),
-      source: 'site', statut: 'nouveau', createdAt: dateISO
+      source: 'site', statut: 'nouveau', createdAt: dateISO,
+      consentement: dateISO          // preuve de consentement, exigée par la règle prospectDuSite()
     };
     const envoiFirestore = fetch(FIRESTORE_PROSPECTS, {
       method: 'POST',
@@ -411,7 +431,8 @@
       body: JSON.stringify({
         prenom, nom, telephone: tel, ville,
         format_souhaite: selectedFormat,
-        objectif
+        objectif,
+        consentement: 'accepté le ' + dateISO
       })
     }).then(r => { if(!r.ok) throw new Error('Formspree ' + r.status); return r; });
 

@@ -6,10 +6,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B0E11">
 <title>ARD Coaching — Espace Coach</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ARD Coach">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+  .consent-info{font-size:0.8rem;color:var(--fog);line-height:1.5;margin:0 0 12px;}
+  .consent-info b{color:var(--paper);font-weight:600;}
+  .consent-info .alerte{color:#E7B45A;}
+  .export-photos{display:flex;align-items:center;gap:8px;font-size:0.84rem;color:var(--fog);margin:0 0 12px;cursor:pointer;}
+  .export-photos input{width:18px;height:18px;accent-color:var(--blue);}
   :root{
     --ink:#0B0E11; --steel:#1B1F22; --steel-line:#2C3134;
     --paper:#F6F4EF; --fog:#9AA0A6; --blue:#3E8EFF; --blue-dim:#173A63;
@@ -397,6 +407,7 @@
       </div>
 
       <div id="repriseWrap"></div>
+    <div id="retraitWrap"></div>
       <div id="alertWrap"></div>
 
       <div class="legend">
@@ -467,6 +478,16 @@
       <div class="card">
         <h2>Chiffre d'affaires</h2>
         <div id="bizCa"></div>
+      </div>
+
+      <div class="card">
+        <h2>Sauvegarde</h2>
+        <p class="sub" style="margin:0 0 12px;font-size:0.84rem;">Télécharge une copie complète de ta base (clients, programmes,
+        séances, mesures, rendez-vous, prospects, consentements) dans un fichier JSON. Fais-le une fois par mois et range le fichier
+        dans un endroit sûr : il contient des données de santé.</p>
+        <label class="export-photos"><input type="checkbox" id="exportPhotos"> Inclure les photos (fichier beaucoup plus lourd)</label>
+        <button class="btn btn-blue btn-sm" id="exportAllBtn" type="button">Exporter toutes mes données</button>
+        <p class="sub" id="exportInfo" style="margin:10px 0 0;font-size:0.8rem;"></p>
       </div>
     </div>
 
@@ -650,8 +671,9 @@
           <div class="row" style="align-items:center;margin-bottom:12px;">
             <button class="btn btn-ghost btn-sm" id="avatarChangeBtn" type="button">📷 Photo du client</button>
             <button class="btn btn-danger btn-sm" id="avatarDelBtn" type="button" style="display:none;">Retirer la photo</button>
-            <span class="sub" style="margin:0;font-size:0.78rem;">Pour te souvenir de chacun. Visible uniquement dans ton espace, jamais sur son lien.</span>
+            <span class="sub" style="margin:0;font-size:0.78rem;">Pour te souvenir de chacun. Visible uniquement dans ton espace, jamais sur son lien. Demande-lui son accord avant.</span>
           </div>
+          <div class="consent-info" id="consentInfo"></div>
           <div class="row">
             <div class="field"><label>Nom</label><input type="text" id="editClientName"></div>
             <div class="field"><label>Téléphone</label><input type="tel" id="editClientPhone" placeholder="06 12 34 56 78"></div>
@@ -686,7 +708,8 @@
           </div>
           <div class="row">
             <button class="btn btn-ghost btn-sm" id="saveClientBtn" type="button">Enregistrer la fiche</button>
-            <button class="btn btn-danger btn-sm" id="deleteClientBtn" type="button">Supprimer ce client</button>
+            <button class="btn btn-ghost btn-sm" id="exportClientBtn" type="button">Exporter ses données</button>
+            <button class="btn btn-danger btn-sm" id="deleteClientBtn" type="button">Supprimer ce client et toutes ses données</button>
           </div>
         </div>
       </div>
@@ -834,6 +857,7 @@ async function loadClients(){
   loadTodayStatuses();
   loadInactivity();
   loadReprises();
+  loadRetraits();
   loadProspects();
   chargerAvatars();
 }
@@ -1413,6 +1437,7 @@ async function openClient(client){
   majDetailOffre();
   majBoutonActif();
   afficherAvatarFiche();
+  afficherConsentFiche(client.id);
   window.scrollTo(0,0);
 
   spinner(true);
@@ -1754,19 +1779,69 @@ $('#saveClientBtn').addEventListener('click', async ()=>{
   } finally { spinner(false); }
 });
 
+/* ------------------------------------------------- RGPD : données d'un client */
+// Toutes les collections où vit un client. Les séances et photos datées se trouvent
+// par leur champ `clientId` ; les autres ont l'ID du client comme ID de document.
+const COLLECTIONS_PAR_ID = ['clients', 'programs', 'measures', 'rdv', 'reprises', 'consentements'];
+
+async function refsDuClient(id, { avatar = true, seulementSante = false } = {}){
+  const refs = new Map();
+  const ajouter = (coll, docId) => refs.set(`${coll}/${docId}`, doc(db, coll, docId));
+  const parChamp = async coll => {
+    const snap = await getDocs(query(collection(db, coll), where('clientId', '==', id)));
+    snap.forEach(d => ajouter(coll, d.id));
+  };
+  await parChamp('photos');
+  // Filet de sécurité : les photos indexées dans `measures.photoDates`.
+  try{
+    const m = await getDoc(doc(db, 'measures', id));
+    if(m.exists()) (m.data().photoDates || []).forEach(d => ajouter('photos', `${id}_${d}`));
+  }catch(e){ /* l'index est facultatif */ }
+  ajouter('measures', id);
+  if(seulementSante) return [...refs.values()];
+  await parChamp('sessions');
+  COLLECTIONS_PAR_ID.filter(c => c !== 'clients').forEach(c => ajouter(c, id));
+  if(avatar) ajouter('photos', avatarId(id));
+  return [...refs.values()];
+}
+
+/** Efface par lots ; renvoie le nombre d'échecs (sans s'arrêter au premier). */
+async function effacerRefs(refs){
+  let echecs = 0;
+  for(let i = 0; i < refs.length; i += 20){
+    const res = await Promise.allSettled(refs.slice(i, i + 20).map(r => deleteDoc(r)));
+    res.forEach((r, k) => { if(r.status === 'rejected'){ echecs++; console.error('[ARD] Effacement refusé :', refs[i + k].path, r.reason); } });
+  }
+  return echecs;
+}
+
 $('#deleteClientBtn').addEventListener('click', async ()=>{
   const name = currentClient.name || '';
-  if(!confirm(`Supprimer définitivement ${name} ?\n\nSon programme est effacé et son lien cesse de fonctionner. L'historique de ses séances déjà envoyées, lui, est conservé.`)) return;
+  if(!confirm(`Supprimer définitivement ${name} et TOUTES ses données ?\n\nFiche, programme, séances, mesures, photos, rendez-vous et consentements sont effacés, et son lien cesse de fonctionner. Sa fiche prospect est anonymisée (tes taux de conversion restent justes).\n\nC'est irréversible : exporte ses données avant si tu veux en garder une trace.`)) return;
   const typed = window.prompt(`Pour confirmer, retape le nom exact du client :`, '');
   if((typed||'').trim() !== name.trim()){ showToast("Nom non confirmé — rien n'a été supprimé.", true); return; }
   spinner(true);
+  const id = currentClient.id;
   try{
-    await deleteDoc(doc(db, 'programs', currentClient.id));
-    await deleteDoc(doc(db, 'photos', avatarId(currentClient.id))).catch(()=>{});
-    avatars.delete(currentClient.id);
-    await deleteDoc(doc(db, 'clients', currentClient.id));
+    const refs = await refsDuClient(id);
+    let echecs = await effacerRefs(refs);
+
+    // Prospect lié : on garde l'étape et les dates (statistiques), on retire l'identité.
+    const ps = await getDocs(query(collection(db, 'prospects'), where('clientId', '==', id)));
+    const anonymes = [];
+    ps.forEach(d => anonymes.push(updateDoc(doc(db, 'prospects', d.id),
+      { prenom:'(client supprimé)', nom:'', tel:'', ville:'', format:'', objectif:'', notes:'' })));
+    (await Promise.allSettled(anonymes)).forEach(r => { if(r.status === 'rejected'){ echecs++; console.error('[ARD] Anonymisation refusée', r.reason); } });
+
+    if(echecs > 0){
+      // La fiche est gardée : sans elle, impossible de relancer l'effacement du reste.
+      showToast(`Suppression incomplète : ${echecs} élément(s) refusé(s). Vérifie les règles Firestore puis recommence.`, true);
+      return;
+    }
+    await deleteDoc(doc(db, 'clients', id));
+    avatars.delete(id);
     isDirty = false;
-    showToast('Client supprimé');
+    showToast(`${name} et ses données ont été supprimés (${refs.length + 1} documents).`);
     $('#viewClient').style.display = 'none';
     $('#viewClients').style.display = 'block';
     $('#savebar').classList.remove('show');
@@ -1776,6 +1851,146 @@ $('#deleteClientBtn').addEventListener('click', async ()=>{
     showToast("Suppression échouée — voir la console.", true);
   } finally { spinner(false); }
 });
+
+/* ---------------------------------------------------------------- Exports */
+// Timestamps Firestore -> texte ISO, pour un fichier lisible et réimportable.
+function versJson(v){
+  if(v === null || typeof v !== 'object') return v;
+  if(typeof v.toDate === 'function') return v.toDate().toISOString();
+  if(v instanceof Date) return v.toISOString();
+  if(Array.isArray(v)) return v.map(versJson);
+  const o = {};
+  Object.entries(v).forEach(([k, x]) => { o[k] = versJson(x); });
+  return o;
+}
+function telechargerJson(nomFichier, data){
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomFichier;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 5000);
+  return blob.size;
+}
+const fmtTaille = o => o > 1048576 ? `${(o / 1048576).toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(o / 1024))} Ko`;
+const nomSlug = t => norm(t || 'client').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+$('#exportAllBtn').addEventListener('click', async ()=>{
+  const avecPhotos = $('#exportPhotos').checked;
+  const noms = ['clients', 'programs', 'sessions', 'measures', 'rdv', 'reprises', 'prospects', 'consentements'];
+  if(avecPhotos) noms.push('photos');
+  spinner(true);
+  $('#exportInfo').textContent = 'Export en cours…';
+  const sortie = { application:'ARD Coaching', exporteLe: new Date().toISOString(), photosIncluses: avecPhotos, collections:{} };
+  const manquantes = [];
+  let total = 0;
+  try{
+    for(const nom of noms){
+      try{
+        const snap = await getDocs(collection(db, nom));
+        const docs = {};
+        snap.forEach(d => { docs[d.id] = versJson(d.data()); total++; });
+        sortie.collections[nom] = docs;
+      } catch(e){
+        console.error('[ARD] Export : lecture refusée pour', nom, e);
+        manquantes.push(nom);
+      }
+    }
+    const taille = telechargerJson(`ardcoaching-sauvegarde-${todayISO()}.json`, sortie);
+    $('#exportInfo').textContent = `✓ ${total} documents exportés (${fmtTaille(taille)})`
+      + (manquantes.length ? ` — non lus : ${manquantes.join(', ')} (règles Firestore ?)` : '') + '.';
+  } finally { spinner(false); }
+});
+
+// Droit d'accès / portabilité : tout ce qui concerne UN client, photos comprises.
+$('#exportClientBtn').addEventListener('click', async ()=>{
+  const c = currentClient;
+  spinner(true);
+  try{
+    const sortie = { application:'ARD Coaching', client: c.name || '', exporteLe: new Date().toISOString(), donnees:{} };
+    const ranger = (coll, id, data) => { (sortie.donnees[coll] = sortie.donnees[coll] || {})[id] = versJson(data); };
+    const lectures = await Promise.allSettled([
+      ...COLLECTIONS_PAR_ID.map(coll => getDoc(doc(db, coll, c.id)).then(d => { if(d.exists()) ranger(coll, d.id, d.data()); })),
+      getDoc(doc(db, 'photos', avatarId(c.id))).then(d => { if(d.exists()) ranger('photos', d.id, d.data()); }),
+      ...['sessions', 'photos', 'prospects'].map(coll =>
+        getDocs(query(collection(db, coll), where('clientId', '==', c.id))).then(snap => snap.forEach(d => ranger(coll, d.id, d.data()))))
+    ]);
+    const refus = lectures.filter(r => r.status === 'rejected').length;
+    const taille = telechargerJson(`ardcoaching-${nomSlug(c.name)}-${todayISO()}.json`, sortie);
+    showToast(`Données de ${c.name} exportées (${fmtTaille(taille)})` + (refus ? ` — ${refus} lecture(s) refusée(s)` : ''), refus > 0);
+  } finally { spinner(false); }
+});
+
+/* ----------------------------------------------------------- Consentements */
+const fmtJMA = iso => iso ? `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}` : '';
+
+async function afficherConsentFiche(id){
+  const box = $('#consentInfo');
+  box.textContent = '';
+  let c = null;
+  try{
+    const snap = await getDoc(doc(db, 'consentements', id));
+    c = snap.exists() ? snap.data() : null;
+  } catch(e){
+    box.textContent = 'Consentements : lecture impossible (règles Firestore à jour ?).';
+    return;
+  }
+  if(!currentClient || currentClient.id !== id) return;
+  if(!c || !c.suivi){
+    box.innerHTML = "<b>Consentement :</b> pas encore donné — il lui sera demandé à la première ouverture de son lien.";
+    return;
+  }
+  const sante = c.sante
+    ? `accepté le ${fmtJMA(c.sante)}`
+    : c.santeRetire
+      ? `<span class="alerte">retiré le ${fmtJMA(c.santeRetire)}</span>`
+      : 'non donné (il ne voit pas la saisie des mesures)';
+  box.innerHTML = `<b>Suivi :</b> accepté le ${fmtJMA(c.suivi)} · <b>Mesures &amp; photos :</b> ${sante}`;
+}
+
+// Retraits d'accord pour les données de santé, pas encore traités par le coach.
+async function loadRetraits(){
+  const wrap = $('#retraitWrap');
+  let liste = [];
+  try{
+    const snap = await getDocs(collection(db, 'consentements'));
+    snap.forEach(d => {
+      const c = d.data();
+      if(c.santeRetire && !c.sante && !(c.santeTraite && c.santeTraite >= c.santeRetire)) liste.push({ id:d.id, ...c });
+    });
+  } catch(e){
+    console.error('[ARD] Lecture des consentements refusée (code:', e && e.code, ')', e);
+    wrap.innerHTML = ''; return;
+  }
+  if(liste.length === 0){ wrap.innerHTML = ''; return; }
+  const nomDe = id => { const c = allClients.find(x => x.id === id); return c ? c.name : id; };
+  wrap.innerHTML = `<div class="reprise-card">
+    <h2>${liste.length === 1 ? 'Un accord retiré' : `${liste.length} accords retirés`} — données de santé</h2>
+    <p class="sub" style="margin:0 0 10px;font-size:0.82rem;">Ces clients ne veulent plus que leur poids, leurs mensurations et leurs photos soient conservés. Efface-les : leurs séances et leur programme ne sont pas touchés.</p>
+    ${liste.map(c=>`<div class="reprise-row">
+      <span><b>${escapeHtml(nomDe(c.id))}</b><br><span class="quand">accord retiré le ${escapeHtml(fmtJMA(c.santeRetire))}</span></span>
+      <span style="display:flex;gap:8px;flex:0 0 auto;">
+        <button class="btn btn-danger btn-sm" data-effsante="${escapeHtml(c.id)}" type="button">Effacer mesures &amp; photos</button>
+      </span>
+    </div>`).join('')}
+  </div>`;
+  $$('[data-effsante]', wrap).forEach(b => b.addEventListener('click', async ()=>{
+    const id = b.dataset.effsante;
+    if(!confirm(`Effacer définitivement les mesures et les photos de suivi de ${nomDe(id)} ?`)) return;
+    spinner(true);
+    try{
+      const refs = await refsDuClient(id, { seulementSante:true });
+      const echecs = await effacerRefs(refs);
+      if(echecs){ showToast(`${echecs} élément(s) n'ont pas pu être effacés — voir la console.`, true); return; }
+      await setDoc(doc(db, 'consentements', id), { santeTraite: todayISO() }, { merge:true });
+      showToast('Mesures et photos effacées');
+      loadRetraits();
+    } catch(e){
+      console.error('[ARD] Effacement des données de santé refusé', e);
+      showToast('Effacement échoué — voir la console.', true);
+    } finally { spinner(false); }
+  }));
+}
 
 /* ------------------------------------------------------------- Résultats */
 // Les mensurations vivent dans UN document par client (`measures/{clientId}`),
