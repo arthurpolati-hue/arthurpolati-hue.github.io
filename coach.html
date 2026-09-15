@@ -292,6 +292,34 @@
   .fiche-head{display:flex;align-items:center;gap:14px;margin:8px 0 2px;}
   .fiche-head h1{margin:0;}
 
+  /* --- Actualités --- */
+  .veille-chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
+  .veille-chip{background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);border-radius:20px;
+    padding:8px 14px;font-family:'Work Sans',sans-serif;font-weight:700;font-size:0.84rem;cursor:pointer;}
+  .veille-chip.active{background:var(--blue-dim);border-color:var(--blue);color:#fff;}
+  .synth-maj{font-size:0.74rem;color:var(--fog);margin:-8px 0 12px;}
+  .synth-intro{font-size:0.9rem;line-height:1.55;color:var(--paper);margin:0 0 14px;}
+  .synth-point{padding:12px 0;border-top:1px solid var(--steel-line);}
+  .synth-point h3{font-size:0.95rem;margin:0 0 5px;color:#fff;}
+  .synth-point p{font-size:0.87rem;line-height:1.55;color:var(--fog);margin:0 0 8px;}
+  .synth-point p b{color:var(--paper);}
+  .src-chips{display:flex;gap:6px;flex-wrap:wrap;}
+  .src-chip{font-size:0.72rem;color:var(--blue-soft);background:var(--ink);border:1px solid var(--steel-line);
+    border-radius:8px;padding:3px 8px;text-decoration:none;}
+  .src-chip:hover{border-color:var(--blue);}
+  .flux-item{padding:13px 0;border-top:1px solid var(--steel-line);}
+  .flux-item:first-child{border-top:none;padding-top:2px;}
+  .flux-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:0.72rem;color:var(--fog);margin-bottom:5px;}
+  .flux-badge{font-size:0.64rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;border-radius:20px;
+    padding:2px 8px;border:1px solid var(--steel-line);color:var(--fog);}
+  .flux-badge.neuf{border-color:var(--blue);color:var(--blue);}
+  .flux-titre{font-size:0.9rem;font-weight:700;color:var(--paper);text-decoration:none;line-height:1.4;display:block;}
+  .flux-titre:hover{color:var(--blue);}
+  .flux-concl{font-size:0.82rem;line-height:1.5;color:var(--fog);margin:6px 0 0;padding-left:10px;
+    border-left:2px solid var(--blue-dim);font-style:italic;}
+  .flux-concl span{font-style:normal;font-weight:700;color:var(--blue-soft);font-size:0.7rem;
+    text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:2px;}
+
   /* --- navigation Clients / Business --- */
   .navtabs{display:flex;gap:6px;margin:-6px 0 20px;}
   .navtab{flex:1;background:var(--steel);border:1.5px solid var(--steel-line);color:var(--fog);
@@ -357,6 +385,7 @@
     <div class="navtabs" id="navtabs">
       <button class="navtab active" type="button" data-vue="clients">Clients</button>
       <button class="navtab" type="button" data-vue="business">Business <span class="nav-badge" id="navBadge" hidden></span></button>
+      <button class="navtab" type="button" data-vue="veille">Actualités</button>
     </div>
 
     <div id="viewClients">
@@ -438,6 +467,21 @@
       <div class="card">
         <h2>Chiffre d'affaires</h2>
         <div id="bizCa"></div>
+      </div>
+    </div>
+
+    <div id="viewVeille" style="display:none;">
+      <h1>Actualités</h1>
+      <p class="sub">Ce que dit la science sur l'entraînement et la nutrition. Uniquement des méta-analyses et des revues systématiques publiées dans des revues scientifiques indexées.</p>
+      <div class="veille-chips" id="veilleChips"></div>
+      <div id="veilleSynthese"></div>
+      <div class="card">
+        <div class="card-head">
+          <h2>Dernières méta-analyses</h2>
+          <button class="btn btn-ghost btn-sm" id="veilleRefresh" type="button">Actualiser</button>
+        </div>
+        <div id="veilleFlux"><p class="sub" style="margin:0;">Chargement…</p></div>
+        <p class="viz-note" id="veilleNote"></p>
       </div>
     </div>
 
@@ -682,6 +726,7 @@ import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalo
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
 import { OFFRES, offreDe, tarifClient, ETAPES, SOURCES, sourceDe, CLE_DATE,
          tunnel, caMensuel, caHistorique, fmtEuros } from "./offres.js";
+import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -1346,6 +1391,7 @@ async function openClient(client){
   currentClient = client;
   $('#viewClients').style.display = 'none';
   $('#viewBusiness').style.display = 'none';
+  $('#viewVeille').style.display = 'none';
   $$('.navtab').forEach(b => b.classList.toggle('active', b.dataset.vue === 'clients'));
   $('#viewClient').style.display = 'block';
   $('#clientTitle').textContent = client.name;
@@ -2188,6 +2234,136 @@ async function loadReprises(){
   }));
 }
 
+/* ------------------------------------------------------------ Actualités */
+// Deux blocs par thème :
+//  1. « Ce qu'on sait aujourd'hui » : synthèse en français rédigée à la main dans
+//     veille.js, chaque affirmation reliée à ses sources (DOI vérifiés dans Europe PMC).
+//  2. « Dernières méta-analyses » : flux automatique depuis l'API publique d'Europe PMC
+//     (qui indexe PubMed), filtré sur les méta-analyses et revues systématiques, articles
+//     rétractés exclus. La conclusion affichée est celle des AUTEURS, reprise telle
+//     quelle en anglais : aucun résumé automatique, donc aucune déformation possible.
+// Contenu externe : tout passe par escapeHtml(), et les liens sont reconstruits vers
+// doi.org ou europepmc.org, jamais repris bruts.
+const EPMC = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search';
+const CACHE_VEILLE_MS = 12 * 3600 * 1000;   // une lecture toutes les 12 h par thème suffit
+let themeVeille = THEMES[0].k;
+
+function ouvrirVeille(){
+  $('#veilleChips').innerHTML = THEMES.map(t =>
+    `<button class="veille-chip${t.k === themeVeille ? ' active' : ''}" type="button" data-theme="${t.k}">${t.emoji} ${escapeHtml(t.l)}</button>`).join('');
+  $$('#veilleChips .veille-chip').forEach(b => b.addEventListener('click', ()=>{
+    themeVeille = b.dataset.theme;
+    ouvrirVeille();
+  }));
+  renderSynthese();
+  chargerFlux(false);
+}
+$('#veilleRefresh').addEventListener('click', ()=> chargerFlux(true));
+
+function lienSource(doi){
+  const ref = REFERENCES[doi];
+  const libelle = ref ? `${ref.auteurs}, ${ref.annee} — ${ref.revue}` : doi;
+  return `<a class="src-chip" href="https://doi.org/${encodeURI(doi)}" target="_blank" rel="noopener"
+    title="${escapeHtml(ref ? ref.titre : doi)}">${escapeHtml(libelle)}</a>`;
+}
+
+function renderSynthese(){
+  const t = THEMES.find(x => x.k === themeVeille);
+  const sy = t && t.synthese;
+  if(!sy){ $('#veilleSynthese').innerHTML = ''; return; }
+  $('#veilleSynthese').innerHTML = `<div class="card">
+    <h2>Ce qu'on sait aujourd'hui</h2>
+    <p class="synth-maj">Synthèse mise à jour le ${escapeHtml(fmtDate(sy.maj))}/${escapeHtml(sy.maj.slice(0,4))} · sources vérifiées une à une</p>
+    ${sy.intro ? `<p class="synth-intro">${sy.intro}</p>` : ''}
+    ${sy.points.map(p => `<div class="synth-point">
+      <h3>${escapeHtml(p.titre)}</h3>
+      <p>${p.texte}</p>
+      <div class="src-chips">${p.sources.map(lienSource).join('')}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// Europe PMC met parfois du HTML dans les titres (« <i>Withania somnifera</i> ») :
+// on retire les balises AVANT l'échappement, sinon elles s'affichent en clair.
+function texteBrut(v){
+  return String(v || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+}
+
+// Conclusion des auteurs : section « Conclusion(s) » du résumé si elle existe,
+// sinon ses deux dernières phrases. Les mentions d'enregistrement (PROSPERO…) sont coupées.
+function extraireConclusion(html){
+  if(!html) return '';
+  const t = String(html).replace(/<h4>\s*([^<]*)<\/h4>/gi, ' ##$1## ').replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
+  const m = t.match(/(?:##\s*|\b)(?:CONCLUSIONS?(?: AND RELEVANCE)?|Conclusions?(?: and relevance)?|INTERPRETATION|Interpretation)\s*(?:##)?\s*:?\s*(.+)$/);
+  let c = m ? m[1] : t.split('. ').slice(-2).join('. ');
+  c = c.replace(/##[^#]*##/g, ' ')
+       .split(/\s(?:Registration|PROSPERO|Trial registration|Systematic review registration|Other|Funding|This (?:review|study|work|meta-analysis) (?:received|was (?:funded|supported)))\b/i)[0].trim();
+  return c.length > 480 ? c.slice(0, 480).replace(/\s+\S*$/, '') + '…' : c;
+}
+
+async function chargerFlux(forcer){
+  const t = THEMES.find(x => x.k === themeVeille);
+  const zone = $('#veilleFlux');
+  const cle = 'ard:veille:' + t.k;
+  let cache = null;
+  try{ cache = JSON.parse(localStorage.getItem(cle) || 'null'); }catch(e){}
+  if(!forcer && cache && Date.now() - cache.t < CACHE_VEILLE_MS){ renderFlux(t, cache); return; }
+
+  zone.innerHTML = '<p class="sub" style="margin:0;">Recherche des dernières méta-analyses…</p>';
+  const url = `${EPMC}?query=${encodeURIComponent('(' + t.requete + ')' + REQUETE_FILTRE)}`
+    + `&format=json&resultType=core&pageSize=10&sort=${encodeURIComponent('P_PDATE_D desc')}`;
+  try{
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const items = ((d.resultList && d.resultList.result) || []).map(x => ({
+      titre: texteBrut(x.title),
+      auteurs: texteBrut(x.authorString),
+      revue: texteBrut(x.journalInfo && x.journalInfo.journal && (x.journalInfo.journal.isoabbreviation || x.journalInfo.journal.title)),
+      date: x.firstPublicationDate || x.pubYear || '',
+      doi: x.doi || '', pmid: x.pmid || '',
+      types: ((x.pubTypeList && x.pubTypeList.pubType) || []),
+      conclusion: extraireConclusion(x.abstractText)
+    }));
+    cache = { t: Date.now(), total: d.hitCount || 0, items };
+    try{ localStorage.setItem(cle, JSON.stringify(cache)); }catch(e){}
+    if(t.k === themeVeille) renderFlux(t, cache);
+  } catch(e){
+    console.error('[ARD] Flux Europe PMC indisponible', e);
+    if(cache){ renderFlux(t, cache, true); return; }
+    zone.innerHTML = `<p class="sub" style="margin:0;">Impossible de joindre Europe PMC pour l'instant (réseau ou service indisponible). Réessaie plus tard.</p>`;
+  }
+}
+
+function renderFlux(t, cache, horsLigne){
+  const il30j = isoLocal(new Date(Date.now() - 30 * 86400000));
+  const items = cache.items || [];
+  $('#veilleFlux').innerHTML = items.length ? items.map(it => {
+    const lien = it.doi ? `https://doi.org/${encodeURI(it.doi)}`
+               : (it.pmid ? `https://europepmc.org/article/MED/${encodeURIComponent(it.pmid)}` : '#');
+    const type = it.types.some(x => /meta-analysis/i.test(x)) ? 'Méta-analyse' : 'Revue systématique';
+    const auteurs = it.auteurs.split(',').slice(0, 2).join(',') + (it.auteurs.split(',').length > 2 ? ' et al.' : '');
+    return `<div class="flux-item">
+      <div class="flux-meta">
+        ${it.date >= il30j ? '<span class="flux-badge neuf">Nouveau</span>' : ''}
+        <span class="flux-badge">${type}</span>
+        <span>${escapeHtml(it.date ? fmtDate(it.date) + '/' + String(it.date).slice(0,4) : '')} · ${escapeHtml(it.revue)}</span>
+      </div>
+      <a class="flux-titre" href="${escapeHtml(lien)}" target="_blank" rel="noopener">${escapeHtml(it.titre)}</a>
+      <div class="flux-meta" style="margin:4px 0 0;">${escapeHtml(auteurs)}</div>
+      ${it.conclusion ? `<p class="flux-concl"><span>Conclusion des auteurs</span>${escapeHtml(it.conclusion)}</p>` : ''}
+    </div>`;
+  }).join('') : '<p class="sub" style="margin:0;">Aucune publication trouvée pour ce thème.</p>';
+  const quand = new Date(cache.t);
+  $('#veilleNote').textContent = `${horsLigne ? 'Hors ligne : dernière liste enregistrée. ' : ''}`
+    + `Source : Europe PMC (PubMed) · méta-analyses et revues systématiques, articles rétractés exclus · `
+    + `${(cache.total || 0).toLocaleString('fr-FR')} publications sur ce thème · mis à jour le `
+    + `${quand.toLocaleDateString('fr-FR')} à ${quand.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}. `
+    + `Une méta-analyse n'est pas infaillible : elle vaut ce que valent les études qu'elle rassemble.`;
+}
+
 /* ------------------------------------------------------- Photos des clients */
 // Rangées dans `photos/avatar-{clientId}`, pas dans `clients/{id}` : la fiche client est
 // lisible par son lien public (le client y lit son prénom), alors que `photos` n'est
@@ -2318,7 +2494,9 @@ function afficherVue(vue){
   $('#savebar').classList.remove('show');
   $('#viewClients').style.display = vue === 'clients' ? 'block' : 'none';
   $('#viewBusiness').style.display = vue === 'business' ? 'block' : 'none';
+  $('#viewVeille').style.display = vue === 'veille' ? 'block' : 'none';
   if(vue === 'business') loadBusiness();
+  else if(vue === 'veille') ouvrirVeille();
   else loadTodayStatuses();
   window.scrollTo(0, 0);
 }
