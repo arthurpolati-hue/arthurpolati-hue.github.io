@@ -82,8 +82,24 @@ reste (lister, supprimer, relire les photos).
 - **Couleurs des graphiques** : trio validé pour les daltoniens — `#3E8EFF` progression,
   `#B8862F` stagnation, `#B34B4B` régression. Ne pas les changer sans revalider.
 
-## 7. La suite
+## 7. Facturation (17/09/2026)
 
-- **Automatiser la facturation** (en cours, 17/09/2026).
+- `reglages/facturation` : identité de l'émetteur (nom, statut « Entrepreneur individuel »,
+  adresse, SIREN, mentions). **Jamais dans le code** : le dépôt est public.
+- `factures/{id}` : l'identité de l'émetteur et du client est **recopiée** dans la facture, qui
+  doit rester fidèle à ce qui a été émis.
+- Numérotation **séquentielle sans trou** par année (`F2026-0001`), calculée à partir du plus grand
+  numéro déjà émis ; `prochainNumero` sert seulement de point de départ.
+- Mentions obligatoires appliquées (service-public.gouv.fr, lu le 17/09/2026) : identité, SIREN,
+  adresse du client, numéro, dates, désignation, total, mention TVA, règlement, pénalités.
+  Franchise en base : « TVA non applicable, art. 293 B du CGI » (seuils services 2026 : 37 500 €,
+  majoré 41 250 €). L'indemnité de 40 € ne vise que les clients professionnels : elle n'est pas mise.
+- PDF fabriqué dans le navigateur avec jsPDF, chargé **à la demande** depuis jsDelivr.
+- Facturation électronique : réception obligatoire au 01/09/2026, émission au 01/09/2027 pour les
+  micro-entreprises ; les ventes aux particuliers relèvent du **e-reporting**, pas de la facture
+  électronique. À reprendre avant septembre 2027.
+
+## 8. La suite
+
 - Suggestion de charge à partir du RPE, quand il y aura assez de clients.
 - Suppression automatique des données d'un client en pause depuis plus de 3 ans.

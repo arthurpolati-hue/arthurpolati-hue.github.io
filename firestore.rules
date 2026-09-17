@@ -118,6 +118,15 @@ service cloud.firestore {
       allow read, write: if coach();
     }
 
+    // Facturation : réglages de l'émetteur (nom, adresse, SIREN, mention TVA, numérotation)
+    // et factures émises. Données d'entreprise et de clients : coach uniquement, jamais publiques.
+    match /reglages/{docId} {
+      allow read, write: if coach();
+    }
+    match /factures/{factureId} {
+      allow read, write: if coach();
+    }
+
     // Tâches et ventes à l'unité (onglet Business) : réservées au coach.
     match /taches/{tacheId} {
       allow read, write: if coach();
