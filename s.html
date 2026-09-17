@@ -125,9 +125,6 @@
   .rpe-aide ul{margin:7px 0 0;padding-left:17px;}
   .rpe-aide li{margin-bottom:3px;}
 
-  .choice-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
-  .choice{flex:1 1 auto;min-width:64px;padding:9px 10px;border-radius:9px;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);font-size:0.82rem;font-weight:600;cursor:pointer;font-family:'Work Sans',sans-serif;text-align:center;}
-  .choice.on{background:var(--blue-dim);border-color:var(--blue);color:#CFE3FF;}
 
   .preview-ex{padding:10px 0;border-bottom:1px solid var(--steel-line);}
   .preview-ex:last-child{border-bottom:none;}
@@ -190,6 +187,26 @@
   .a2hs{background:var(--steel);border:1px solid var(--steel-line);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.84rem;color:var(--fog);line-height:1.5;display:flex;gap:10px;align-items:flex-start;}
   .a2hs b{color:var(--paper);}
   .a2hs button{background:none;border:none;color:var(--fog);font-size:1.1rem;cursor:pointer;padding:0 2px;line-height:1;}
+
+  /* --- tutoriel de bienvenue (première ouverture) --- */
+  .tuto{position:fixed;inset:0;z-index:70;background:rgba(6,9,12,0.92);display:none;
+    align-items:center;justify-content:center;padding:20px;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
+  .tuto.show{display:flex;}
+  .tuto-card{background:var(--steel);border:1px solid var(--steel-line);border-radius:18px;padding:24px 20px 18px;
+    max-width:420px;width:100%;text-align:center;}
+  .tuto-ic{font-size:2.4rem;line-height:1;margin-bottom:14px;}
+  .tuto-card h2{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;margin:0 0 10px;letter-spacing:0.01em;}
+  .tuto-card p{font-size:0.95rem;color:#D6D8DA;line-height:1.55;margin:0 0 6px;}
+  .tuto-card p b{color:var(--paper);}
+  .tuto-points{display:flex;gap:7px;justify-content:center;margin:18px 0 16px;}
+  .tuto-points i{width:7px;height:7px;border-radius:50%;background:var(--steel-line);transition:background 0.2s,width 0.2s;}
+  .tuto-points i.on{background:var(--blue);width:20px;border-radius:4px;}
+  .tuto-actions{display:flex;gap:10px;align-items:center;}
+  .tuto-actions .btn{flex:1;}
+  .tuto-passer{background:none;border:none;color:var(--fog);font-size:0.84rem;font-family:'Work Sans',sans-serif;
+    cursor:pointer;padding:10px 6px;flex:0 0 auto;}
+  .revoir-tuto{display:block;margin:22px auto 0;background:none;border:none;color:var(--fog);font-size:0.8rem;
+    font-family:'Work Sans',sans-serif;text-decoration:underline;cursor:pointer;}
 
   /* --- onglets Séance / Mes résultats --- */
   .maintabs{display:flex;gap:0;margin:0 0 18px;border-bottom:1px solid var(--steel-line);}
@@ -370,6 +387,7 @@
     </div>
 
     <div id="dayContent"></div>
+    <button type="button" class="revoir-tuto" id="revoirTuto">Revoir le mode d'emploi</button>
     </div>
 
     <div id="paneResultats" style="display:none;">
@@ -466,12 +484,25 @@
     </div>
   </div>
 
+  <div class="tuto" id="tuto" role="dialog" aria-modal="true" aria-label="Mode d'emploi">
+    <div class="tuto-card">
+      <div class="tuto-ic" id="tutoIc"></div>
+      <h2 id="tutoTitre"></h2>
+      <p id="tutoTexte"></p>
+      <div class="tuto-points" id="tutoPoints"></div>
+      <div class="tuto-actions">
+        <button type="button" class="tuto-passer" id="tutoPasser">Passer</button>
+        <button type="button" class="btn btn-blue" id="tutoSuivant">Suivant</button>
+      </div>
+    </div>
+  </div>
+
   <div class="consent-view" id="consentView">
     <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
     <div class="card">
       <h2 id="consentTitle">BIENVENUE !</h2>
       <p>Avant de commencer, un mot sur tes données. Ce lien sert à ton suivi : ton programme, et ce que tu
-      notes à chaque séance (répétitions, charges, RPE, ressenti). <b>Seul Arthur y a accès.</b>
+      notes à chaque séance (répétitions, charges, RPE, remarques). <b>Seul Arthur y a accès.</b>
       Rien n'est vendu ni utilisé pour de la publicité.</p>
       <label class="consent-check"><input type="checkbox" id="consentSuivi">
         <span>J'accepte que ces informations soient enregistrées pour mon suivi de coaching.
@@ -722,6 +753,7 @@ function demarrerSuivi(progSnap){
     renderWeekStrip();
     renderDay(selectedDay);
     show('#mainView');
+    peutEtreMontrerTuto();
     maybeShowA2HS();
     majTeaserBilan();
     chargerRdv();
@@ -731,6 +763,54 @@ function demarrerSuivi(progSnap){
     console.error('[ARD] Echec de l\'affichage du suivi', e);
     show('#notFoundState');
   }
+}
+
+/* ------------------------------------------------------ Mode d'emploi */
+// Quatre écrans montrés à la PREMIÈRE ouverture du lien, puis plus jamais
+// (bouton « Revoir le mode d'emploi » sous la séance). Le fait de l'avoir vu est
+// gardé sur l'appareil : rien n'est écrit dans Firestore pour ça.
+const TUTO = [
+  { ic:'📋', titre:'VOICI TON PROGRAMME',
+    texte:"Ton coach l'a écrit pour toi, jour par jour. La séance du jour s'ouvre toute seule quand tu arrives." },
+  { ic:'✍️', titre:'NOTE CE QUE TU FAIS',
+    texte:"Pour chaque exercice, tu notes la <b>charge utilisée</b> et le <b>nombre de répétitions</b>, série par série." },
+  { ic:'🔥', titre:'PUIS LE RPE',
+    texte:"C'est la difficulté de la série, de 6 à 10. Un <b>mode d'emploi est juste à côté</b> si ton coach ne te l'a pas encore expliqué, et tu peux le laisser vide." },
+  { ic:'📨', titre:'ENVOIE TA SÉANCE',
+    texte:"Le plus important : à la fin, appuie sur <b>« Séance terminée »</b> pour que ton coach la reçoive." }
+];
+const cleTuto = () => 'ard:tuto:v1:' + clientId;
+let tutoIndex = 0;
+
+function afficherTuto(i){
+  const t = TUTO[i];
+  $('#tutoIc').textContent = t.ic;
+  $('#tutoTitre').textContent = t.titre;
+  $('#tutoTexte').innerHTML = t.texte;
+  $('#tutoPoints').innerHTML = TUTO.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('');
+  $('#tutoSuivant').textContent = (i === TUTO.length - 1) ? "C'EST PARTI 💪" : 'Suivant';
+  $('#tutoPasser').style.visibility = (i === TUTO.length - 1) ? 'hidden' : 'visible';
+}
+function ouvrirTuto(){
+  tutoIndex = 0;
+  afficherTuto(0);
+  $('#tuto').classList.add('show');
+}
+function fermerTuto(){
+  $('#tuto').classList.remove('show');
+  try{ localStorage.setItem(cleTuto(), '1'); }catch(e){}
+}
+$('#tutoSuivant').addEventListener('click', ()=>{
+  if(tutoIndex >= TUTO.length - 1){ fermerTuto(); return; }
+  afficherTuto(++tutoIndex);
+});
+$('#tutoPasser').addEventListener('click', fermerTuto);
+$('#revoirTuto').addEventListener('click', ouvrirTuto);
+
+function peutEtreMontrerTuto(){
+  let vu = null;
+  try{ vu = localStorage.getItem(cleTuto()); }catch(e){ return; }   // navigation privée : on ne force pas
+  if(!vu) ouvrirTuto();
 }
 
 /* ------------------------------------------------------- Consentement RGPD */
@@ -967,9 +1047,7 @@ async function renderDay(key){
       nom: pe.nom || '', seriesCible: pe.series || '', repCible: pe.repetitions || '',
       chargeCible: pe.charge || '', reposCible: pe.repos || '', notesCible: pe.notes || '',
       rpeCible: pe.rpe || '',
-      sets,
-      reussi: prev ? prev.reussi||'' : '',
-      ressenti: prev ? prev.ressenti||'' : ''
+      sets
     };
   });
 
@@ -1067,8 +1145,7 @@ async function renderDay(key){
           sets: ex.sets.map(s => ({ reps: s.reps, charge: s.charge, rpe: s.rpe || '', done: !!s.done })),
           // Résumés lisibles, conservés pour l'affichage côté coach.
           reps: ex.sets.map(s=>s.reps||'—').join(' / '),
-          charge: ex.sets.map(s=>s.charge||'—').join(' / '),
-          reussi: ex.reussi, ressenti: ex.ressenti
+          charge: ex.sets.map(s=>s.charge||'—').join(' / ')
         }))
       }, { merge: true }), 'ta séance');
       localStorage.removeItem(draftKey);
@@ -1148,14 +1225,6 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
       ${ex.rpeCible ? `Arthur vise <b>RPE ${escapeHtml(String(ex.rpeCible).replace('.', ','))}</b> sur cet exercice.` : `Tu peux laisser vide, ça reste utile sans.`}
       </div>
     </details>
-    <div class="section-tag">Objectif atteint ?</div>
-    <div class="choice-row" data-group="reussi">
-      ${['Oui','Partiel','Non'].map(v=>`<button type="button" class="choice${ex.reussi===v?' on':''}" data-v="${v}">${v}</button>`).join('')}
-    </div>
-    <div class="section-tag">Ressenti</div>
-    <div class="choice-row" data-group="ressenti">
-      ${['😄 Facile','🙂 Correct','😓 Difficile','🥵 Très dur'].map(v=>`<button type="button" class="choice${ex.ressenti===v?' on':''}" data-v="${v}">${v}</button>`).join('')}
-    </div>
   `;
 
   const sync = ()=>{
@@ -1196,18 +1265,6 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
     });
   });
 
-  $$('.choice-row', card).forEach(group=>{
-    const field = group.dataset.group;
-    $$('.choice', group).forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const v = btn.dataset.v;
-        ex[field] = (ex[field] === v) ? '' : v;   // re-tap = désélection
-        $$('.choice', group).forEach(b => b.classList.toggle('on', b.dataset.v === ex[field]));
-        sync();
-      });
-    });
-  });
-
   applyLastTime(card, ex);
   card.classList.toggle('complete', hasInput(ex));
   return card;
@@ -1239,7 +1296,7 @@ function saveDraft(key, exercices, notes){
     try{
       localStorage.setItem(key, JSON.stringify({
         savedAt: Date.now(), notes,
-        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets, reussi:e.reussi, ressenti:e.ressenti }))
+        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets }))
       }));
     }catch(e){ /* quota plein / navigation privée : on continue sans brouillon */ }
   }, 400);
@@ -1262,8 +1319,6 @@ function restoreDraft(key, exercices, setNotes){
         touched = true;
       }
     });
-    if(saved.reussi){ target.reussi = saved.reussi; touched = true; }
-    if(saved.ressenti){ target.ressenti = saved.ressenti; touched = true; }
   });
   if(typeof d.notes === 'string' && d.notes.trim()){ setNotes(d.notes); touched = true; }
   return touched;

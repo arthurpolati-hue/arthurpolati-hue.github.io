@@ -871,7 +871,7 @@ import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalo
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
 import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES, venteDe, ventesDuMois,
          ETAPES, SOURCES, sourceDe, CLE_DATE, etapesAtteintes,
-         tunnel, caMensuel, caHistorique, fmtEuros } from "./offres.js";
+         tunnel, caMensuel, caHistorique, fmtEuros, debutOffre } from "./offres.js";
 import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
 import { SECTIONS_BILAN } from "./trame-bilan.js";
 injecterStylesViz();
@@ -1070,7 +1070,9 @@ $('#addClientForm').addEventListener('submit', async (e)=>{
   $('#addClientBtn').disabled = true;
   spinner(true);
   try{
-    const ref = await addDoc(collection(db, 'clients'), { name, phone, createdAt: serverTimestamp() });
+    // Le cycle de 4 semaines démarre le jour où le suivi commence, pas au début du mois :
+    // sinon un client tout juste créé voit « dernier jour de ton cycle » avec 0 séance.
+    const ref = await addDoc(collection(db, 'clients'), { name, phone, createdAt: serverTimestamp(), cycleStart: todayISO() });
     await setDoc(doc(db, 'programs', ref.id), {});
     $('#newClientName').value = '';
     $('#newClientPhone').value = '';
@@ -3741,9 +3743,15 @@ function renderCa(){
 }
 
 /* ------------------------------------------------------ Bilan de cycle */
-function debutCycleParDefaut(){
-  const d = new Date(); d.setDate(d.getDate() - 27);
-  return isoLocal(d);
+// Défaut quand la fiche n'a pas encore de date de cycle : le jour d'arrivée du client
+// (sa création), sinon aujourd'hui. Avant, on proposait « aujourd'hui moins 27 jours »,
+// ce qui faisait croire à un cycle presque terminé à un client qui venait de commencer.
+function debutCycleParDefaut(client){
+  const c = client || currentClient;
+  const debut = c ? debutOffre(c) : null;      // offreDepuis, sinon createdAt
+  const aujourdhui = todayISO();
+  if(debut && debut <= aujourdhui) return debut;
+  return aujourdhui;
 }
 function debutCycle(){
   return (currentClient && currentClient.cycleStart) || debutCycleParDefaut();
