@@ -69,12 +69,16 @@ export const SECTIONS_BILAN = [
   {
     k: 'contraintes', titre: 'Santé & contraintes',
     intro: 'Tout ce qui est essentiel au bon déroulement du coaching.',
+    resume: 'temps',          // coach.html affiche ici le temps hebdomadaire calculé
     champs: [
       { k: 'blessures', l: 'Blessures', type: 'zone', aide: 'Actuelles ou passées, opérations…' },
       { k: 'pathologies', l: 'Pathologies, traitements', type: 'zone' },
       { k: 'douleurs', l: 'Douleurs, gênes, mouvements à éviter', type: 'zone' },
       { k: 'avisMedical', l: 'Avis médical / certificat', type: 'texte' },
-      { k: 'disponibilites', l: 'Disponibilités', type: 'zone', aide: 'Jours, créneaux, nombre de séances possibles par semaine…' },
+      { k: 'seancesSemaine', l: 'Séances par semaine', type: 'choix', options: ['1', '2', '3', '4', '5 ou +'] },
+      { k: 'seancesCoach', l: 'Dont séances avec toi', type: 'choix', options: ['0', '1', '2', '3 ou +'] },
+      { k: 'dureeSeance', l: 'Durée d\'une séance', type: 'choix', options: ['30 min', '45 min', '1 h', '1 h 15', '1 h 30', '2 h'] },
+      { k: 'disponibilites', l: 'Créneaux disponibles', type: 'zone', aide: 'Jours et horaires possibles, contraintes de planning…' },
       { k: 'lieu', l: 'Lieu et matériel', type: 'texte', aide: 'Salle (laquelle), maison, extérieur…' },
       { k: 'autresContraintes', l: 'Autres contraintes', type: 'zone', large: true }
     ]

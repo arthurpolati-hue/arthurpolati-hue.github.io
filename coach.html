@@ -41,6 +41,10 @@
   .bilan-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:0 14px;}
   .bilan-champ{margin-bottom:14px;min-width:0;}
   .bilan-champ.large{grid-column:1/-1;}
+  .bilan-resume{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.4);border-radius:10px;
+    padding:10px 12px;margin:2px 0 12px;font-size:0.88rem;color:var(--paper);line-height:1.5;}
+  .bilan-resume b{font-weight:700;}
+  .bilan-resume.vide{background:var(--ink);border-color:var(--steel-line);color:var(--fog);font-size:0.82rem;}
   .bilan-champ .aide{font-size:0.74rem;color:var(--fog);margin:-2px 0 6px;line-height:1.4;}
   .bilan-champ textarea{min-height:66px;overflow:hidden;resize:none;}
   .chips{display:flex;flex-wrap:wrap;gap:6px;}
@@ -3507,12 +3511,14 @@ function renderBilanVue(){
       <h2>${escapeHtml(sec.titre)}</h2>
       ${sec.intro ? `<p class="intro">${escapeHtml(sec.intro)}</p>` : ''}
       <div class="bilan-grille">${sec.champs.map(c => champBilanHtml(c, r[c.k])).join('')}</div>
+      ${sec.resume === 'temps' ? '<div class="bilan-resume vide" id="bilanTemps"></div>' : ''}
     </div>`).join('');
   // Objectif du formulaire du site : repris d'office s'il n'y a encore rien de noté.
   if(prospect && prospect.objectif && !estRempli(r.objectifPrincipal)){
     $('#bch-objectifPrincipal').placeholder = 'Demande du site : ' + prospect.objectif;
   }
   $$('#bilanSections textarea').forEach(ajusterHauteur);
+  majTempsBilan(r);
   $('#bilanFaitBtn').style.display = prospect && ['nouveau', 'appele', 'bilan_planifie'].includes(prospect.statut || 'nouveau') ? '' : 'none';
   $('#bilanSupprBtn').style.display = b.maj ? '' : 'none';
   majNavBilan();
@@ -3530,8 +3536,59 @@ function lireReponsesBilan(){
   return r;
 }
 
+// Temps consacré : calculé à partir des trois réponses (séances par semaine, dont avec
+// le coach, durée d'une séance). Recalculé à chaque modification, et repris dans le texte copié.
+const DUREES_BILAN = { '30 min':30, '45 min':45, '1 h':60, '1 h 15':75, '1 h 30':90, '2 h':120 };
+const nombreDeChoix = v => { const n = parseInt(String(v || ''), 10); return isNaN(n) ? null : n; };
+
+function tempsHebdo(r){
+  const seances = nombreDeChoix(r.seancesSemaine);
+  const avecCoach = nombreDeChoix(r.seancesCoach);
+  const minutes = DUREES_BILAN[r.dureeSeance] || null;
+  if(seances === null && minutes === null && avecCoach === null) return null;
+  const plus = String(r.seancesSemaine || '').includes('+');
+  const fmtH = m => {
+    if(m % 60 === 0) return (m / 60) + ' h';
+    return Math.floor(m / 60) ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min';
+  };
+  return {
+    seances, avecCoach, minutes, plus,
+    totalMin: (seances !== null && minutes !== null) ? seances * minutes : null,
+    coachMin: (avecCoach !== null && minutes !== null) ? avecCoach * minutes : null,
+    soloMin: (seances !== null && avecCoach !== null && minutes !== null) ? (seances - avecCoach) * minutes : null,
+    fmtH
+  };
+}
+
+function texteTempsHebdo(r){
+  const t = tempsHebdo(r);
+  if(!t) return '';
+  const bouts = [];
+  if(t.seances !== null){
+    bouts.push(`<b>${t.seances}${t.plus ? '+' : ''} séance${t.seances > 1 ? 's' : ''} par semaine</b>`
+      + (t.minutes !== null ? ` × ${t.fmtH(t.minutes)}` : ''));
+  } else if(t.minutes !== null){
+    bouts.push(`<b>${t.fmtH(t.minutes)}</b> par séance`);
+  }
+  if(t.totalMin !== null) bouts.push(`soit <b>${t.fmtH(t.totalMin)} par semaine</b>`);
+  if(t.coachMin !== null && t.avecCoach > 0) bouts.push(`dont ${t.avecCoach} avec toi (${t.fmtH(t.coachMin)})`);
+  else if(t.avecCoach === 0) bouts.push('aucune séance en présentiel');
+  if(t.soloMin !== null && t.soloMin > 0 && t.avecCoach > 0) bouts.push(`${t.fmtH(t.soloMin)} en autonomie`);
+  return bouts.join(' · ');
+}
+
+function majTempsBilan(r){
+  const el = $('#bilanTemps');
+  if(!el) return;
+  const txt = texteTempsHebdo(r || lireReponsesBilan());
+  el.innerHTML = txt || 'Renseigne les séances par semaine et la durée : le temps hebdomadaire se calcule tout seul.';
+  el.classList.toggle('vide', !txt);
+}
+
 function majNavBilan(){
-  const comptes = compteRemplis(lireReponsesBilan());
+  const reponses = lireReponsesBilan();
+  majTempsBilan(reponses);
+  const comptes = compteRemplis(reponses);
   $('#bilanNav').innerHTML = SECTIONS_BILAN.map((sec, i) => {
     const c = comptes[i];
     return `<button type="button" data-aller="${sec.k}" class="${c.rempli === c.total ? 'complet' : ''}">${escapeHtml(sec.titre)}<span class="n">${c.rempli}/${c.total}</span></button>`;
@@ -3682,6 +3739,10 @@ function bilanEnTexte(){
     const remplis = sec.champs.filter(c => estRempli(r[c.k]));
     if(!remplis.length) return;
     lignes.push('', sec.titre.toUpperCase());
+    if(sec.resume === 'temps'){
+      const t = texteTempsHebdo(r).replace(/<[^>]+>/g, '');
+      if(t) lignes.push('Temps consacré : ' + t);
+    }
     remplis.forEach(c => {
       const v = r[c.k];
       lignes.push(Array.isArray(v) ? `${c.l} :\n${v.map(x => '- ' + x).join('\n')}` : `${c.l} : ${String(v).trim()}`);
