@@ -4271,59 +4271,156 @@ function chargerJsPdf(){
   return jsPdfPromesse;
 }
 
+// Charge le logo une fois, pour l'en-tête du PDF. Échec silencieux : la facture
+// se fabrique très bien sans (on retombe sur la pastille bleue dessinée).
+let logoPdf = null;
+async function chargerLogoPdf(){
+  if(logoPdf !== null) return logoPdf;
+  try{
+    const r = await fetch('icons/icon-192.png');
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    logoPdf = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = rej;
+      fr.readAsDataURL(blob);
+    });
+  } catch(e){
+    console.warn('[ARD] Logo indisponible pour le PDF', e);
+    logoPdf = '';
+  }
+  return logoPdf;
+}
+
+// Facture aux couleurs d'ARD Coaching : fond blanc (lisible et imprimable), bleu de la
+// marque en accent, titres en capitales espacées comme sur le site.
 async function telechargerFacturePdf(f){
   spinner(true);
   try{
-    const JsPDF = await chargerJsPdf();
+    const [JsPDF, logo] = await Promise.all([chargerJsPdf(), chargerLogoPdf()]);
     const d = new JsPDF({ unit:'mm', format:'a4' });
+    const BLEU = [62, 142, 255], ENCRE = [11, 14, 17], GRIS = [125, 132, 138], TRAIT = [225, 228, 232];
     const G = 18, L = 210, droite = L - G;
-    let y = 22;
-    const txt = (t, x, yy, opts) => d.text(String(t == null ? '' : t), x, yy, opts);
-    d.setFont('helvetica', 'bold'); d.setFontSize(20); txt('FACTURE', G, y);
-    d.setFontSize(11); txt(f.numero || '', droite, y, { align:'right' });
-    y += 10;
-    d.setFont('helvetica', 'normal'); d.setFontSize(9.5);
-    // Émetteur
+    const txt = (t, x, y, opts) => d.text(String(t == null ? '' : t), x, y, opts);
+    const titre = (t, x, y, taille, couleur) => {
+      d.setFont('helvetica', 'bold'); d.setFontSize(taille);
+      d.setTextColor(...(couleur || ENCRE)); d.setCharSpace(0.6);
+      txt(String(t).toUpperCase(), x, y);
+      d.setCharSpace(0);
+    };
+    const corps = (taille, couleur, gras) => {
+      d.setFont('helvetica', gras ? 'bold' : 'normal');
+      d.setFontSize(taille); d.setTextColor(...(couleur || ENCRE));
+    };
+
+    /* ── En-tête : marque à gauche, numéro de facture à droite ── */
+    let y = 24;
+    if(logo){
+      try{ d.addImage(logo, 'PNG', G, y - 8, 11, 11); }catch(_){ }
+    } else {
+      d.setFillColor(...BLEU); d.circle(G + 4, y - 2.5, 2.6, 'F');
+    }
+    titre('ARD Coaching', G + (logo ? 14 : 10), y - 3.5, 12);
+    corps(8, GRIS);
+    txt(((f.emetteur && f.emetteur.activite) || 'Coaching sportif'), G + (logo ? 14 : 10), y + 1);
+
+    // Titre aligné à droite : on règle la police ici, titre() ne gère pas l'alignement.
+    d.setFont('helvetica', 'bold'); d.setFontSize(20); d.setTextColor(...BLEU); d.setCharSpace(0.8);
+    d.text('FACTURE', droite, y - 3.5, { align:'right' });
+    d.setCharSpace(0);
+    corps(10, ENCRE, true);
+    txt(f.numero || '', droite, y + 2.5, { align:'right' });
+
+    y += 8;
+    d.setDrawColor(...BLEU); d.setLineWidth(0.8); d.line(G, y, droite, y);
+    d.setLineWidth(0.2);
+
+    /* ── Émetteur et client, côte à côte ── */
+    y += 9;
     const em = f.emetteur || {};
-    [`${em.statut || ''} ${em.nom || ''}`.trim(), em.adresse, em.siren ? 'SIREN ' + em.siren : '',
-     [em.tel, em.email].filter(Boolean).join(' · '), em.activite].filter(Boolean).forEach(l => { txt(l, G, y); y += 4.6; });
-    // Client
-    let yc = 32;
-    d.setFont('helvetica', 'bold'); txt('Facturé à', droite, yc, { align:'right' }); yc += 4.8;
-    d.setFont('helvetica', 'normal');
-    [f.clientNom, ...String(f.clientAdresse || '').split(',').map(x => x.trim()).filter(Boolean)]
-      .forEach(l => { txt(l, droite, yc, { align:'right' }); yc += 4.6; });
-    y = Math.max(y, yc) + 6;
-    txt(`Date d'émission : ${fmtDate(f.dateEmission)}`, G, y); y += 4.6;
-    txt(f.periode ? `Prestations : ${f.periode}` : `Date de la prestation : ${fmtDate(f.datePrestation)}`, G, y); y += 8;
-    // Tableau
-    d.setDrawColor(200); d.setFillColor(242, 242, 242);
-    d.rect(G, y - 5, droite - G, 8, 'F');
-    d.setFont('helvetica', 'bold');
-    txt('Désignation', G + 2, y); txt('Qté', droite - 52, y, { align:'right' });
-    txt('P.U.', droite - 28, y, { align:'right' }); txt('Total', droite - 2, y, { align:'right' });
-    y += 8; d.setFont('helvetica', 'normal');
+    const colonne = (x, entete, lignes, align) => {
+      corps(7.5, GRIS); d.setCharSpace(0.4);
+      txt(entete.toUpperCase(), x, y, align ? { align } : undefined);
+      d.setCharSpace(0);
+      let yy = y + 5;
+      lignes.filter(Boolean).forEach((l, i) => {
+        corps(i === 0 ? 10 : 9, i === 0 ? ENCRE : GRIS, i === 0);
+        d.splitTextToSize(String(l), 80).forEach(t => {
+          txt(t, x, yy, align ? { align } : undefined);
+          yy += i === 0 ? 5 : 4.3;
+        });
+      });
+      return yy;
+    };
+    const basGauche = colonne(G, 'Émetteur',
+      [`${em.statut || ''} ${em.nom || ''}`.trim(), em.adresse, em.siren ? 'SIREN ' + em.siren : '',
+       [em.tel, em.email].filter(Boolean).join(' · ')]);
+    const basDroite = colonne(droite, 'Facturé à',
+      [f.clientNom, f.clientAdresse], 'right');
+    y = Math.max(basGauche, basDroite) + 4;
+
+    /* ── Dates ── */
+    corps(9, GRIS);
+    txt(`Émise le ${fmtDate(f.dateEmission)}`, G, y);
+    txt(f.periode ? `Prestations : ${f.periode}` : `Prestation du ${fmtDate(f.datePrestation)}`, droite, y, { align:'right' });
+    y += 9;
+
+    /* ── Tableau ── */
+    const xQte = droite - 58, xPu = droite - 32, xTot = droite - 2;
+    d.setFillColor(238, 244, 255);
+    d.rect(G, y - 5.2, droite - G, 8, 'F');
+    corps(7.5, [23, 58, 99], true); d.setCharSpace(0.3);
+    txt('Désignation', G + 2, y);
+    txt('QTÉ', xQte, y, { align:'right' });
+    txt('P.U.', xPu, y, { align:'right' });
+    txt('TOTAL', xTot, y, { align:'right' });
+    d.setCharSpace(0);
+    y += 8;
+
     (f.lignes || []).forEach(l => {
-      const lignesTexte = d.splitTextToSize(String(l.libelle || ''), droite - G - 62);
-      lignesTexte.forEach((t, i) => { txt(t, G + 2, y + i * 4.4); });
-      // Une remise n'affiche ni quantité ni prix unitaire : seulement son montant.
+      const lignesTexte = d.splitTextToSize(String(l.libelle || ''), droite - G - 66);
+      corps(9.5, l.remise ? BLEU : ENCRE, !!l.remise);
+      lignesTexte.forEach((t, i) => txt(t, G + 2, y + i * 4.6));
       if(!l.remise){
-        txt(String(l.quantite), droite - 52, y, { align:'right' });
-        txt(fmtEuros(l.prixUnitaire), droite - 28, y, { align:'right' });
+        corps(9.5, GRIS);
+        txt(String(l.quantite), xQte, y, { align:'right' });
+        txt(fmtEuros(l.prixUnitaire), xPu, y, { align:'right' });
       }
-      txt(fmtEuros(l.total), droite - 2, y, { align:'right' });
-      y += Math.max(6.5, lignesTexte.length * 4.4 + 2.2);
-      d.setDrawColor(230); d.line(G, y - 3, droite, y - 3);
+      corps(9.5, l.remise ? BLEU : ENCRE, true);
+      txt(fmtEuros(l.total), xTot, y, { align:'right' });
+      y += Math.max(7, lignesTexte.length * 4.6 + 2.4);
+      d.setDrawColor(...TRAIT); d.line(G, y - 3.2, droite, y - 3.2);
     });
-    y += 3;
-    d.setFont('helvetica', 'bold'); d.setFontSize(12);
-    txt('TOTAL', droite - 34, y, { align:'right' }); txt(fmtEuros(f.total), droite - 2, y, { align:'right' });
-    y += 10;
-    d.setFont('helvetica', 'normal'); d.setFontSize(9);
-    [f.mentionTva, `Règlement : ${f.delaiPaiement || ''}${f.moyenPaiement ? ' · ' + f.moyenPaiement : ''}`,
+
+    /* ── Total ── */
+    y += 2;
+    d.setFillColor(...BLEU);
+    d.roundedRect(droite - 74, y - 5.4, 74, 12, 1.6, 1.6, 'F');
+    corps(8.5, [255, 255, 255], true); d.setCharSpace(0.4);
+    txt('TOTAL À RÉGLER', droite - 70, y);
+    d.setCharSpace(0);
+    corps(13, [255, 255, 255], true);
+    txt(fmtEuros(f.total), droite - 4, y + 0.6, { align:'right' });
+    y += 16;
+
+    /* ── Mentions ── */
+    corps(8.5, ENCRE, true);
+    d.splitTextToSize(String(f.mentionTva || ''), droite - G).forEach(t => { txt(t, G, y); y += 4.2; });
+    corps(8.5, GRIS);
+    [`Règlement : ${f.delaiPaiement || ''}${f.moyenPaiement ? ' · ' + f.moyenPaiement : ''}`,
      f.escompte, f.penalites, f.note].filter(x => x && String(x).trim()).forEach(l => {
-      d.splitTextToSize(String(l), droite - G).forEach(t => { txt(t, G, y); y += 4.4; });
+      d.splitTextToSize(String(l), droite - G).forEach(t => { txt(t, G, y); y += 4.2; });
     });
+
+    /* ── Pied de page ── */
+    const bas = 287;
+    d.setDrawColor(...TRAIT); d.line(G, bas - 8, droite, bas - 8);
+    corps(7.5, GRIS);
+    txt(`${em.nom || ''}${em.siren ? ' · SIREN ' + em.siren : ''}`, G, bas - 3);
+    d.setTextColor(...BLEU);
+    txt('ARD Coaching', droite, bas - 3, { align:'right' });
+
     d.save(nomFichier(f));
   } catch(e){
     console.error('[ARD] PDF impossible', e);
