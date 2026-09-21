@@ -94,10 +94,21 @@ reste (lister, supprimer, relire les photos).
   adresse du client, numéro, dates, désignation, total, mention TVA, règlement, pénalités.
   Franchise en base : « TVA non applicable, art. 293 B du CGI » (seuils services 2026 : 37 500 €,
   majoré 41 250 €). L'indemnité de 40 € ne vise que les clients professionnels : elle n'est pas mise.
-- PDF fabriqué dans le navigateur avec jsPDF, chargé **à la demande** depuis jsDelivr.
+- **Deux façons de facturer** : « Préparer les factures » (abonnements du mois, clients engagés,
+  ventes du mois reprises) et « **+ Facture à la main** » (client de la liste ou personne hors
+  fichier, lignes éditables avec quantité, raccourcis offres/prestations, ligne libre).
+- **Remise en ligne séparée et négative** : la facture montre le tarif plein puis la remise
+  (`ligneRemise`). Nom réglable (`reglages.nomPartenaire`, ex. « Intensity57 »).
+  ⚠️ `construireFacture` doit garder les lignes négatives : un filtre `total >= 0` les supprimait.
+- PDF fabriqué dans le navigateur avec jsPDF, chargé **à la demande** depuis jsDelivr, aux couleurs
+  d'ARD (logo `icons/icon-192.png`, bleu de la marque, fond blanc pour rester imprimable).
 - Facturation électronique : réception obligatoire au 01/09/2026, émission au 01/09/2027 pour les
   micro-entreprises ; les ventes aux particuliers relèvent du **e-reporting**, pas de la facture
   électronique. À reprendre avant septembre 2027.
+
+**Bilan — temps consacré (19/09/2026)** : trois questions dans « Santé & contraintes » (séances par
+semaine, dont avec le coach, durée) et un résumé calculé sous la section, repris dans le texte copié.
+La trame peut marquer une section avec `resume: 'temps'` pour recevoir cet encart.
 
 ## 8. La suite
 
