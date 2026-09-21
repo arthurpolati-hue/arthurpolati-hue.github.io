@@ -15,7 +15,7 @@
 // Tout ce qui peut changer (mentions, délais, numérotation) est dans les réglages, modifiables
 // depuis l'espace coach : rien n'est figé dans le code.
 
-import { offreDe, tarifClient, tarifBase, REMISE_PARTENAIRE, VENTES, venteDe, fmtEuros } from './offres.js';
+import { OFFRES, offreDe, tarifClient, tarifBase, REMISE_PARTENAIRE, VENTES, venteDe, fmtEuros } from './offres.js';
 
 /* ───────────────────────── Réglages de l'émetteur ───────────────────────── */
 // Rangés dans Firestore (`reglages/facturation`), lisibles du seul coach : le dépôt
@@ -33,6 +33,7 @@ export const REGLAGES_DEFAUT = {
   moyenPaiement: 'Virement bancaire',
   escompte: "Pas d'escompte pour paiement anticipé",
   penalites: "En cas de retard de paiement : pénalités au taux d'intérêt légal en vigueur",
+  nomPartenaire: '',                         // ex. « Intensity57 » : nom porté par la ligne de remise
   prefixe: 'F',
   prochainNumero: 1
 };
@@ -90,14 +91,36 @@ export const ligne = (libelle, quantite, prixUnitaire) => ({
   total: arrondi((Number(quantite) || 0) * (Number(prixUnitaire) || 0))
 });
 
-/** Ligne d'abonnement du mois, remise partenaire comprise. Null si le client n'a pas d'offre. */
-export function ligneAbonnement(client, mois){
-  const o = offreDe(client && client.offre);
-  if(!o) return null;
-  const base = tarifBase(client);
-  const remise = client.partenaire ? ` — remise partenaire ${Math.round(REMISE_PARTENAIRE * 100)} %` : '';
-  return ligne(`Coaching ${o.l} — ${moisLibelle(mois)}${remise}`, 1, tarifClient(client));
+/**
+ * Ligne de remise, en NÉGATIF : la facture doit montrer la valeur réelle de la prestation
+ * puis la remise, plutôt qu'un prix déjà diminué.
+ */
+export function ligneRemise(libelle, pourcentage, base){
+  const montant = -arrondi((Number(base) || 0) * (Number(pourcentage) || 0) / 100);
+  return { libelle: `${libelle} (−${pourcentage} %)`, quantite: 1, prixUnitaire: montant, total: montant, remise: true };
 }
+
+/** Nom porté par la remise partenaire, réglable (« Intensity57 »). */
+export const nomPartenaire = reglages => ((reglages && reglages.nomPartenaire) || '').trim();
+
+/**
+ * Lignes d'abonnement du mois : le tarif plein, puis la remise partenaire en ligne séparée.
+ * Tableau vide si le client n'a pas d'offre. Le total reste celui de `tarifClient()`.
+ */
+export function lignesAbonnement(client, mois, reglages){
+  const o = offreDe(client && client.offre);
+  if(!o) return [];
+  const base = tarifBase(client);
+  const out = [ligne(`Coaching ${o.l} — ${moisLibelle(mois)}`, 1, base)];
+  if(client.partenaire){
+    const nom = nomPartenaire(reglages);
+    out.push(ligneRemise(`Remise adhérent${nom ? ' ' + nom : ' salle partenaire'}`, Math.round(REMISE_PARTENAIRE * 100), base));
+  }
+  return out;
+}
+
+/** Prestations proposées en raccourci sur une facture libre : les offres mensuelles. */
+export const LIGNES_OFFRES = OFFRES.map(o => ({ k: 'offre_' + o.k, libelle: `Coaching ${o.l}`, prix: o.prix }));
 
 // Prestations ponctuelles proposées en cases à cocher. Reprend les tarifs des ventes à
 // l'unité, plus la séance supplémentaire de l'offre Hybride.
@@ -125,7 +148,8 @@ export const totalLignes = lignes => arrondi((lignes || []).reduce((n, l) => n +
  */
 export function construireFacture({ numero, client, reglages, mois, lignes, dateEmission, note }){
   const r = { ...REGLAGES_DEFAUT, ...(reglages || {}) };
-  const l = (lignes || []).filter(x => x && x.libelle && x.total >= 0);
+  // ⚠️ On garde les lignes NÉGATIVES : ce sont les remises.
+  const l = (lignes || []).filter(x => x && x.libelle && typeof x.total === 'number' && !isNaN(x.total));
   return {
     numero,
     clientId: (client && client.id) || '',
@@ -162,7 +186,10 @@ export function factureEnTexte(f){
     `Émise le ${fmtJourComplet(f.dateEmission)}${f.periode ? ` · Prestations : ${f.periode}` : ''}`,
     ''
   ];
-  f.lignes.forEach(l => lignes.push(`- ${l.libelle} : ${l.quantite} × ${fmtEuros(l.prixUnitaire)} = ${fmtEuros(l.total)}`));
+  // Une remise n'a ni quantité ni prix unitaire à montrer : juste son montant.
+  f.lignes.forEach(l => lignes.push(l.remise
+    ? `- ${l.libelle} : ${fmtEuros(l.total)}`
+    : `- ${l.libelle} : ${l.quantite} × ${fmtEuros(l.prixUnitaire)} = ${fmtEuros(l.total)}`));
   lignes.push('', `TOTAL : ${fmtEuros(f.total)}`, f.mentionTva, `Règlement : ${f.delaiPaiement} · ${f.moyenPaiement}`);
   if(f.note) lignes.push('', f.note);
   return lignes.filter(x => x !== undefined && x !== null).join('\n');

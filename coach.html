@@ -65,6 +65,15 @@
   .fact-lignes div{display:flex;justify-content:space-between;gap:10px;padding:2px 0;}
   .fact-lignes .sup{background:none;border:none;color:var(--fog);cursor:pointer;padding:0 4px;}
   .fact-ajouts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .nf-ligne{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+  .nf-ligne input[type=text]{flex:1 1 180px;min-width:0;}
+  .nf-ligne input[type=number]{width:74px;flex:0 0 auto;text-align:right;}
+  .nf-ligne .lt{flex:0 0 auto;min-width:74px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;}
+  .nf-ligne.remise input[type=text]{color:var(--blue);}
+  .nf-entete{display:flex;gap:6px;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--fog);margin-bottom:4px;}
+  .nf-entete span:first-child{flex:1 1 180px;}
+  .nf-entete span{flex:0 0 74px;text-align:right;}
+  .nf-total{display:flex;justify-content:flex-end;gap:12px;align-items:baseline;margin:10px 0;font-size:1.05rem;font-weight:700;}
   .fact-ajouts-box{margin-top:6px;}
   .fact-ajouts-box summary{cursor:pointer;font-size:0.8rem;color:var(--blue);list-style:none;}
   .fact-ajouts-box summary::-webkit-details-marker{display:none;}
@@ -602,6 +611,7 @@
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <input type="month" id="factMois" aria-label="Mois à facturer">
             <button class="btn btn-blue btn-sm" id="factPreparerBtn" type="button">Préparer les factures</button>
+            <button class="btn btn-ghost btn-sm" id="factNouvelleBtn" type="button">+ Facture à la main</button>
           </div>
         </div>
         <details class="fact-reglages" id="factReglagesBox">
@@ -634,11 +644,16 @@
             <div class="field" style="flex:1 1 100%;"><label>Escompte</label><input type="text" id="regEscompte" maxlength="120"></div>
           </div>
           <div class="row">
+            <div class="field" style="flex:1 1 100%;"><label>Nom de la salle partenaire (porté par la remise)</label>
+              <input type="text" id="regPartenaire" placeholder="Intensity57" maxlength="60"></div>
+          </div>
+          <div class="row">
             <div class="field"><label>Préfixe des numéros</label><input type="text" id="regPrefixe" maxlength="6"></div>
             <div class="field"><label>Prochain numéro</label><input type="number" id="regProchain" min="1" step="1"></div>
           </div>
           <button class="btn btn-blue btn-sm" id="factReglagesSave" type="button">Enregistrer mes informations</button>
         </details>
+        <div id="factNouvelle"></div>
         <div id="factPrepare"></div>
         <div id="factListe"></div>
       </div>
@@ -950,9 +965,9 @@ import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES,
          tunnel, caMensuel, caHistorique, fmtEuros, debutOffre } from "./offres.js";
 import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
 import { SECTIONS_BILAN } from "./trame-bilan.js";
-import { REGLAGES_DEFAUT, manquesReglages, manquesClient, numeroSuivant, ligneAbonnement,
-         LIGNES_RAPIDES, lignesVentes, ligne as ligneFacture, totalLignes, construireFacture,
-         factureEnTexte, nomFichier, moisLibelle } from "./facturation.js";
+import { REGLAGES_DEFAUT, manquesReglages, manquesClient, numeroSuivant, lignesAbonnement,
+         LIGNES_RAPIDES, LIGNES_OFFRES, lignesVentes, ligne as ligneFacture, ligneRemise, nomPartenaire,
+         totalLignes, construireFacture, factureEnTexte, nomFichier, moisLibelle } from "./facturation.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -3857,7 +3872,8 @@ function remplirReglagesFact(){
   const r = reglagesFact;
   const champs = { regNom:'nom', regStatut:'statut', regAdresse:'adresse', regSiren:'siren', regEmail:'email',
                    regTel:'tel', regTva:'mentionTva', regDelai:'delaiPaiement', regMoyen:'moyenPaiement',
-                   regPenalites:'penalites', regEscompte:'escompte', regPrefixe:'prefixe', regProchain:'prochainNumero' };
+                   regPenalites:'penalites', regEscompte:'escompte', regPartenaire:'nomPartenaire',
+                   regPrefixe:'prefixe', regProchain:'prochainNumero' };
   Object.entries(champs).forEach(([id, cle]) => { const el = $('#' + id); if(el) el.value = r[cle] != null ? r[cle] : ''; });
 }
 
@@ -3868,7 +3884,8 @@ $('#factReglagesSave').addEventListener('click', async ()=>{
     activite: reglagesFact.activite || REGLAGES_DEFAUT.activite,
     mentionTva: $('#regTva').value.trim(), delaiPaiement: $('#regDelai').value.trim(),
     moyenPaiement: $('#regMoyen').value.trim(), penalites: $('#regPenalites').value.trim(),
-    escompte: $('#regEscompte').value.trim(), prefixe: $('#regPrefixe').value.trim(),
+    escompte: $('#regEscompte').value.trim(), nomPartenaire: $('#regPartenaire').value.trim(),
+    prefixe: $('#regPrefixe').value.trim(),
     prochainNumero: Math.max(1, parseInt($('#regProchain').value, 10) || 1)
   };
   spinner(true);
@@ -3917,19 +3934,188 @@ function renderFacturation(){
     : '<p class="taches-vide">Aucune facture émise pour l\'instant.</p>';
 }
 
+/* --- Facture à la main : on choisit le client et on écrit les lignes --- */
+let nouvelle = null;      // { clientId, nom, adresse, mois, dateEmission, lignes:[] }
+
+$('#factNouvelleBtn').addEventListener('click', ()=>{
+  if(nouvelle){ nouvelle = null; renderNouvelleFacture(); return; }
+  preparation = null; renderPreparation();
+  nouvelle = { clientId:'', nom:'', adresse:'', mois:'', dateEmission: todayISO(), lignes: [] };
+  renderNouvelleFacture();
+});
+
+function clientDeLaNouvelle(){
+  if(!nouvelle) return null;
+  const c = allClients.find(x => x.id === nouvelle.clientId);
+  return c ? c : { id:'', name: nouvelle.nom, adresse: nouvelle.adresse };
+}
+
+function renderNouvelleFacture(){
+  const zone = $('#factNouvelle');
+  $('#factNouvelleBtn').textContent = nouvelle ? 'Fermer' : '+ Facture à la main';
+  if(!nouvelle){ zone.innerHTML = ''; return; }
+  const n = nouvelle;
+  const total = totalLignes(n.lignes);
+  const nomRemise = nomPartenaire(reglagesFact);
+  zone.innerHTML = `<div class="prospect-form" style="display:block;">
+    <div class="biz-titre">Nouvelle facture</div>
+    <div class="row">
+      <div class="field"><label>Client</label>
+        <select id="nfClient">
+          <option value="">— autre personne (saisie libre) —</option>
+          ${allClients.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+            .map(c => `<option value="${escapeHtml(c.id)}" ${c.id === n.clientId ? 'selected' : ''}>${escapeHtml(c.name || '')}</option>`).join('')}
+        </select></div>
+      <div class="field"><label>Date d'émission</label><input type="date" id="nfDate" value="${escapeHtml(n.dateEmission)}"></div>
+      <div class="field"><label>Période (facultatif)</label><input type="month" id="nfMois" value="${escapeHtml(n.mois)}"></div>
+    </div>
+    ${n.clientId ? '' : `<div class="row">
+      <div class="field"><label>Nom</label><input type="text" id="nfNom" maxlength="80" value="${escapeHtml(n.nom)}"></div>
+      <div class="field" style="flex:2 1 220px;"><label>Adresse</label><input type="text" id="nfAdresse" maxlength="200" value="${escapeHtml(n.adresse)}"></div>
+    </div>`}
+    ${n.lignes.length ? `<div class="nf-entete"><span>Désignation</span><span>Qté</span><span>P.U.</span><span>Total</span><span style="flex:0 0 28px;"></span></div>` : ''}
+    <div id="nfLignes">${n.lignes.map((l, i) => `<div class="nf-ligne ${l.remise ? 'remise' : ''}" data-l="${i}">
+        <input type="text" data-f="libelle" value="${escapeHtml(l.libelle)}" aria-label="Désignation">
+        <input type="number" data-f="quantite" step="1" min="0" value="${l.quantite}" aria-label="Quantité" ${l.remise ? 'disabled' : ''}>
+        <input type="number" data-f="prixUnitaire" step="0.01" value="${l.prixUnitaire}" aria-label="Prix unitaire">
+        <span class="lt" data-total-ligne>${fmtEuros(l.total)}</span>
+        <button class="mini-btn" type="button" data-nfsup aria-label="Retirer la ligne">✕</button>
+      </div>`).join('')}</div>
+    <div class="fact-ajouts" style="margin-top:8px;">
+      ${LIGNES_OFFRES.map(o => `<button class="mini-btn" type="button" data-nfajout="${escapeHtml(o.k)}">${escapeHtml(o.libelle)} (${o.prix} €)</button>`).join('')}
+      ${LIGNES_RAPIDES.map(r => `<button class="mini-btn" type="button" data-nfajout="${escapeHtml(r.k)}">${escapeHtml(r.libelle)} (${r.prix} €)</button>`).join('')}
+      <button class="mini-btn" type="button" data-nflibre>+ Ligne libre</button>
+      <button class="mini-btn" type="button" data-nfremise>− Remise${nomRemise ? ' ' + escapeHtml(nomRemise) : ''} (20 %)</button>
+      <button class="mini-btn" type="button" data-nfremiselibre>− Remise…</button>
+    </div>
+    <div class="nf-total"><span>Total</span><span id="nfTotal">${fmtEuros(total)}</span></div>
+    <div class="row">
+      <button class="btn btn-blue btn-sm" id="nfCreer" type="button" ${n.lignes.length ? '' : 'disabled'}>Créer la facture</button>
+      <button class="btn btn-ghost btn-sm" id="nfAnnuler" type="button">Annuler</button>
+    </div>
+  </div>`;
+}
+
+// Recalcule sans tout redessiner : on ne veut pas perdre le curseur pendant la saisie.
+function majTotauxNouvelle(){
+  if(!nouvelle) return;
+  $$('#nfLignes .nf-ligne').forEach(el => {
+    const l = nouvelle.lignes[+el.dataset.l];
+    if(l) $('[data-total-ligne]', el).textContent = fmtEuros(l.total);
+  });
+  $('#nfTotal').textContent = fmtEuros(totalLignes(nouvelle.lignes));
+  $('#nfCreer').disabled = nouvelle.lignes.length === 0;
+}
+
+const arrondi2 = v => Math.round((Number(v) || 0) * 100) / 100;
+
+$('#factNouvelle').addEventListener('input', e => {
+  if(!nouvelle) return;
+  const el = e.target.closest('.nf-ligne');
+  if(el){
+    const l = nouvelle.lignes[+el.dataset.l];
+    const f = e.target.dataset.f;
+    if(!l || !f) return;
+    l[f] = (f === 'libelle') ? e.target.value : arrondi2(e.target.value);
+    l.total = arrondi2((Number(l.quantite) || 0) * (Number(l.prixUnitaire) || 0));
+    majTotauxNouvelle();
+    return;
+  }
+  if(e.target.id === 'nfNom') nouvelle.nom = e.target.value;
+  if(e.target.id === 'nfAdresse') nouvelle.adresse = e.target.value;
+});
+$('#factNouvelle').addEventListener('change', e => {
+  if(!nouvelle) return;
+  if(e.target.id === 'nfClient'){ nouvelle.clientId = e.target.value; renderNouvelleFacture(); }
+  if(e.target.id === 'nfDate') nouvelle.dateEmission = e.target.value || todayISO();
+  if(e.target.id === 'nfMois') nouvelle.mois = e.target.value;
+});
+
+$('#factNouvelle').addEventListener('click', async e => {
+  if(!nouvelle) return;
+  const sup = e.target.closest('[data-nfsup]');
+  if(sup){ nouvelle.lignes.splice(+sup.closest('.nf-ligne').dataset.l, 1); renderNouvelleFacture(); return; }
+
+  const ajout = e.target.closest('[data-nfajout]');
+  if(ajout){
+    const k = ajout.dataset.nfajout;
+    const src = [...LIGNES_OFFRES, ...LIGNES_RAPIDES].find(x => x.k === k);
+    if(src){
+      const c = allClients.find(x => x.id === nouvelle.clientId);
+      const libelle = (k.startsWith('offre_') && nouvelle.mois) ? `${src.libelle} — ${moisLibelle(nouvelle.mois)}` : src.libelle;
+      // Pour un abonnement, on reprend le tarif réel du client s'il correspond à son offre.
+      const prix = (c && k === 'offre_' + c.offre) ? tarifBase(c) : src.prix;
+      nouvelle.lignes.push(ligneFacture(libelle, 1, prix));
+    }
+    renderNouvelleFacture();
+    return;
+  }
+  if(e.target.closest('[data-nflibre]')){
+    nouvelle.lignes.push(ligneFacture('', 1, 0));
+    renderNouvelleFacture();
+    const champs = $$('#nfLignes input[data-f="libelle"]');
+    if(champs.length) champs[champs.length - 1].focus();
+    return;
+  }
+  const remisePartenaire = e.target.closest('[data-nfremise]');
+  const remiseLibre = e.target.closest('[data-nfremiselibre]');
+  if(remisePartenaire || remiseLibre){
+    let pct = 20;
+    if(remiseLibre){
+      const saisi = prompt('Remise en % :', '10');
+      if(saisi === null) return;
+      pct = Math.max(0, Math.min(100, parseFloat(String(saisi).replace(',', '.')) || 0));
+      if(!pct) return;
+    }
+    const base = nouvelle.lignes.filter(l => l.total > 0).reduce((n, l) => n + l.total, 0);
+    if(!base){ showToast("Ajoute d'abord une prestation à remiser.", true); return; }
+    const nom = remisePartenaire ? `Remise adhérent${nomPartenaire(reglagesFact) ? ' ' + nomPartenaire(reglagesFact) : ''}` : 'Remise';
+    nouvelle.lignes.push(ligneRemise(nom, pct, base));
+    renderNouvelleFacture();
+    return;
+  }
+  if(e.target.closest('#nfAnnuler')){ nouvelle = null; renderNouvelleFacture(); return; }
+  if(e.target.closest('#nfCreer')) creerFactureALaMain();
+});
+
+async function creerFactureALaMain(){
+  if(!nouvelle || !nouvelle.lignes.length) return;
+  const manques = manquesReglages(reglagesFact);
+  if(manques.length){ showToast(`Complète d'abord : ${manques.join(', ')}.`, true); $('#factReglagesBox').open = true; return; }
+  const client = clientDeLaNouvelle();
+  if(!(client.name || '').trim()){ showToast('Indique le nom de la personne facturée.', true); return; }
+  const vides = nouvelle.lignes.filter(l => !(l.libelle || '').trim());
+  if(vides.length){ showToast('Une ligne est sans désignation.', true); return; }
+  if(manquesClient(client).length && !confirm("Adresse manquante : la facture sera émise sans, ce qui n'est pas conforme. Continuer ?")) return;
+  spinner(true);
+  try{
+    const numero = numeroSuivant(reglagesFact, factures);
+    const f = construireFacture({ numero, client, reglages: reglagesFact, mois: nouvelle.mois,
+                                  lignes: nouvelle.lignes, dateEmission: nouvelle.dateEmission || todayISO() });
+    const ref = await addDoc(collection(db, 'factures'), f);
+    factures.push({ id: ref.id, ...f });
+    nouvelle = null;
+    renderNouvelleFacture();
+    renderFacturation();
+    showToast(`Facture ${numero} créée ✓`);
+  } catch(e){
+    console.error('[ARD] Création de facture refusée', e);
+    showToast("Création refusée — la règle `factures` est-elle publiée ?", true);
+  } finally { spinner(false); }
+}
+
 /* --- Préparation des factures du mois --- */
 $('#factPreparerBtn').addEventListener('click', ()=>{
   const mois = $('#factMois').value || moisCourant();
   const dejaFactures = new Set(factures.filter(f => f.mois === mois).map(f => f.clientId));
+  nouvelle = null; renderNouvelleFacture();
   const engages = allClients.filter(c => c.actif !== false && offreDe(c.offre));
   // Clients sans offre mais avec des ventes ce mois-ci : à facturer aussi.
   const avecVentes = allClients.filter(c => !offreDe(c.offre) && lignesVentes(ventes, c.id, mois).length);
   preparation = {
     mois,
     clients: [...engages, ...avecVentes].map(c => {
-      const l = [];
-      const ab = ligneAbonnement(c, mois);
-      if(ab) l.push(ab);
+      const l = [...lignesAbonnement(c, mois, reglagesFact)];
       lignesVentes(ventes, c.id, mois).forEach(x => l.push(x));
       return { client: c, actif: !dejaFactures.has(c.id) && l.length > 0, lignes: l, deja: dejaFactures.has(c.id) };
     })
@@ -4108,8 +4294,11 @@ async function telechargerFacturePdf(f){
     (f.lignes || []).forEach(l => {
       const lignesTexte = d.splitTextToSize(String(l.libelle || ''), droite - G - 62);
       lignesTexte.forEach((t, i) => { txt(t, G + 2, y + i * 4.4); });
-      txt(String(l.quantite), droite - 52, y, { align:'right' });
-      txt(fmtEuros(l.prixUnitaire), droite - 28, y, { align:'right' });
+      // Une remise n'affiche ni quantité ni prix unitaire : seulement son montant.
+      if(!l.remise){
+        txt(String(l.quantite), droite - 52, y, { align:'right' });
+        txt(fmtEuros(l.prixUnitaire), droite - 28, y, { align:'right' });
+      }
       txt(fmtEuros(l.total), droite - 2, y, { align:'right' });
       y += Math.max(6.5, lignesTexte.length * 4.4 + 2.2);
       d.setDrawColor(230); d.line(G, y - 3, droite, y - 3);
