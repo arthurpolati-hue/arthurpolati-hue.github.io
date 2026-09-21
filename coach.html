@@ -65,14 +65,26 @@
   .fact-lignes div{display:flex;justify-content:space-between;gap:10px;padding:2px 0;}
   .fact-lignes .sup{background:none;border:none;color:var(--fog);cursor:pointer;padding:0 4px;}
   .fact-ajouts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
-  .nf-ligne{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
-  .nf-ligne input[type=text]{flex:1 1 180px;min-width:0;}
-  .nf-ligne input[type=number]{width:74px;flex:0 0 auto;text-align:right;}
-  .nf-ligne .lt{flex:0 0 auto;min-width:74px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;}
-  .nf-ligne.remise input[type=text]{color:var(--blue);}
-  .nf-entete{display:flex;gap:6px;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--fog);margin-bottom:4px;}
-  .nf-entete span:first-child{flex:1 1 180px;}
-  .nf-entete span{flex:0 0 74px;text-align:right;}
+  .nf-ligne{display:grid;gap:6px;align-items:center;margin-bottom:8px;
+    grid-template-columns:1fr 62px 84px 80px 30px;
+    grid-template-areas:"lib qte pu tot sup";}
+  .nf-ligne .l-lib{grid-area:lib;min-width:0;}
+  .nf-ligne .l-qte{grid-area:qte;}
+  .nf-ligne .l-pu{grid-area:pu;}
+  .nf-ligne .lt{grid-area:tot;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
+  .nf-ligne .l-sup{grid-area:sup;}
+  .nf-ligne input[type=number]{text-align:right;width:100%;}
+  .nf-ligne input{min-width:0;}
+  .nf-ligne.remise .l-lib{color:var(--blue);}
+  .nf-entete{display:grid;gap:6px;grid-template-columns:1fr 62px 84px 80px 30px;
+    font-size:0.68rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--fog);margin-bottom:4px;}
+  .nf-entete span{text-align:right;}
+  .nf-entete span:first-child{text-align:left;}
+  @media (max-width:560px){
+    .nf-ligne{grid-template-columns:62px 84px 1fr 30px;
+      grid-template-areas:"lib lib lib lib" "qte pu tot sup";}
+    .nf-entete{display:none;}
+  }
   .nf-total{display:flex;justify-content:flex-end;gap:12px;align-items:baseline;margin:10px 0;font-size:1.05rem;font-weight:700;}
   .fact-ajouts-box{margin-top:6px;}
   .fact-ajouts-box summary{cursor:pointer;font-size:0.8rem;color:var(--blue);list-style:none;}
@@ -3975,11 +3987,11 @@ function renderNouvelleFacture(){
     </div>`}
     ${n.lignes.length ? `<div class="nf-entete"><span>Désignation</span><span>Qté</span><span>P.U.</span><span>Total</span><span style="flex:0 0 28px;"></span></div>` : ''}
     <div id="nfLignes">${n.lignes.map((l, i) => `<div class="nf-ligne ${l.remise ? 'remise' : ''}" data-l="${i}">
-        <input type="text" data-f="libelle" value="${escapeHtml(l.libelle)}" aria-label="Désignation">
-        <input type="number" data-f="quantite" step="1" min="0" value="${l.quantite}" aria-label="Quantité" ${l.remise ? 'disabled' : ''}>
-        <input type="number" data-f="prixUnitaire" step="0.01" value="${l.prixUnitaire}" aria-label="Prix unitaire">
+        <input class="l-lib" type="text" data-f="libelle" value="${escapeHtml(l.libelle)}" placeholder="Désignation" aria-label="Désignation">
+        <input class="l-qte" type="number" data-f="quantite" step="1" min="0" value="${l.quantite}" placeholder="Qté" aria-label="Quantité" ${l.remise ? 'disabled' : ''}>
+        <input class="l-pu" type="number" data-f="prixUnitaire" step="0.01" value="${l.prixUnitaire}" placeholder="Prix €" aria-label="Prix unitaire">
         <span class="lt" data-total-ligne>${fmtEuros(l.total)}</span>
-        <button class="mini-btn" type="button" data-nfsup aria-label="Retirer la ligne">✕</button>
+        <button class="mini-btn l-sup" type="button" data-nfsup aria-label="Retirer la ligne">✕</button>
       </div>`).join('')}</div>
     <div class="fact-ajouts" style="margin-top:8px;">
       ${LIGNES_OFFRES.map(o => `<button class="mini-btn" type="button" data-nfajout="${escapeHtml(o.k)}">${escapeHtml(o.libelle)} (${o.prix} €)</button>`).join('')}
