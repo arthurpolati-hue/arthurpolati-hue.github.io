@@ -56,6 +56,9 @@
   .veille-clinique{display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--fog);margin:10px 0 0;cursor:pointer;
     text-transform:none;letter-spacing:0;font-weight:400;line-height:1.4;}
   .veille-clinique input{width:17px;height:17px;accent-color:var(--blue);}
+  .flux-trad{display:inline-block;margin-top:8px;font-size:0.76rem;color:var(--blue);text-decoration:none;
+    border:1px solid var(--blue-dim);border-radius:999px;padding:3px 10px;}
+  .flux-trad:hover{border-color:var(--blue);}
   .veille-chip .x{margin-left:7px;opacity:0.55;}
   .veille-chip .x:hover{opacity:1;}
   .bilan-resume{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.4);border-radius:10px;
@@ -2963,6 +2966,15 @@ async function chargerFlux(forcer){
   }
 }
 
+// Traduction : pas d'IA ni de clé, on ouvre Google Traduction avec le texte de l'article.
+// Seuls le titre et la conclusion (publics, déjà publiés) sortent du site ; aucune donnée
+// client n'est concernée. Le navigateur sait aussi traduire la page entière : les textes
+// anglais portent lang="en" pour que Safari et Chrome le proposent.
+function lienTraduction(it){
+  const texte = [it.titre, it.conclusion].filter(Boolean).join('\n\n').slice(0, 4500);
+  return 'https://translate.google.com/?sl=en&tl=fr&op=translate&text=' + encodeURIComponent(texte);
+}
+
 function renderFlux(s, cache, horsLigne){
   const il30j = isoLocal(new Date(Date.now() - 30 * 86400000));
   const items = cache.items || [];
@@ -2977,9 +2989,10 @@ function renderFlux(s, cache, horsLigne){
         <span class="flux-badge">${type}</span>
         <span>${escapeHtml(it.date ? fmtDate(it.date) + '/' + String(it.date).slice(0,4) : '')} · ${escapeHtml(it.revue)}</span>
       </div>
-      <a class="flux-titre" href="${escapeHtml(lien)}" target="_blank" rel="noopener">${escapeHtml(it.titre)}</a>
+      <a class="flux-titre" href="${escapeHtml(lien)}" target="_blank" rel="noopener" lang="en">${escapeHtml(it.titre)}</a>
       <div class="flux-meta" style="margin:4px 0 0;">${escapeHtml(auteurs)}</div>
-      ${it.conclusion ? `<p class="flux-concl"><span>Conclusion des auteurs</span>${escapeHtml(it.conclusion)}</p>` : ''}
+      ${it.conclusion ? `<p class="flux-concl" lang="en"><span>Conclusion des auteurs</span>${escapeHtml(it.conclusion)}</p>` : ''}
+      <a class="flux-trad" href="${escapeHtml(lienTraduction(it))}" target="_blank" rel="noopener">🌐 Traduire en français</a>
     </div>`;
   }).join('') : `<p class="sub" style="margin:0;">Aucune publication trouvée${s.libre ? ' pour cette recherche. Essaie des mots plus larges, ou un seul mot de moins.' : ' pour ce thème.'}</p>`;
   const quand = new Date(cache.t);
@@ -2989,7 +3002,9 @@ function renderFlux(s, cache, horsLigne){
     + `${cache.large ? ', recherche élargie aux résumés (peu de résultats dans les titres)' : ''} · `
     + `${(cache.total || 0).toLocaleString('fr-FR')} publications · mis à jour le `
     + `${quand.toLocaleDateString('fr-FR')} à ${quand.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}. `
-    + `Une méta-analyse n'est pas infaillible : elle vaut ce que valent les études qu'elle rassemble.`;
+    + `Une méta-analyse n'est pas infaillible : elle vaut ce que valent les études qu'elle rassemble. `
+    + `Les articles sont en anglais : « Traduire en français » ouvre la traduction du titre et de la conclusion, `
+    + `et ton navigateur peut traduire toute la page (Safari : menu « aA » ; Chrome : clic droit).`;
 }
 
 /* ------------------------------------------------------- Photos des clients */
