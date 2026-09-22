@@ -747,6 +747,7 @@
       <div class="card">
         <div class="card-head">
           <h2>Dernières méta-analyses</h2>
+          <button class="btn btn-ghost btn-sm" id="veilleResume" type="button">📋 Copier pour résumé</button>
           <button class="btn btn-ghost btn-sm" id="veilleRefresh" type="button">Actualiser</button>
         </div>
         <div id="veilleFlux"><p class="sub" style="margin:0;">Chargement…</p></div>
@@ -2832,6 +2833,43 @@ function ouvrirVeille(){
 }
 $('#veilleRefresh').addEventListener('click', ()=> chargerFlux(true));
 
+// Synthèse : sans IA payante ni serveur. On prépare le texte des conclusions affichées
+// avec une consigne, à coller dans Claude ou ChatGPT (abonnement déjà existant).
+// La consigne interdit d'ajouter quoi que ce soit qui ne figure pas dans les conclusions :
+// c'est la même règle que pour les synthèses écrites à la main.
+let derniersArticles = [];
+
+function texteAResumer(sujet){
+  const lignes = [
+    `Voici les conclusions de ${derniersArticles.length} méta-analyses et revues systématiques sur : « ${sujet} ».`,
+    '',
+    "Fais-m'en une synthèse en français, pour un coach sportif :",
+    '- ce qui ressort clairement, avec les chiffres et les conditions (population, durée) ;',
+    '- les points où les études ne sont pas d\'accord ;',
+    '- ce qui reste incertain ou mal établi ;',
+    '- termine par ce que ça change concrètement dans une séance.',
+    "N'ajoute aucune information qui ne figure pas dans les textes ci-dessous, et n'invente aucun chiffre.",
+    ''
+  ];
+  derniersArticles.forEach((it, i) => {
+    lignes.push(`${i + 1}. ${it.titre} (${it.revue || 'revue inconnue'}, ${String(it.date || '').slice(0, 4)})`);
+    lignes.push(it.conclusion ? `   ${it.conclusion}` : '   (pas de conclusion dans le résumé)');
+    lignes.push('');
+  });
+  return lignes.join('\n');
+}
+
+$('#veilleResume').addEventListener('click', async ()=>{
+  if(!derniersArticles.length){ showToast('Aucun article à résumer pour l\'instant.', true); return; }
+  const s = sujetCourant();
+  try{
+    await navigator.clipboard.writeText(texteAResumer(s.l || 'ce sujet'));
+    showToast(`${derniersArticles.length} conclusions copiées — colle-les dans Claude ou ChatGPT ✓`);
+  } catch(e){
+    showToast('Copie impossible sur ce navigateur.', true);
+  }
+});
+
 function lancerRechercheVeille(texte){
   const saisie = String(texte || '').trim().slice(0, 200);
   if(!saisie) return;
@@ -2994,6 +3032,7 @@ function lienTraduction(it){
 function renderFlux(s, cache, horsLigne){
   const il30j = isoLocal(new Date(Date.now() - 30 * 86400000));
   const items = cache.items || [];
+  derniersArticles = items;                      // pour le bouton « Copier pour résumé »
   $('#veilleFlux').innerHTML = items.length ? items.map(it => {
     const lien = lienArticle(it);
     const type = it.metaAnalyse ? 'Méta-analyse' : 'Revue systématique';
