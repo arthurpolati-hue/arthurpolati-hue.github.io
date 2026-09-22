@@ -1013,7 +1013,7 @@ import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES,
          tunnel, caMensuel, caHistorique, fmtEuros, debutOffre } from "./offres.js";
 import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
 import { analyser, construireRequete } from "./traduction.js";
-import { chercher as chercherPubmed, lienArticle, EXCLU_CLINIQUE_PUBMED } from "./pubmed.js";
+import { chercher as chercherPubmed, chercherComparaison, lienArticle, EXCLU_CLINIQUE_PUBMED } from "./pubmed.js";
 import { SECTIONS_BILAN } from "./trame-bilan.js";
 import { REGLAGES_DEFAUT, manquesReglages, manquesClient, numeroSuivant, lignesAbonnement,
          LIGNES_RAPIDES, LIGNES_OFFRES, lignesVentes, ligne as ligneFacture, ligneRemise, nomPartenaire,
@@ -2949,16 +2949,30 @@ async function chargerFlux(forcer){
   const attendu = themeVeille;
   zone.innerHTML = '<p class="sub" style="margin:0;">Recherche des dernières méta-analyses…</p>';
   try{
-    const termes = (s.analyse && s.analyse.groupes) ? s.analyse.groupes.flatMap(g => g.en) : [];
-    const options = { tri: s.libre ? 'pertinence' : 'date', termes };
-    let res = await chercherPubmed(s.requete, options);
-    let large = false;
-    // Peu de résultats dans les titres : on cherche aussi dans les résumés.
-    if(res.total < SEUIL_ELARGIR_VEILLE && s.requeteLarge){
-      const r2 = await chercherPubmed(s.requeteLarge, options);
-      if(r2.total > res.total){ res = r2; large = true; }
+    const analyse = s.analyse;
+    const groupes = (analyse && analyse.groupes) ? analyse.groupes.map(g => g.en) : [];
+    const options = { tri: s.libre ? 'pertinence' : 'date', termes: groupes.flat(), groupes };
+    const comparaison = !!(analyse && analyse.mode === 'ou' && groupes.length > 1);
+    let res, large = false;
+    if(comparaison){
+      // Une recherche par côté, sinon le sujet le plus étudié occupe toute la liste.
+      const filtre = inclureClinique ? '' : EXCLU_CLINIQUE;
+      const requetes = analyse.groupes.map(g => '(' + construireRequete([g], 'ti', 'et') + ')' + filtre);
+      res = await chercherComparaison(requetes, options);
+      if(!res.items.length){
+        const larges = analyse.groupes.map(g => '(' + construireRequete([g], 'tiab', 'et') + ')' + filtre);
+        res = await chercherComparaison(larges, options);
+        large = true;
+      }
+    } else {
+      res = await chercherPubmed(s.requete, options);
+      // Peu de résultats dans les titres : on cherche aussi dans les résumés.
+      if(res.total < SEUIL_ELARGIR_VEILLE && s.requeteLarge){
+        const r2 = await chercherPubmed(s.requeteLarge, options);
+        if(r2.total > res.total){ res = r2; large = true; }
+      }
     }
-    cache = { t: Date.now(), total: res.total, items: res.items, large };
+    cache = { t: Date.now(), total: res.total, items: res.items, large, comparaison };
     try{ localStorage.setItem(cle, JSON.stringify(cache)); }catch(e){}
     if(themeVeille === attendu) renderFlux(s, cache);
   } catch(e){
@@ -3002,7 +3016,7 @@ function renderFlux(s, cache, horsLigne){
     + `Source : PubMed (NCBI) · méta-analyses et revues systématiques, articles rétractés exclus`
     + `${s.libre && !inclureClinique ? ', études sur des patients écartées' : ''}`
     + `${cache.large ? ', recherche élargie aux résumés (peu de résultats dans les titres)' : ''}`
-    + `${s.libre ? ', classées par pertinence' : ''} · `
+    + `${s.libre ? ', classées par pertinence' : ''}${cache.comparaison ? ', un côté et l\'autre de la comparaison' : ''} · `
     + `${(cache.total || 0).toLocaleString('fr-FR')} publications · mis à jour le `
     + `${quand.toLocaleDateString('fr-FR')} à ${quand.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}. `
     + `Une méta-analyse n'est pas infaillible : elle vaut ce que valent les études qu'elle rassemble. `

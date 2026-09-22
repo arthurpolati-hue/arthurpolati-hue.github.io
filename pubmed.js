@@ -125,13 +125,49 @@ export function classer(items, mots){
 }
 
 /**
+ * Comparaison « A vs B » : on alterne entre les groupes de mots-clés pour que chaque
+ * côté soit représenté.
+ * ⚠️ Ne suffit pas seul : si PubMed ne renvoie aucun article du côté le moins étudié,
+ * il n'y a rien à équilibrer. D'où `chercherComparaison()`, qui interroge chaque côté
+ * séparément.
+ * @param groupes tableau de listes de termes (un par idée cherchée)
+ */
+export function equilibrer(items, groupes, nb){
+  const listes = (groupes || []).map(g => {
+    const mots = motsCles(g);
+    return items.filter(it => mots.some(m => (it.titre || '').toLowerCase().includes(m)));
+  }).filter(l => l.length);
+  if(listes.length < 2) return items.slice(0, nb);
+  const choisis = [];
+  const vus = new Set();
+  // Tourniquet : un article du premier groupe, un du deuxième, et ainsi de suite.
+  for(let tour = 0; choisis.length < nb && tour < 50; tour++){
+    let ajoute = false;
+    for(const liste of listes){
+      const suivant = liste.find(it => !vus.has(it.pmid));
+      if(suivant){
+        vus.add(suivant.pmid);
+        choisis.push(suivant);
+        ajoute = true;
+        if(choisis.length >= nb) break;
+      }
+    }
+    if(!ajoute) break;
+  }
+  // On complète avec le reste si un côté manque d'articles.
+  items.forEach(it => { if(choisis.length < nb && !vus.has(it.pmid)){ vus.add(it.pmid); choisis.push(it); } });
+  return choisis;
+}
+
+/**
  * Recherche complète.
  * @param {string} requete  requête en syntaxe PubMed, filtres compris
- * @param {object} options  { nb, tri: 'pertinence'|'date', termes: [] }
+ * @param {object} options  { nb, tri: 'pertinence'|'date', termes: [], groupes: [[...]], equilibre: bool }
  * @returns {{total:number, items:Array}}
  */
 export async function chercher(requete, options = {}){
-  const { nb = 10, tri = 'date', termes = [] } = (typeof options === 'number') ? { nb: options } : options;
+  const { nb = 10, tri = 'date', termes = [], groupes = [], equilibre = false } =
+    (typeof options === 'number') ? { nb: options } : options;
   // PubMed sait trier par pertinence : on le laisse faire le gros du travail, puis on
   // reclasse nous-mêmes sur les mots effectivement cherchés.
   const rech = await lire('esearch.fcgi', {
@@ -180,7 +216,49 @@ export async function chercher(requete, options = {}){
     // Un article dont le titre ne contient aucun mot cherché n'a rien à faire en tête :
     // on ne le garde que s'il n'y a pas mieux.
     const bons = items.filter(x => x.pertinence >= 3);
-    items = (bons.length >= 3 ? bons : items).slice(0, nb);
+    items = bons.length >= 3 ? bons : items;
+    items = equilibre ? equilibrer(items, groupes, nb) : items.slice(0, nb);
+  }
+  return { total, items };
+}
+
+/**
+ * Comparaison : une recherche PAR CÔTÉ, puis on entrelace.
+ * « pliométrie vs musculation » interrogé en une seule requête OU ne ramenait que de la
+ * musculation, bien plus étudiée : les articles de pliométrie n'apparaissaient nulle part.
+ * Les recherches sont faites À LA SUITE (limite de 3 requêtes par seconde du NCBI).
+ * @param {string[]} requetes une requête complète par côté
+ */
+export async function chercherComparaison(requetes, options = {}){
+  const { nb = 10, termes = [] } = options;
+  const parCote = [];
+  let total = 0;
+  for(const r of requetes){
+    try{
+      const res = await chercher(r, { nb: Math.max(4, Math.ceil(nb / requetes.length) + 2), tri: 'pertinence', termes });
+      total += res.total;
+      if(res.items.length) parCote.push(res.items);
+    } catch(e){
+      console.warn('[veille] un côté de la comparaison a échoué', e);
+    }
+    await pause(400);
+  }
+  if(!parCote.length) return { total: 0, items: [] };
+  // Tourniquet : un article de chaque côté, à tour de rôle.
+  const items = [];
+  const vus = new Set();
+  for(let i = 0; items.length < nb && i < 40; i++){
+    let ajoute = false;
+    for(const liste of parCote){
+      const suivant = liste.find(x => !vus.has(x.pmid));
+      if(suivant){
+        vus.add(suivant.pmid);
+        items.push(suivant);
+        ajoute = true;
+        if(items.length >= nb) break;
+      }
+    }
+    if(!ajoute) break;
   }
   return { total, items };
 }
