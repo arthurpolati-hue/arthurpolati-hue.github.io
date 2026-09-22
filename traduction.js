@@ -86,7 +86,7 @@ const LEXIQUE = [
   [['gainage', 'tronc', 'core', 'sangle abdominale'], ['"core stability"', '"core training"', '"core strength"']],
   [['hypopressif', 'hypopressive', 'abdo hypopressif', 'gymnastique hypopressive'], ['hypopressive']],
   [['hyperpressif', 'crunch', 'releve de buste', 'abdo classique'],
-   ['"abdominal crunch"', '"abdominal exercise"', '"abdominal exercises"', '"curl-up"', '"sit-up"', '"trunk flexion"']],
+   ['"abdominal crunch"', '"abdominal exercise"', '"abdominal exercises"', '"curl-up"', '"sit-up"']],
   [['abdo', 'abdominaux', 'ventre', 'sangle abdominale'], ['"abdominal muscle"', '"abdominal muscles"', '"abdominal exercise"', '"rectus abdominis"']],
   [['perinee', 'plancher pelvien', 'pelvien', 'pelvic floor', 'pelvic'], ['"pelvic floor"']],
   [['diastasis', 'ecartement des grands droits'], ['diastasis', '"rectus abdominis"']],

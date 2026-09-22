@@ -32,10 +32,22 @@ export const EXCLU_CLINIQUE_PUBMED = ' NOT (patients[ti] OR cancer[ti] OR stroke
 
 const url = (methode, params) => BASE + methode + '?' + new URLSearchParams({ db: 'pubmed', tool: OUTIL, ...params });
 
-async function lire(methode, params, texte){
-  const r = await fetch(url(methode, params));
-  if(!r.ok) throw new Error(methode + ' HTTP ' + r.status);
-  return texte ? r.text() : r.json();
+const pause = ms => new Promise(r => setTimeout(r, ms));
+
+// Le NCBI bride à 3 requêtes par seconde et par adresse IP : au-delà, la connexion est
+// refusée et `fetch` échoue sans code HTTP. On espace donc les appels et on réessaie une
+// fois après une seconde, plutôt que d'afficher une erreur à l'utilisateur.
+async function lire(methode, params, texte, essai = 0){
+  try{
+    const r = await fetch(url(methode, params));
+    if(r.status === 429) throw new Error('429');
+    if(!r.ok) throw new Error(methode + ' HTTP ' + r.status);
+    return texte ? r.text() : r.json();
+  } catch(e){
+    if(essai >= 1) throw e;
+    await pause(1200);
+    return lire(methode, params, texte, essai + 1);
+  }
 }
 
 /** Nettoie un texte de résumé : espaces, balises éventuelles. */
@@ -69,31 +81,81 @@ function resumesDepuisXml(xml){
 }
 
 /**
+ * Mots à ignorer dans le classement : ils ne disent rien du sujet.
+ */
+const MOTS_FAIBLES = new Set(['training', 'exercise', 'exercises', 'performance', 'effects', 'effect',
+  'adults', 'athletes', 'muscle', 'muscles', 'study', 'review', 'meta']);
+
+/**
+ * Termes de recherche -> mots simples, pour juger si un article parle vraiment du sujet.
+ * « "vertical jump" » et « jump* » donnent tous deux « jump ».
+ */
+export function motsCles(termes){
+  const out = new Set();
+  (termes || []).forEach(t => {
+    String(t).toLowerCase().replace(/"/g, ' ').replace(/\*/g, ' ').split(/[^a-z0-9]+/)
+      .filter(m => m.length > 2 && !MOTS_FAIBLES.has(m))
+      .forEach(m => out.add(m));
+  });
+  return [...out];
+}
+
+/**
+ * Classe les articles par pertinence : un article dont le TITRE contient un mot-clé
+ * passe devant, la conclusion compte moins, et à score égal le plus récent gagne.
+ * Sans cela, une recherche « pliométrie ou musculation » remontait des études sur
+ * l'ashwagandha ou la créatine, simplement parce qu'elles étaient récentes.
+ */
+export function classer(items, mots){
+  if(!mots || !mots.length) return items;
+  const score = it => {
+    const titre = (it.titre || '').toLowerCase();
+    const concl = (it.conclusion || '').toLowerCase();
+    let n = 0;
+    mots.forEach(m => {
+      if(titre.includes(m)) n += 3;
+      else if(concl.includes(m)) n += 1;
+    });
+    return n;
+  };
+  return items
+    .map(it => ({ it, s: score(it) }))
+    .sort((a, b) => b.s - a.s || String(b.it.date).localeCompare(String(a.it.date)))
+    .map(x => Object.assign(x.it, { pertinence: x.s }));
+}
+
+/**
  * Recherche complète.
  * @param {string} requete  requête en syntaxe PubMed, filtres compris
- * @param {number} nb       nombre d'articles à détailler (10 par défaut)
+ * @param {object} options  { nb, tri: 'pertinence'|'date', termes: [] }
  * @returns {{total:number, items:Array}}
  */
-export async function chercher(requete, nb = 10){
-  const rech = await lire('esearch.fcgi', { retmode: 'json', retmax: String(nb), sort: 'date', term: requete });
+export async function chercher(requete, options = {}){
+  const { nb = 10, tri = 'date', termes = [] } = (typeof options === 'number') ? { nb: options } : options;
+  // PubMed sait trier par pertinence : on le laisse faire le gros du travail, puis on
+  // reclasse nous-mêmes sur les mots effectivement cherchés.
+  const rech = await lire('esearch.fcgi', {
+    retmode: 'json', retmax: String(tri === 'pertinence' ? Math.max(nb, 25) : nb),
+    sort: tri === 'pertinence' ? 'relevance' : 'date', term: requete
+  });
   const res = (rech && rech.esearchresult) || {};
   const ids = res.idlist || [];
   const total = parseInt(res.count, 10) || 0;
   if(!ids.length) return { total, items: [] };
 
-  // Les deux appels suivants portent sur la même liste d'identifiants : on peut les
-  // faire ensemble (2 requêtes simultanées, on reste sous la limite de 3 par seconde).
-  const [resume, xml] = await Promise.all([
-    lire('esummary.fcgi', { retmode: 'json', id: ids.join(',') }),
-    lire('efetch.fcgi', { retmode: 'xml', id: ids.join(',') }, true)
-  ]);
+  // Les deux appels suivants sont faits L'UN APRÈS L'AUTRE, avec une pause : en parallèle,
+  // trois requêtes partaient dans la même seconde et le NCBI coupait la connexion.
+  await pause(350);
+  const resume = await lire('esummary.fcgi', { retmode: 'json', id: ids.join(',') });
+  await pause(350);
+  const xml = await lire('efetch.fcgi', { retmode: 'xml', id: ids.join(',') }, true);
 
   let conclusions = new Map();
   try{ conclusions = resumesDepuisXml(xml); }
   catch(e){ console.warn('[ARD] Résumés PubMed illisibles', e); }
 
   const r = (resume && resume.result) || {};
-  const items = ids.map(id => {
+  let items = ids.map(id => {
     const a = r[id] || {};
     const ids2 = a.articleids || [];
     const doi = (ids2.find(x => x.idtype === 'doi') || {}).value || '';
@@ -111,6 +173,15 @@ export async function chercher(requete, nb = 10){
       conclusion: conclusionDe(conclusions.get(id))
     };
   }).filter(x => x.titre);
+
+  if(tri === 'pertinence'){
+    const mots = motsCles(termes);
+    items = classer(items, mots);
+    // Un article dont le titre ne contient aucun mot cherché n'a rien à faire en tête :
+    // on ne le garde que s'il n'y a pas mieux.
+    const bons = items.filter(x => x.pertinence >= 3);
+    items = (bons.length >= 3 ? bons : items).slice(0, nb);
+  }
   return { total, items };
 }
 

@@ -2949,11 +2949,13 @@ async function chargerFlux(forcer){
   const attendu = themeVeille;
   zone.innerHTML = '<p class="sub" style="margin:0;">Recherche des dernières méta-analyses…</p>';
   try{
-    let res = await chercherPubmed(s.requete);
+    const termes = (s.analyse && s.analyse.groupes) ? s.analyse.groupes.flatMap(g => g.en) : [];
+    const options = { tri: s.libre ? 'pertinence' : 'date', termes };
+    let res = await chercherPubmed(s.requete, options);
     let large = false;
     // Peu de résultats dans les titres : on cherche aussi dans les résumés.
     if(res.total < SEUIL_ELARGIR_VEILLE && s.requeteLarge){
-      const r2 = await chercherPubmed(s.requeteLarge);
+      const r2 = await chercherPubmed(s.requeteLarge, options);
       if(r2.total > res.total){ res = r2; large = true; }
     }
     cache = { t: Date.now(), total: res.total, items: res.items, large };
@@ -2999,7 +3001,8 @@ function renderFlux(s, cache, horsLigne){
   $('#veilleNote').textContent = `${horsLigne ? 'Hors ligne : dernière liste enregistrée. ' : ''}`
     + `Source : PubMed (NCBI) · méta-analyses et revues systématiques, articles rétractés exclus`
     + `${s.libre && !inclureClinique ? ', études sur des patients écartées' : ''}`
-    + `${cache.large ? ', recherche élargie aux résumés (peu de résultats dans les titres)' : ''} · `
+    + `${cache.large ? ', recherche élargie aux résumés (peu de résultats dans les titres)' : ''}`
+    + `${s.libre ? ', classées par pertinence' : ''} · `
     + `${(cache.total || 0).toLocaleString('fr-FR')} publications · mis à jour le `
     + `${quand.toLocaleDateString('fr-FR')} à ${quand.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}. `
     + `Une méta-analyse n'est pas infaillible : elle vaut ce que valent les études qu'elle rassemble. `
