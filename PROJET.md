@@ -120,6 +120,13 @@ reste (lister, supprimer, relire les photos).
 semaine, dont avec le coach, durée) et un résumé calculé sous la section, repris dans le texte copié.
 La trame peut marquer une section avec `resume: 'temps'` pour recevoir cet encart.
 
+**Recherche — classement (22/09/2026)** : les recherches libres demandent à PubMed un tri par
+pertinence, puis les articles sont reclassés sur les mots réellement tapés (titre prioritaire) ;
+ceux dont le titre ne contient aucun mot cherché sont écartés. Une **comparaison « A vs B »** lance
+une recherche **par côté** puis entrelace : en une seule requête OU, le sujet le plus étudié occupait
+toute la liste. ⚠️ Limite du NCBI : 3 requêtes/seconde et par IP — `esummary` et `efetch` sont
+appelés **à la suite**, avec pauses et un réessai ; en parallèle, la connexion était coupée.
+
 **Actualités — recherche libre (22/09/2026)** : barre de recherche dans l'onglet Actualités.
 `traduction.js` (copie enrichie du lexique du site de veille d'un ami) traduit le français en
 requête PubMed ; une comparaison (« A vs B », « A ou B ») bascule en **OU**, sinon la recherche
