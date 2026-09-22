@@ -20,15 +20,18 @@
 //  - quand deux méta-analyses divergent, le dire plutôt que choisir ;
 //  - mettre à jour `maj` du thème concerné.
 
+// Syntaxe PubMed (E-utilities du NCBI) depuis le 22/09/2026 : Europe PMC a cessé d'envoyer
+// les en-têtes CORS, son API est inutilisable depuis un navigateur (voir pubmed.js).
 export const REQUETE_FILTRE =
-  ' AND (PUB_TYPE:"Meta-Analysis" OR PUB_TYPE:"Systematic Review") AND SRC:MED NOT PUB_TYPE:"Retracted Publication"';
+  ' AND (meta-analysis[pt] OR systematic review[pt]) NOT retracted publication[pt]';
 
-// Populations cliniques exclues du flux : pertinentes en médecine, hors sujet pour
-// le coaching de personnes en bonne santé.
-const CLINIQUE = '(TITLE:patients OR TITLE:cancer OR TITLE:"heart failure" OR TITLE:diabet* OR TITLE:osteoarthritis '
-  + 'OR TITLE:syndrome OR TITLE:stroke OR TITLE:"spinal cord" OR TITLE:dialysis OR TITLE:COPD OR TITLE:"multiple sclerosis" '
-  + 'OR TITLE:parkinson* OR TITLE:HIV OR TITLE:children OR TITLE:adolescents OR TITLE:youth OR TITLE:pregnan* '
-  + 'OR TITLE:qualitative OR TITLE:photobiomodulation)';
+// Exclusions communes aux 4 thèmes, en syntaxe PubMed. Sans elles, « créatine » remonte
+// la créatine kinase en cardiologie, et les compléments envahissent les thèmes d'entraînement.
+const CLINIQUE = ' NOT (patients[ti] OR cancer[ti] OR stroke[ti] OR "heart failure"[ti] OR diabetes[ti] '
+  + 'OR COPD[ti] OR dialysis[ti] OR dementia[ti] OR "COVID-19"[ti] OR children[ti] OR adolescents[ti] '
+  + 'OR falls[ti] OR surgery[ti])';
+const SUPPLEMENTS = ' NOT (supplementation[ti] OR supplement[ti] OR supplements[ti] OR polyphenol[ti] '
+  + 'OR ashwagandha[ti] OR creatine[ti] OR caffeine[ti] OR nitrate[ti] OR probiotic[ti])';
 
 export const REFERENCES = {
   // ── Hypertrophie et force ──
@@ -115,9 +118,9 @@ export const REFERENCES = {
 export const THEMES = [
   {
     k:'hypertrophie', l:'Hypertrophie et force', emoji:'💪',
-    requete: '(TITLE:"resistance training" OR TITLE:"strength training" OR TITLE:"resistance exercise" OR TITLE:"muscle hypertrophy" OR TITLE:"muscle growth") '
-      + 'AND (ABSTRACT:hypertrophy OR ABSTRACT:"muscle size" OR ABSTRACT:"muscle thickness" OR ABSTRACT:"lean mass" OR ABSTRACT:"muscle strength" OR ABSTRACT:"1RM") '
-      + 'NOT (TITLE:ventricular OR TITLE:cardiac OR TITLE:botulinum) NOT ' + CLINIQUE,
+    requete: '((("resistance training"[ti] OR "strength training"[ti] OR "resistance exercise"[ti]) '
+      + 'AND (hypertrophy[ti] OR strength[ti] OR "muscle mass"[ti] OR volume[ti] OR frequency[ti] OR load[ti] '
+      + 'OR failure[ti] OR "range of motion"[ti])) OR "muscle hypertrophy"[ti])' + SUPPLEMENTS + CLINIQUE,
     synthese: {
       maj: '2026-09-15',
       intro: `Repères chiffrés tirés des méta-analyses. Ce qu'il faut garder en tête : <b>aucune
@@ -224,9 +227,9 @@ export const THEMES = [
   },
   {
     k:'gras', l:'Perte de gras', emoji:'🔥',
-    requete: '(TITLE:"weight loss" OR TITLE:"fat loss" OR TITLE:"fat mass" OR TITLE:"body fat" OR TITLE:"body composition" OR TITLE:"energy restriction" OR TITLE:"caloric restriction" OR TITLE:"intermittent fasting") '
-      + 'AND (ABSTRACT:exercise OR ABSTRACT:training OR ABSTRACT:diet) '
-      + 'NOT (semaglutide OR tirzepatide OR liraglutide OR bariatric OR TITLE:drug OR TITLE:pharmaco*) NOT ' + CLINIQUE,
+    requete: '("fat loss"[ti] OR "fat mass"[ti] OR "body fat"[ti] OR "intermittent fasting"[ti] '
+      + 'OR "caloric restriction"[ti] OR "energy restriction"[ti] '
+      + 'OR ("weight loss"[ti] AND (exercise[ti] OR training[ti] OR diet[ti] OR protein[ti])))' + SUPPLEMENTS + CLINIQUE,
     synthese: {
       maj: '2026-09-15',
       intro: `En sèche, les leviers les mieux documentés pour garder le muscle sont un
@@ -285,8 +288,10 @@ export const THEMES = [
   },
   {
     k:'nutrition', l:'Nutrition et compléments', emoji:'🥗',
-    requete: '(TITLE:"protein supplementation" OR TITLE:"protein intake" OR TITLE:"dietary protein" OR TITLE:whey OR TITLE:creatine OR TITLE:caffeine OR TITLE:"sports nutrition" OR TITLE:"dietary supplement*") '
-      + 'AND (ABSTRACT:"resistance training" OR ABSTRACT:exercise OR ABSTRACT:"muscle mass" OR ABSTRACT:"exercise performance") NOT ' + CLINIQUE,
+    requete: '("protein supplementation"[ti] OR "protein intake"[ti] OR "dietary protein"[ti] OR whey[ti] '
+      + 'OR creatine[ti] OR caffeine[ti] OR "sports nutrition"[ti] OR beta-alanine[ti] OR "sodium bicarbonate"[ti]) '
+      + 'AND (performance[ti] OR strength[ti] OR hypertrophy[ti] OR "body composition"[ti] OR exercise[ti] '
+      + 'OR muscle[ti] OR adults[ti])' + CLINIQUE,
     synthese: {
       maj: '2026-09-15',
       intro: `Les chiffres les plus solides portent sur la <b>quantité de protéines</b> et la
@@ -333,8 +338,10 @@ export const THEMES = [
   },
   {
     k:'sante', l:'Récupération et santé', emoji:'😴',
-    requete: '(TITLE:sleep OR TITLE:"low back pain" OR TITLE:menopaus* OR TITLE:"older adults" OR TITLE:sarcopenia OR TITLE:"sports injur*" OR TITLE:"muscle damage" OR TITLE:recovery) '
-      + 'AND (ABSTRACT:"resistance training" OR ABSTRACT:"strength training" OR ABSTRACT:"resistance exercise" OR ABSTRACT:"exercise training") NOT ' + CLINIQUE,
+    requete: '(((sleep[ti] OR recovery[ti] OR "muscle damage"[ti] OR "muscle soreness"[ti] OR stretching[ti] '
+      + 'OR "foam rolling"[ti] OR "cold water immersion"[ti] OR "low back pain"[ti] OR menopause[ti] OR sarcopenia[ti]) '
+      + 'AND (exercise[ti] OR training[ti] OR athletes[ti] OR "resistance training"[ti] OR "physical activity"[ti] '
+      + 'OR performance[ti])) OR "delayed onset muscle soreness"[ti])' + SUPPLEMENTS + CLINIQUE,
     synthese: {
       maj: '2026-09-15',
       intro: `Repères pratiques sur le sommeil, le mal de dos et les seniors. Pour les seniors,

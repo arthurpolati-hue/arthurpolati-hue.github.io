@@ -79,6 +79,16 @@ reste (lister, supprimer, relire les photos).
   150 séances au maximum).
 - **Cycle de 4 semaines** : il démarre le jour où le suivi commence. Une valeur par défaut « il y a
   27 jours » faisait croire à un client tout juste arrivé que son cycle se terminait.
+- **Source scientifique : PubMed, plus Europe PMC** (22/09/2026). Europe PMC a cessé d'envoyer
+  l'en-tête `Access-Control-Allow-Origin` et répond 403 au preflight OPTIONS : tout navigateur
+  bloque la lecture, le flux affichait « Impossible de joindre Europe PMC » alors que l'API
+  répondait très bien en ligne de commande. **Leçon : une API sans CORS est inutilisable depuis
+  une page web, même si `curl` fonctionne.** Le NCBI (E-utilities) renvoie `Access-Control-Allow-Origin: *`.
+  Tout passe par `pubmed.js` (esearch → esummary + efetch) ; les requêtes sont en syntaxe PubMed
+  (`"expression"[ti]`, `meta-analysis[pt]`), limite d'usage 3 requêtes/seconde sans clé, d'où le cache 12 h.
+- **Mots-clés ambigus dans le lexique** : « crunch » traduisait « hyperpressif » et ramenait des
+  articles sur le fait de croquer (pneumomédiastin, incisives). Préférer des expressions entières
+  (`"abdominal crunch"`, `"curl-up"`), surtout en mode OU.
 - **Couleurs des graphiques** : trio validé pour les daltoniens — `#3E8EFF` progression,
   `#B8862F` stagnation, `#B34B4B` régression. Ne pas les changer sans revalider.
 
@@ -109,6 +119,14 @@ reste (lister, supprimer, relire les photos).
 **Bilan — temps consacré (19/09/2026)** : trois questions dans « Santé & contraintes » (séances par
 semaine, dont avec le coach, durée) et un résumé calculé sous la section, repris dans le texte copié.
 La trame peut marquer une section avec `resume: 'temps'` pour recevoir cet encart.
+
+**Actualités — recherche libre (22/09/2026)** : barre de recherche dans l'onglet Actualités.
+`traduction.js` (copie enrichie du lexique du site de veille d'un ami) traduit le français en
+requête PubMed ; une comparaison (« A vs B », « A ou B ») bascule en **OU**, sinon la recherche
+est vide. Sujets épinglables en localStorage, études cliniques écartées par défaut (case pour les
+réafficher), élargissement titres → résumés sous 5 résultats.
+⚠️ Le site de veille de l'ami (`~/Desktop/Veille Prepa Physique`) utilise encore Europe PMC :
+il est cassé par la même panne et attend le même basculement.
 
 ## 8. La suite
 

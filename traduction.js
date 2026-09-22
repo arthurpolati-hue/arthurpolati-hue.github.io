@@ -16,8 +16,8 @@
 //    sinon la recherche ne peut rien trouver, aucun article ne parlant des deux à la fois.
 //
 // Pour enrichir le lexique : ajouter une ligne [[formes françaises], [termes anglais]].
-// Les termes anglais sont écrits en syntaxe Europe PMC : "expression exacte" entre
-// guillemets, ou mot* pour toutes les terminaisons.
+// Les termes anglais sont écrits ainsi : "expression exacte" entre guillemets, ou mot*
+// pour toutes les terminaisons. Le champ est ajouté ensuite ("expression"[ti]).
 // ⚠️ Le joker ne marche PAS dans une expression entre guillemets : "abdominal exercise*"
 // ne renvoie rien. Écrire les deux formes ("abdominal exercise", "abdominal exercises").
 
@@ -85,7 +85,8 @@ const LEXIQUE = [
   [['hypertrophie', 'prise de masse', 'masse musculaire', 'prise de muscle', 'hypertrophy'], ['hypertrophy', '"muscle mass"']],
   [['gainage', 'tronc', 'core', 'sangle abdominale'], ['"core stability"', '"core training"', '"core strength"']],
   [['hypopressif', 'hypopressive', 'abdo hypopressif', 'gymnastique hypopressive'], ['hypopressive']],
-  [['hyperpressif', 'crunch', 'releve de buste', 'abdo classique'], ['crunch', '"abdominal exercise"', '"abdominal exercises"', '"curl-up"']],
+  [['hyperpressif', 'crunch', 'releve de buste', 'abdo classique'],
+   ['"abdominal crunch"', '"abdominal exercise"', '"abdominal exercises"', '"curl-up"', '"sit-up"', '"trunk flexion"']],
   [['abdo', 'abdominaux', 'ventre', 'sangle abdominale'], ['"abdominal muscle"', '"abdominal muscles"', '"abdominal exercise"', '"rectus abdominis"']],
   [['perinee', 'plancher pelvien', 'pelvien', 'pelvic floor', 'pelvic'], ['"pelvic floor"']],
   [['diastasis', 'ecartement des grands droits'], ['diastasis', '"rectus abdominis"']],
@@ -227,12 +228,15 @@ export function analyser(texte){
 }
 
 /**
- * Construit la requête Europe PMC à partir des groupes.
- * @param champ 'TITLE' (précis) ou 'TITLE_ABS' (titre ou résumé : plus de résultats)
+ * Construit la requête, en syntaxe PubMed (E-utilities du NCBI).
+ * PubMed écrit le champ APRÈS le terme, entre crochets : "vertical jump"[ti].
+ * @param champ 'ti' (titre : précis) ou 'tiab' (titre ou résumé : plus de résultats)
  * @param mode  'et' (tous les mots) ou 'ou' (l'un ou l'autre, pour une comparaison)
  */
-export function construireRequete(groupes, champ = 'TITLE', mode = 'et'){
+export function construireRequete(groupes, champ = 'ti', mode = 'et'){
+  // Tolère les anciens noms de champs d'Europe PMC, au cas où un appel traîne.
+  const c = (champ === 'TITLE_ABS' || champ === 'tiab') ? 'tiab' : 'ti';
   return (groupes || [])
-    .map(g => '(' + g.en.map(t => `${champ}:${t}`).join(' OR ') + ')')
+    .map(g => '(' + g.en.map(t => `${t}[${c}]`).join(' OR ') + ')')
     .join(mode === 'ou' ? ' OR ' : ' AND ');
 }
