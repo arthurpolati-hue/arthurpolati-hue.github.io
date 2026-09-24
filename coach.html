@@ -41,6 +41,28 @@
   .bilan-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:0 14px;}
   .bilan-champ{margin-bottom:14px;min-width:0;}
   .bilan-champ.large{grid-column:1/-1;}
+  .plan{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px;}
+  .plan-jour{background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;padding:8px 4px;
+    text-align:center;cursor:grab;user-select:none;transition:border-color .15s,transform .1s,opacity .15s;min-width:0;}
+  .plan-jour:active{cursor:grabbing;}
+  .plan-jour .d{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;}
+  .plan-jour .t{font-size:0.8rem;color:var(--paper);margin-top:3px;font-variant-numeric:tabular-nums;}
+  .plan-jour .s{font-size:0.66rem;color:var(--fog);margin-top:2px;line-height:1.25;}
+  .plan-jour .g{font-size:0.62rem;color:var(--blue);margin-top:3px;line-height:1.2;overflow-wrap:anywhere;}
+  .plan-jour.repos{opacity:0.55;}
+  .plan-jour.repos .d{color:var(--fog);}
+  .plan-jour.courant{border-color:var(--blue);}
+  .plan-jour.glisse{opacity:0.4;}
+  .plan-jour.cible{border-color:var(--blue);transform:scale(1.04);}
+  .plan-jour.choisi{border-color:var(--blue);background:var(--blue-deep);}
+  .plan-aide{font-size:0.74rem;color:var(--fog);margin:0 0 10px;}
+  .plan-conflit{background:rgba(231,180,90,0.12);border:1px solid rgba(231,180,90,0.45);border-radius:10px;
+    padding:9px 11px;margin:0 0 12px;font-size:0.8rem;color:#E7B45A;line-height:1.45;}
+  .plan-conflit b{color:#F0C983;}
+  @media (max-width:560px){
+    .plan{grid-template-columns:repeat(4,1fr);}
+    .plan-jour .g{display:none;}
+  }
   .veille-rech{display:flex;gap:8px;flex-wrap:wrap;}
   .veille-rech input{flex:1 1 220px;min-width:0;}
   .veille-ex{font-size:0.78rem;color:var(--fog);margin:10px 0 0;}
@@ -2598,6 +2620,7 @@ function renderApercu(){
   }
 
   const maxSeries = Math.max(...a.groupes.map(g => g.series), 1);
+  const conflits = conflitsPlanning(a.jours);
   wrap.innerHTML = `
     <div class="ap-kpis">
       <div class="ap-kpi"><div class="v">${a.totalSeances}</div><div class="k">séances / semaine</div></div>
@@ -2606,13 +2629,24 @@ function renderApercu(){
       <div class="ap-kpi"><div class="v">${escapeHtml(fmtDuree(a.dureeTotale))}</div><div class="k">total hebdo (est.)</div></div>
     </div>
 
-    <div class="ap-jours">
-      ${a.jours.map(j=>`<div class="ap-jour${j.repos ? ' repos' : ''}">
+    <div class="section-tag" style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);margin-bottom:6px;">Planning de la semaine</div>
+    <div class="plan" id="planSemaine">
+      ${a.jours.map(j=>`<div class="plan-jour${j.repos ? ' repos' : ''}${j.cle === currentDay ? ' courant' : ''}${j.cle === jourChoisi ? ' choisi' : ''}"
+           draggable="true" data-jour="${escapeHtml(j.cle)}" title="${escapeHtml(j.label)}${j.repos ? ' — repos' : ''}">
         <div class="d">${escapeHtml(j.label.slice(0,3))}</div>
         <div class="t">${j.repos ? '—' : escapeHtml(fmtDuree(j.duree))}</div>
-        <div class="s">${j.repos ? 'repos' : `${j.exos} exos · ${j.series} séries`}</div>
+        <div class="s">${j.repos ? 'repos' : `${j.exos} exo${j.exos > 1 ? 's' : ''} · ${j.series} sér.`}</div>
+        <div class="g">${escapeHtml((j.groupes || []).slice(0, 3).join(' · '))}</div>
       </div>`).join('')}
     </div>
+    <p class="plan-aide">${jourChoisi
+      ? `<b style="color:var(--blue);">${escapeHtml(cap(jourChoisi))} sélectionné</b> — appuie sur un autre jour pour les intervertir, ou à nouveau dessus pour annuler.`
+      : 'Glisse un jour sur un autre pour les intervertir. Sur téléphone : appuie sur un jour, puis sur celui avec lequel l\'échanger.'}</p>
+    ${conflits.length ? `<div class="plan-conflit">
+      <b>Jours qui se suivent avec le même groupe :</b>
+      ${conflits.map(c => `<div>${escapeHtml(cap(c.a))} et ${escapeHtml(cap(c.b))} → ${escapeHtml(c.communs.join(', '))}</div>`).join('')}
+      <div style="margin-top:4px;opacity:0.9;">À toi de juger : c'est parfois voulu (haut/bas alterné, spécialisation), mais un même groupe deux jours d'affilée laisse peu de temps de récupération.</div>
+    </div>` : ''}
 
     <div class="section-tag" style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);margin-bottom:6px;">Volume par groupe musculaire</div>
     ${a.groupes.map(g=>`<div class="ap-bar">
@@ -2636,6 +2670,85 @@ function renderApercu(){
     <p class="viz-note" style="margin-top:8px;opacity:0.8;">Durées estimées : 40 s par série, plus le repos que tu as indiqué (75 s par défaut), 8 min d'échauffement et 1 min entre exercices. C'est un ordre de grandeur pour comparer tes séances entre elles, pas une promesse d'heure de fin.</p>`;
 }
 $('#refreshApercuBtn').addEventListener('click', renderApercu);
+
+/* ----------------------------------------- Planning de la semaine ---------
+   Le planning sert à DÉPLACER des séances, pas à les réécrire : glisser un jour
+   sur un autre ÉCHANGE leur contenu (échauffement + exercices). Sur iPhone, le
+   glisser-déposer HTML5 ne fonctionne pas : on garde donc un mode « appuie sur
+   le premier jour, puis sur le second », qui marche partout. */
+let jourChoisi = null;
+let jourGlisse = null;
+
+// Deux jours qui se suivent et qui travaillent le même groupe : on le signale,
+// sans l'interdire — alterner haut et bas du corps est un choix légitime.
+function conflitsPlanning(jours){
+  const out = [];
+  for(let i = 0; i < jours.length - 1; i++){
+    const a = jours[i], b = jours[i + 1];
+    if(a.repos || b.repos) continue;
+    const communs = (a.groupes || []).filter(g => (b.groupes || []).includes(g));
+    if(communs.length) out.push({ a: a.cle, b: b.cle, communs });
+  }
+  return out;
+}
+
+function intervertirJours(a, b){
+  if(!a || !b || a === b) return;
+  saveCurrentDayToMemory();                  // ce qui est à l'écran doit être pris en compte
+  const tampon = currentProgram[a] || {};
+  currentProgram[a] = currentProgram[b] || {};
+  currentProgram[b] = tampon;
+  dirtyDays.add(a);
+  dirtyDays.add(b);
+  isDirty = true;
+  $('#savebar').classList.add('show');
+  $('#savebarState').textContent = 'Modifications non enregistrées';
+  $('#savebarState').classList.add('dirty');
+  jourChoisi = null;
+  loadDay(currentDay);                       // le jour affiché a pu changer de contenu
+  showToast(`${cap(a)} et ${cap(b)} intervertis — pense à enregistrer`);
+}
+
+// Le contenu de la carte est reconstruit à chaque recalcul : on délègue sur le conteneur.
+$('#apercuWrap').addEventListener('click', e => {
+  const jour = e.target.closest('[data-jour]');
+  if(!jour) return;
+  const cle = jour.dataset.jour;
+  if(jourChoisi === cle){ jourChoisi = null; renderApercu(); return; }
+  if(jourChoisi){ intervertirJours(jourChoisi, cle); return; }
+  jourChoisi = cle;
+  renderApercu();
+});
+
+$('#apercuWrap').addEventListener('dragstart', e => {
+  const jour = e.target.closest('[data-jour]');
+  if(!jour) return;
+  jourGlisse = jour.dataset.jour;
+  jour.classList.add('glisse');
+  if(e.dataTransfer){ e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', jourGlisse); }
+});
+$('#apercuWrap').addEventListener('dragend', e => {
+  jourGlisse = null;
+  $$('#apercuWrap .plan-jour').forEach(x => x.classList.remove('glisse', 'cible'));
+});
+$('#apercuWrap').addEventListener('dragover', e => {
+  const jour = e.target.closest('[data-jour]');
+  if(!jour || !jourGlisse) return;
+  e.preventDefault();                        // sans ça, le navigateur refuse le dépôt
+  if(jour.dataset.jour !== jourGlisse) jour.classList.add('cible');
+});
+$('#apercuWrap').addEventListener('dragleave', e => {
+  const jour = e.target.closest('[data-jour]');
+  if(jour) jour.classList.remove('cible');
+});
+$('#apercuWrap').addEventListener('drop', e => {
+  const jour = e.target.closest('[data-jour]');
+  if(!jour) return;
+  e.preventDefault();
+  const source = jourGlisse || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
+  jourGlisse = null;
+  intervertirJours(source, jour.dataset.jour);
+});
 
 // Classement délégué : le contenu de la carte est reconstruit à chaque recalcul.
 $('#apercuWrap').addEventListener('change', (e)=>{
