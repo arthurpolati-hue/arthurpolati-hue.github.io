@@ -120,6 +120,19 @@ reste (lister, supprimer, relire les photos).
 semaine, dont avec le coach, durée) et un résumé calculé sous la section, repris dans le texte copié.
 La trame peut marquer une section avec `resume: 'temps'` pour recevoir cet encart.
 
+**Planning de la semaine (24/09/2026)** — dans l'onglet Entraînement, la bande des jours est
+devenue un planning : durée, exercices, séries et groupes par jour.
+- **Intervertir deux jours** : glisser-déposer (ordinateur) **ou** appui sur le premier jour puis
+  sur le second. ⚠️ Les deux modes sont nécessaires : le glisser-déposer HTML5 ne fonctionne pas
+  sur iPhone. L'échange porte sur tout le contenu du jour (`{echauffement, exercises}`).
+- `intervertirJours()` appelle `saveCurrentDayToMemory()` **avant** de permuter (sinon la saisie en
+  cours à l'écran est perdue), marque les deux jours dans `dirtyDays`, active la barre
+  d'enregistrement et recharge le jour affiché. Rien n'est écrit en base sans validation.
+- **Avertissement d'espacement** : deux jours qui se suivent et partagent un groupe musculaire sont
+  signalés (`conflitsPlanning`), sans être interdits — alterner haut et bas du corps est un choix.
+- Sur téléphone, la grille passe à 4 colonnes et les groupes sont masqués dans les cases (trop
+  étroites) ; l'encadré d'avertissement les nomme.
+
 **Recherche — classement (22/09/2026)** : les recherches libres demandent à PubMed un tri par
 pertinence, puis les articles sont reclassés sur les mots réellement tapés (titre prioritaire) ;
 ceux dont le titre ne contient aucun mot cherché sont écartés. Une **comparaison « A vs B »** lance
