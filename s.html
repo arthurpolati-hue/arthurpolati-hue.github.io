@@ -117,6 +117,12 @@
   }
   .set-hint{font-size:0.72rem;color:var(--fog);margin:-4px 0 12px;}
 
+  /* ---- Remarque sur un exercice (facultative, une par exercice) ---- */
+  .ex-rem{margin:0 0 12px;}
+  .ex-rem label{font-size:0.66rem;margin-bottom:5px;}
+  .ex-rem textarea{min-height:38px;font-size:0.88rem;padding:9px 11px;}
+  .ex-rem textarea.rempli{border-color:rgba(62,142,255,0.45);}
+
   /* ---- Ressenti / réussite en boutons ---- */
   .rpe-aide{font-size:0.72rem;color:var(--fog);line-height:1.45;margin:0 0 12px;}
   .rpe-aide b{color:var(--paper);}
@@ -1047,6 +1053,9 @@ async function renderDay(key){
       nom: pe.nom || '', seriesCible: pe.series || '', repCible: pe.repetitions || '',
       chargeCible: pe.charge || '', reposCible: pe.repos || '', notesCible: pe.notes || '',
       rpeCible: pe.rpe || '',
+      // Remarque libre sur CET exercice (douleur, matériel, sensation) : facultative,
+      // elle ne compte pas dans la barre de progression.
+      remarque: (prev && prev.remarque) || '',
       sets
     };
   });
@@ -1143,6 +1152,7 @@ async function renderDay(key){
           chargeCible: ex.chargeCible, reposCible: ex.reposCible,
           rpeCible: ex.rpeCible,
           sets: ex.sets.map(s => ({ reps: s.reps, charge: s.charge, rpe: s.rpe || '', done: !!s.done })),
+          remarque: (ex.remarque || '').trim(),
           // Résumés lisibles, conservés pour l'affichage côté coach.
           reps: ex.sets.map(s=>s.reps||'—').join(' / '),
           charge: ex.sets.map(s=>s.charge||'—').join(' / ')
@@ -1210,6 +1220,10 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
     <div class="set-head"><span></span><span>Répét.</span><span>Charge</span><span>RPE${ex.rpeCible ? ' <em>cible ' + escapeHtml(String(ex.rpeCible).replace('.', ',')) + '</em>' : ''}</span><span></span></div>
     <div class="sets">${setsHtml}</div>
     <div class="set-hint">${restSec ? 'Coche ✓ à la fin de chaque série : le chrono de repos part tout seul.' : 'Coche ✓ à la fin de chaque série.'}</div>
+    <div class="ex-rem">
+      <label for="rem-${idx}">Remarque sur cet exercice (optionnel)</label>
+      <textarea id="rem-${idx}" data-rem rows="1" placeholder="Douleur, sensation, machine prise...">${escapeHtml(ex.remarque || '')}</textarea>
+    </div>
     <details class="rpe-aide">
       <summary>C'est quoi le RPE ? (facultatif, une note par série)</summary>
       <div>C'est la difficulté de <b>chaque série</b>, sur une échelle de 6 à 10 : elle
@@ -1265,6 +1279,14 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
     });
   });
 
+  const rem = $('[data-rem]', card);
+  rem.classList.toggle('rempli', (ex.remarque || '').trim() !== '');
+  rem.addEventListener('input', ()=>{
+    ex.remarque = rem.value;
+    rem.classList.toggle('rempli', rem.value.trim() !== '');
+    saveDraft(draftKey, exercices, $('#notesGlobales') ? $('#notesGlobales').value : '');
+  });
+
   applyLastTime(card, ex);
   card.classList.toggle('complete', hasInput(ex));
   return card;
@@ -1296,7 +1318,7 @@ function saveDraft(key, exercices, notes){
     try{
       localStorage.setItem(key, JSON.stringify({
         savedAt: Date.now(), notes,
-        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets }))
+        ex: exercices.map(e => ({ nom:e.nom, sets:e.sets, remarque: e.remarque || '' }))
       }));
     }catch(e){ /* quota plein / navigation privée : on continue sans brouillon */ }
   }, 400);
@@ -1311,7 +1333,11 @@ function restoreDraft(key, exercices, setNotes){
   let touched = false;
   d.ex.forEach(saved=>{
     const target = exercices.find(e => e.nom === saved.nom);
-    if(!target || !Array.isArray(saved.sets)) return;
+    if(!target) return;
+    if(typeof saved.remarque === 'string' && saved.remarque.trim()){
+      target.remarque = saved.remarque; touched = true;
+    }
+    if(!Array.isArray(saved.sets)) return;
     saved.sets.forEach((s,i)=>{
       if(!target.sets[i]) return;
       if(s.reps || s.charge || s.rpe || s.done){

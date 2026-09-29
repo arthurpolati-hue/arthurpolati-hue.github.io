@@ -133,6 +133,16 @@ devenue un planning : durée, exercices, séries et groupes par jour.
 - Sur téléphone, la grille passe à 4 colonnes et les groupes sont masqués dans les cases (trop
   étroites) ; l'encadré d'avertissement les nomme.
 
+**Remarque par exercice (29/09/2026)** — le client a une case « Remarque sur cet exercice » sous
+chaque exercice, en plus des « Remarques générales » de fin de séance. Enregistrée dans
+`results[].remarque`, reprise dans le brouillon local (la saisie survit à une coupure en salle).
+- Elle **ne compte pas** dans la barre de progression ni dans `hasInput()` : comme le RPE, elle est
+  facultative et ne doit pas faire croire qu'un exercice est fait.
+- Côté coach : encadré bleu 💬 sous l'exercice dans le détail de séance, et compteur dans la ligne
+  d'historique (« 💬 2 sur un exercice »).
+- Aucune règle Firestore à changer : c'est un champ de plus dans le document `sessions` déjà écrit
+  par le client.
+
 **Recherche — classement (22/09/2026)** : les recherches libres demandent à PubMed un tri par
 pertinence, puis les articles sont reclassés sur les mots réellement tapés (titre prioritaire) ;
 ceux dont le titre ne contient aucun mot cherché sont écartés. Une **comparaison « A vs B »** lance

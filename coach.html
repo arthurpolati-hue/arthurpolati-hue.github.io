@@ -289,6 +289,9 @@
   .res-set{background:var(--steel);border:1px solid var(--steel-line);border-radius:7px;padding:3px 8px;font-size:0.78rem;color:var(--paper);}
   .res-set.done{border-color:rgba(62,142,255,0.5);background:var(--blue-deep);}
   .res-tags{margin-top:4px;font-size:0.78rem;}
+  /* Remarque écrite par le client sur un exercice précis. */
+  .res-rem{margin-top:5px;font-size:0.8rem;color:#CFE3FF;background:var(--blue-dim);
+           border-left:2px solid var(--blue);border-radius:0 7px 7px 0;padding:6px 9px;line-height:1.45;}
   .stat-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
   .stat{flex:1 1 120px;background:var(--ink);border:1px solid var(--steel-line);border-radius:10px;padding:12px 14px;}
   .stat .v{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;}
@@ -5046,11 +5049,12 @@ function renderHistoryRows(sessions){
     row.className = 'session-row';
     const statusLabel = s.status === 'completed' ? 'Terminée' : 'En attente';
     const nbEx = (s.results||[]).length;
+    const nbRem = (s.results||[]).filter(r => (r.remarque||'').trim()).length;
     row.innerHTML = `
       <div class="session-top">
         <div style="flex:1;min-width:0;">
           <div class="meta"><b>${escapeHtml(fmtDate(s.date))}</b> — ${escapeHtml(cap(s.day||''))}</div>
-          <div class="submeta">${nbEx} exercice(s)${s.notesGlobales ? ' · remarque du client' : ''}${s.status==='completed' ? ' · touche pour le détail' : ''}</div>
+          <div class="submeta">${nbEx} exercice(s)${s.notesGlobales ? ' · remarque du client' : ''}${nbRem ? ` · 💬 ${nbRem} sur un exercice` : ''}${s.status==='completed' ? ' · touche pour le détail' : ''}</div>
         </div>
         <span class="status ${escapeHtml(s.status||'pending')}">${statusLabel}</span>
       </div>
@@ -5160,6 +5164,7 @@ function renderSessionDetail(s){
       ${goal ? `<div class="rgoal">Objectif : ${goal}</div>` : ''}
       <div class="res-sets">${setsHtml}</div>
       ${tags ? `<div class="res-tags">${tags}</div>` : ''}
+      ${(r.remarque||'').trim() ? `<div class="res-rem">💬 ${escapeHtml(r.remarque)}</div>` : ''}
     </div>`;
   });
   return html || '<i>Pas de détail enregistré.</i>';
