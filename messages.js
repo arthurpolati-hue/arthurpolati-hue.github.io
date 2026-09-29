@@ -22,8 +22,7 @@ J'ai vu que tu avais demandé ton bilan offert. Il sert à deux choses :
 
 Il faut compter entre 30 min et 1 h. L'idéal est qu'on s'appelle : dis-moi tes disponibilités et je m'adapte.
 
-À très vite,
-Arthur`
+À très vite 💪🏼`
   },
   {
     k: 'relance',
@@ -35,7 +34,7 @@ Je reviens vers toi pour ton bilan offert — je ne voudrais pas te laisser sans
 
 Et si le moment n'est pas le bon, dis-le-moi simplement, ça ne me dérange pas du tout.
 
-Arthur`
+À très vite 💪🏼`
   },
   {
     k: 'rdv',
@@ -47,7 +46,7 @@ Je t'appelle sur ce numéro. Prévois 30 min à 1 h au calme, et note d'ici là 
 
 Rien à préparer d'autre, on fait le tour ensemble.
 
-Arthur`
+À très vite 💪🏼`
   },
   {
     k: 'apres',
@@ -62,7 +61,7 @@ Comme convenu, je te récapitule ce qu'on s'est dit et ce que je te propose :
 
 Prends le temps d'y réfléchir, et pose-moi toutes les questions que tu veux d'ici là.
 
-Arthur`
+À très vite 💪🏼`
   }
 ];
 
