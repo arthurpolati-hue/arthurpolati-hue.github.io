@@ -143,6 +143,21 @@ chaque exercice, en plus des « Remarques générales » de fin de séance. Enre
 - Aucune règle Firestore à changer : c'est un champ de plus dans le document `sessions` déjà écrit
   par le client.
 
+**Messages types aux prospects (29/09/2026)** — bouton « 💬 Message » sur chaque fiche prospect
+(onglet Business). Les modèles sont dans `messages.js` : bilan offert, relance, confirmation de
+rendez-vous, après le bilan.
+- Étiquettes `{prenom} {nom} {format} {objectif} {ville}` remplies par `remplirMessage()`. Une
+  étiquette sans valeur disparaît **avec l'espace qui la précède** : jamais de « {prenom} » envoyé
+  en clair ni de trou dans la phrase.
+- ⚠️ Le nettoyage des espaces ne vise **que la virgule et le point** : en français « ! », « ? »,
+  « : » et « ; » gardent une espace avant, et la première version envoyait « Salut Léo! ».
+- Trois sorties : **Copier**, **WhatsApp** (`wa.me`, 0… converti en 33…) et **SMS** (`sms:?&body=`).
+  Les deux dernières n'apparaissent que si le prospect a un téléphone.
+- Les retouches faites dans la zone de texte ne valent que pour cet envoi. Changer de modèle
+  après avoir retouché demande confirmation (`dataset.genere` garde le texte d'origine).
+- ⚠️ Hauteur de la zone calculée sur le **nombre de lignes**, pas sur `scrollHeight` : la mesure
+  vaut 0 tant que la mise en page n'est pas faite, et la zone restait minuscule.
+
 **Recherche — classement (22/09/2026)** : les recherches libres demandent à PubMed un tri par
 pertinence, puis les articles sont reclassés sur les mots réellement tapés (titre prioritaire) ;
 ceux dont le titre ne contient aucun mot cherché sont écartés. Une **comparaison « A vs B »** lance

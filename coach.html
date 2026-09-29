@@ -498,6 +498,14 @@
   .p-meta{font-size:0.76rem;color:var(--fog);}
   .p-top select{width:auto;flex:0 0 auto;padding:8px 10px;font-size:0.84rem;}
   .p-notes{font-size:0.82rem;color:var(--fog);margin-top:6px;line-height:1.45;white-space:pre-line;}
+  /* --- Message type au prospect --- */
+  .p-msg{margin-top:10px;padding-top:10px;border-top:1px solid var(--steel-line);}
+  .msg-choix{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .msg-chip{background:var(--steel);border:1px solid var(--steel-line);border-radius:999px;
+    padding:5px 11px;font-size:0.76rem;color:var(--fog);cursor:pointer;font-family:inherit;}
+  .msg-chip.on{background:var(--blue-dim);border-color:var(--blue);color:var(--blue-soft);font-weight:700;}
+  .p-msg textarea{min-height:190px;font-size:0.88rem;line-height:1.5;}
+  .msg-aide{font-size:0.74rem;color:var(--fog);margin:8px 0 0;line-height:1.45;}
   .p-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;}
   .p-actions a.btn{text-decoration:none;display:inline-block;}
   .p-actions .rm-btn{margin-left:auto;}
@@ -1041,6 +1049,7 @@ import { THEMES, REFERENCES, REQUETE_FILTRE } from "./veille.js";
 import { analyser, construireRequete } from "./traduction.js";
 import { chercher as chercherPubmed, chercherComparaison, lienArticle, EXCLU_CLINIQUE_PUBMED } from "./pubmed.js";
 import { SECTIONS_BILAN } from "./trame-bilan.js";
+import { MODELES, modeleDe, remplirMessage, telWhatsApp } from "./messages.js";
 import { REGLAGES_DEFAUT, manquesReglages, manquesClient, numeroSuivant, lignesAbonnement,
          LIGNES_RAPIDES, LIGNES_OFFRES, lignesVentes, ligne as ligneFacture, ligneRemise, nomPartenaire,
          totalLignes, construireFacture, factureEnTexte, nomFichier, moisLibelle } from "./facturation.js";
@@ -3592,6 +3601,19 @@ function renderTunnel(){
     <p class="viz-note" style="margin-top:10px;">Période calculée sur la date du premier contact. Un prospect perdu après son bilan compte toujours comme bilan fait, sinon chaque refus ferait baisser le taux de bilans.</p>`;
 }
 
+// Écrit un modèle dans le champ et retient le texte généré : on saura plus tard
+// qu'Arthur l'a retouché, et on ne l'écrasera pas sans lui demander.
+function ecrireMessage(champ, modele, prospect){
+  champ.value = remplirMessage(modele.texte, prospect);
+  champ.dataset.genere = champ.value;
+  // Le message doit être lisible d'un coup d'œil avant l'envoi : la zone s'ajuste
+  // à son contenu, plafonnée pour ne pas repousser les boutons hors de l'écran.
+  // ⚠️ On compte les lignes du texte plutôt que de mesurer `scrollHeight` : la mesure
+  // vaut 0 tant que la mise en page n'est pas faite, et la zone restait minuscule.
+  const lignes = champ.value.split('\n').length;
+  champ.rows = Math.min(Math.max(lignes + 1, 8), 22);
+}
+
 function renderProspects(){
   const zone = $('#prospectList');
   if(prospectsErreur){ zone.innerHTML = ''; return; }
@@ -3616,13 +3638,24 @@ function renderProspects(){
       </div>
       ${texte ? `<div class="p-notes">${escapeHtml(texte)}</div>` : ''}
       <div class="p-actions">
-        ${p.tel ? `<a class="btn btn-ghost btn-sm" href="tel:${escapeHtml(p.tel.replace(/\s/g, ''))}">Appeler</a>
-                   <button class="btn btn-ghost btn-sm" type="button" data-wa>WhatsApp</button>` : ''}
+        <button class="btn btn-ghost btn-sm" type="button" data-msg>💬 Message</button>
+        ${p.tel ? `<a class="btn btn-ghost btn-sm" href="tel:${escapeHtml(p.tel.replace(/\s/g, ''))}">Appeler</a>` : ''}
         <button class="btn btn-ghost btn-sm" type="button" data-bilan>${bilanDuProspect(p.id) ? '📋 Bilan ✓' : '📋 Faire le bilan'}</button>
         ${statut === 'client' && p.clientId
           ? `<button class="btn btn-ghost btn-sm" type="button" data-fiche>Voir sa fiche</button>`
           : `<button class="btn btn-blue btn-sm" type="button" data-convertir>Convertir en client</button>`}
         <button class="rm-btn" type="button" data-suppr title="Supprimer ce prospect">✕</button>
+      </div>
+      <div class="p-msg" hidden>
+        <div class="msg-choix">${MODELES.map((m, i) => `<button type="button" class="msg-chip${i === 0 ? ' on' : ''}" data-modele="${escapeHtml(m.k)}">${escapeHtml(m.l)}</button>`).join('')}</div>
+        <textarea data-msg-texte></textarea>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn btn-blue btn-sm" type="button" data-msg-copier>Copier</button>
+          ${p.tel ? `<button class="btn btn-ghost btn-sm" type="button" data-msg-wa>WhatsApp</button>
+                     <button class="btn btn-ghost btn-sm" type="button" data-msg-sms>SMS</button>` : ''}
+          <button class="btn btn-ghost btn-sm" type="button" data-msg-fermer>Fermer</button>
+        </div>
+        <p class="msg-aide">Relis et modifie le texte avant d'envoyer : tes retouches ne valent que pour cet envoi, le modèle ne bouge pas.</p>
       </div>
       <div class="p-convert" hidden>
         <div class="row">
@@ -3687,11 +3720,37 @@ $('#prospectList').addEventListener('click', async (e)=>{
     if(c) openClient(c); else showToast("Cette fiche client n'existe plus.", true);
     return;
   }
-  if(e.target.closest('[data-wa]')){
-    const tel = (p.tel || '').replace(/[\s.\-()]/g, '');
-    const num = tel.startsWith('0') ? '33' + tel.slice(1) : tel.replace(/^\+/, '');
-    const msg = encodeURIComponent(`Salut ${p.prenom || ''} ! C'est Arthur, d'ARD Coaching. Tu m'as contacté pour un bilan offert : quand est-ce que tu es disponible pour en parler ?`);
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+  // --- Message type : ouverture, changement de modèle, envoi ---
+  const zoneMsg = $('.p-msg', row);
+  const champMsg = zoneMsg ? $('[data-msg-texte]', zoneMsg) : null;
+
+  if(e.target.closest('[data-msg]')){
+    zoneMsg.hidden = !zoneMsg.hidden;
+    if(!zoneMsg.hidden && !champMsg.value.trim()) ecrireMessage(champMsg, MODELES[0], p);
+    return;
+  }
+  if(e.target.closest('[data-msg-fermer]')){ zoneMsg.hidden = true; return; }
+  if(e.target.closest('[data-modele]')){
+    const bouton = e.target.closest('[data-modele]');
+    // Ne jamais écraser sans prévenir un texte qu'Arthur a retouché.
+    if(champMsg.value.trim() && champMsg.value !== champMsg.dataset.genere
+       && !confirm('Remplacer le texte que tu as modifié ?')) return;
+    ecrireMessage(champMsg, modeleDe(bouton.dataset.modele), p);
+    zoneMsg.querySelectorAll('.msg-chip').forEach(c => c.classList.toggle('on', c === bouton));
+    return;
+  }
+  if(e.target.closest('[data-msg-copier]')){
+    try{ await navigator.clipboard.writeText(champMsg.value); showToast('Message copié ✓'); }
+    catch(err){ champMsg.select(); showToast('Copie refusée : fais-le à la main.', true); }
+    return;
+  }
+  if(e.target.closest('[data-msg-wa]')){
+    window.open(`https://wa.me/${telWhatsApp(p.tel)}?text=${encodeURIComponent(champMsg.value)}`, '_blank');
+    return;
+  }
+  if(e.target.closest('[data-msg-sms]')){
+    // `&body=` sur Android, `?body=` ailleurs : les deux formes coexistent, iOS accepte les deux.
+    location.href = `sms:${(p.tel || '').replace(/[\s.\-()]/g, '')}?&body=${encodeURIComponent(champMsg.value)}`;
     return;
   }
   if(e.target.closest('[data-suppr]')){
