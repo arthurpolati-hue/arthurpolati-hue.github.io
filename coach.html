@@ -1050,6 +1050,7 @@ import { analyser, construireRequete } from "./traduction.js";
 import { chercher as chercherPubmed, chercherComparaison, lienArticle, EXCLU_CLINIQUE_PUBMED } from "./pubmed.js";
 import { SECTIONS_BILAN } from "./trame-bilan.js";
 import { MODELES, modeleDe, remplirMessage, telWhatsApp } from "./messages.js";
+import { REMISE_PARRAINAGE, fmtRemiseParrainage, libelleRemiseParrain } from "./parrainage.js";
 import { REGLAGES_DEFAUT, manquesReglages, manquesClient, numeroSuivant, lignesAbonnement,
          LIGNES_RAPIDES, LIGNES_OFFRES, lignesVentes, ligne as ligneFacture, ligneRemise, nomPartenaire,
          totalLignes, construireFacture, factureEnTexte, nomFichier, moisLibelle } from "./facturation.js";
@@ -3629,7 +3630,8 @@ function renderProspects(){
     const statut = p.statut || 'nouveau';
     const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Sans nom';
     const meta = [sourceDe(p.source).l, p.createdAt ? 'contact le ' + fmtDate(p.createdAt) : '',
-                  p.format ? 'bilan souhaité : ' + p.format : '', p.ville || ''].filter(Boolean).join(' · ');
+                  p.format ? 'bilan souhaité : ' + p.format : '', p.ville || '',
+                  p.parrainId ? '🎁 parrainé par ' + (p.parrainNom || 'un client') : ''].filter(Boolean).join(' · ');
     const texte = [p.objectif, p.notes].filter(Boolean).join('\n');
     return `<div class="prospect-row ${statut}" data-pid="${escapeHtml(p.id)}">
       <div class="p-top">
@@ -4401,6 +4403,7 @@ function renderNouvelleFacture(){
       ${LIGNES_RAPIDES.map(r => `<button class="mini-btn" type="button" data-nfajout="${escapeHtml(r.k)}">${escapeHtml(r.libelle)} (${r.prix} €)</button>`).join('')}
       <button class="mini-btn" type="button" data-nflibre>+ Ligne libre</button>
       <button class="mini-btn" type="button" data-nfremise>− Remise${nomRemise ? ' ' + escapeHtml(nomRemise) : ''} (20 %)</button>
+      <button class="mini-btn" type="button" data-nfparrain>− Parrainage (${Math.round(REMISE_PARRAINAGE * 100)} %)</button>
       <button class="mini-btn" type="button" data-nfremiselibre>− Remise…</button>
     </div>
     <div class="nf-total"><span>Total</span><span id="nfTotal">${fmtEuros(total)}</span></div>
@@ -4474,8 +4477,9 @@ $('#factNouvelle').addEventListener('click', async e => {
   }
   const remisePartenaire = e.target.closest('[data-nfremise]');
   const remiseLibre = e.target.closest('[data-nfremiselibre]');
-  if(remisePartenaire || remiseLibre){
-    let pct = 20;
+  const remiseParrain = e.target.closest('[data-nfparrain]');
+  if(remisePartenaire || remiseLibre || remiseParrain){
+    let pct = remiseParrain ? Math.round(REMISE_PARRAINAGE * 100) : 20;
     if(remiseLibre){
       const saisi = prompt('Remise en % :', '10');
       if(saisi === null) return;
@@ -4484,7 +4488,9 @@ $('#factNouvelle').addEventListener('click', async e => {
     }
     const base = nouvelle.lignes.filter(l => l.total > 0).reduce((n, l) => n + l.total, 0);
     if(!base){ showToast("Ajoute d'abord une prestation à remiser.", true); return; }
-    const nom = remisePartenaire ? `Remise adhérent${nomPartenaire(reglagesFact) ? ' ' + nomPartenaire(reglagesFact) : ''}` : 'Remise';
+    const nom = remiseParrain
+      ? libelleRemiseParrain('')
+      : (remisePartenaire ? `Remise adhérent${nomPartenaire(reglagesFact) ? ' ' + nomPartenaire(reglagesFact) : ''}` : 'Remise');
     nouvelle.lignes.push(ligneRemise(nom, pct, base));
     renderNouvelleFacture();
     return;

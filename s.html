@@ -209,6 +209,19 @@
   .tuto-points i.on{background:var(--blue);width:20px;border-radius:4px;}
   .tuto-actions{display:flex;gap:10px;align-items:center;}
   .tuto-actions .btn{flex:1;}
+
+  /* ---- Parrainage ---- */
+  .parrain-lien{font-size:0.82rem;color:var(--blue-soft);background:var(--blue-dim);
+    border:1px solid rgba(62,142,255,0.35);border-radius:9px;padding:9px 11px;margin:12px 0 4px;
+    word-break:break-all;line-height:1.4;}
+  .parrain-card h2{display:flex;align-items:center;gap:8px;}
+  .parrain-card p{font-size:0.9rem;color:#D6D8DA;line-height:1.55;margin:0 0 4px;}
+  .parrain-card p b{color:var(--paper);}
+  .parrain-actions{display:flex;gap:10px;margin-top:12px;}
+  .parrain-actions button{flex:1;}
+  .parrain-second{background:var(--ink);border:1.5px solid var(--steel-line);color:var(--paper);
+    border-radius:10px;padding:12px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;
+    font-family:'Work Sans',sans-serif;}
   .tuto-passer{background:none;border:none;color:var(--fog);font-size:0.84rem;font-family:'Work Sans',sans-serif;
     cursor:pointer;padding:10px 6px;flex:0 0 auto;}
   .revoir-tuto{display:block;margin:22px auto 0;background:none;border:none;color:var(--fog);font-size:0.8rem;
@@ -393,6 +406,18 @@
     </div>
 
     <div id="dayContent"></div>
+    <div class="card parrain-card" id="parrainCard">
+      <h2>🎁 Parraine quelqu'un</h2>
+      <p><b>−10 % pour toi</b> sur ta prochaine mensualité, <b>−10 % pour la personne
+      que tu parraines</b> sur son premier mois.</p>
+      <p>Elle arrive directement sur le bilan offert, avec ton nom déjà indiqué.</p>
+      <p class="parrain-lien" id="parrainLien"></p>
+      <div class="parrain-actions">
+        <button class="btn btn-blue" type="button" id="parrainCopier">Copier mon lien</button>
+        <button class="parrain-second" type="button" id="parrainPartager">Partager</button>
+      </div>
+    </div>
+
     <button type="button" class="revoir-tuto" id="revoirTuto">Revoir le mode d'emploi</button>
     </div>
 
@@ -503,6 +528,22 @@
     </div>
   </div>
 
+  <!-- Offre de parrainage : montrée une seule fois, puis accessible par la carte
+       en bas de la séance. Jamais avant le mode d'emploi. -->
+  <div class="tuto" id="parrainPop" role="dialog" aria-modal="true" aria-label="Parrainage">
+    <div class="tuto-card">
+      <div class="tuto-ic">🎁</div>
+      <h2>PARRAINE QUI TU VEUX</h2>
+      <p>Quelqu'un autour de toi voudrait s'y mettre ? Envoie-lui ton lien.</p>
+      <p><b>−10 % pour toi</b> sur ta prochaine mensualité, et <b>−10 % pour elle ou lui</b> sur son premier mois.</p>
+      <p class="parrain-lien" id="parrainPopLien"></p>
+      <div class="tuto-actions">
+        <button type="button" class="tuto-passer" id="parrainPlusTard">Plus tard</button>
+        <button type="button" class="btn btn-blue" id="parrainPopPartager">Partager mon lien</button>
+      </div>
+    </div>
+  </div>
+
   <div class="consent-view" id="consentView">
     <div class="brand"><span class="brand-dot"></span><span class="brand-text">ARD Coaching</span></div>
     <div class="card">
@@ -569,6 +610,7 @@ import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
          parseSetCount, parseRestSeconds, nombreDe } from "./commun.js";
+import { lienParrainage, texteInvitation } from "./parrainage.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -634,6 +676,8 @@ function fmtClock(sec){
 }
 
 const clientId = new URLSearchParams(window.location.search).get('c');
+// Figé comme dans coach.html : la démo réécrit cette ligne pour pointer sur elle-même.
+const SITE_ORIGIN = 'https://arthurpolati-hue.github.io';
 let program = {};
 let clientName = '';
 let selectedDay = todayKey();
@@ -805,6 +849,7 @@ function ouvrirTuto(){
 function fermerTuto(){
   $('#tuto').classList.remove('show');
   try{ localStorage.setItem(cleTuto(), '1'); }catch(e){}
+  peutEtreMontrerParrainage();          // jamais par-dessus le mode d'emploi
 }
 $('#tutoSuivant').addEventListener('click', ()=>{
   if(tutoIndex >= TUTO.length - 1){ fermerTuto(); return; }
@@ -816,8 +861,57 @@ $('#revoirTuto').addEventListener('click', ouvrirTuto);
 function peutEtreMontrerTuto(){
   let vu = null;
   try{ vu = localStorage.getItem(cleTuto()); }catch(e){ return; }   // navigation privée : on ne force pas
-  if(!vu) ouvrirTuto();
+  if(!vu) ouvrirTuto(); else peutEtreMontrerParrainage();
 }
+
+/* ------------------------------------------------------------- Parrainage */
+// −10 % pour le client sur sa prochaine mensualité, −10 % pour la personne qu'il
+// parraine. Le lien mène au bilan offert avec son identifiant (`index.html?p=...`),
+// et rien n'est enregistré ici : c'est le formulaire public qui crée le prospect.
+const cleParrain = () => 'ard:parrain:v1:' + clientId;
+const lienParrain = () => lienParrainage(SITE_ORIGIN, clientId);
+
+function remplirParrainage(){
+  if(!clientId){ $('#parrainCard').style.display = 'none'; return; }
+  const l = lienParrain();
+  $('#parrainLien').textContent = l;
+  $('#parrainPopLien').textContent = l;
+}
+// Retour visible sans dépendre d'un système de toast : le bouton le dit lui-même.
+function direParrain(msg){
+  const b = $('#parrainCopier');
+  if(!b) return;
+  const avant = b.dataset.libelle || b.textContent;
+  b.dataset.libelle = avant;
+  b.textContent = msg;
+  setTimeout(()=>{ b.textContent = avant; }, 1800);
+}
+async function copierParrainage(){
+  try{ await navigator.clipboard.writeText(lienParrain()); direParrain('Lien copié ✓'); }
+  catch(e){ direParrain('Copie refusée — le lien est affiché au-dessus'); }
+}
+async function partagerParrainage(){
+  if(navigator.share){
+    try{ await navigator.share({ text: texteInvitation(clientName, lienParrain()) }); return; }
+    catch(e){ if(e && e.name === 'AbortError') return; }   // partage annulé : ne rien faire de plus
+  }
+  copierParrainage();                                      // ordinateur : pas de partage natif
+}
+function peutEtreMontrerParrainage(){
+  if(!clientId) return;
+  let vu = null;
+  try{ vu = localStorage.getItem(cleParrain()); }catch(e){ return; }
+  if(!vu) $('#parrainPop').classList.add('show');
+}
+function fermerParrainage(){
+  $('#parrainPop').classList.remove('show');
+  try{ localStorage.setItem(cleParrain(), '1'); }catch(e){}
+}
+$('#parrainPlusTard').addEventListener('click', fermerParrainage);
+$('#parrainPopPartager').addEventListener('click', async ()=>{ await partagerParrainage(); fermerParrainage(); });
+$('#parrainCopier').addEventListener('click', copierParrainage);
+$('#parrainPartager').addEventListener('click', partagerParrainage);
+remplirParrainage();
 
 /* ------------------------------------------------------- Consentement RGPD */
 // Stocké dans `consentements/{clientId}` : { suivi, sante, santeRetire, version }

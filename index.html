@@ -191,6 +191,13 @@
     transition:transform .1s ease, opacity .2s ease;
   }
   .submit-btn:active{transform:scale(0.98);}
+
+  /* Bandeau « parrainé par … », affiché quand on arrive par le lien d'un client. */
+  .parrain-banner{display:flex;align-items:center;gap:10px;background:rgba(62,142,255,0.12);
+    border:1px solid rgba(62,142,255,0.4);border-radius:12px;padding:12px 14px;margin:0 0 18px;
+    font-size:0.9rem;line-height:1.45;color:#CFE3FF;}
+  .parrain-banner b{color:#fff;}
+  .parrain-banner .ic{font-size:1.2rem;}
   .submit-btn:disabled{cursor:default;}
   .submit-btn .fill{
     position:absolute;
@@ -258,6 +265,11 @@
 
     <div id="formView">
       <div class="eyebrow">Bilan offert</div>
+      <div class="parrain-banner" id="parrainBanner" style="display:none;">
+        <span class="ic">🎁</span>
+        <span>Parrainé par <b id="parrainNom">un client d'ARD Coaching</b> — tu as
+        <b>−10 %</b> sur ton premier mois de coaching.</span>
+      </div>
       <h1>ON FAIT<br><span>LE POINT&nbsp;?</span></h1>
       <p class="sub">3 infos, 30 secondes. Je te recontacte sous 24h pour caler ton bilan offert.</p>
 
@@ -356,6 +368,29 @@
   }
   setupSelectable('formatTiles');
 
+  /* Parrainage : on arrive par le lien d'un client (index.html?p=<id>).
+     Les mêmes règles que `parrainage.js`, recopiées ici : cette page n'utilise aucun
+     module, elle doit rester une page statique légère ouverte depuis un QR code. */
+  const parrainBrut = (new URLSearchParams(location.search).get('p') || '').trim();
+  const parrainId = /^[A-Za-z0-9_-]{1,64}$/.test(parrainBrut) ? parrainBrut : '';
+  let parrainNom = '';
+  if(parrainId){
+    document.getElementById('parrainBanner').style.display = 'flex';
+    // Le nom du parrain : lecture publique déjà autorisée par la règle `clients/{id}`.
+    // S'il est introuvable, le bandeau reste générique et la remise tient quand même.
+    fetch("https://firestore.googleapis.com/v1/projects/ard-coaching/databases/(default)/documents/clients/"
+          + encodeURIComponent(parrainId) + "?key=AIzaSyA94ynktcOetPJuxjU9nsdLxSsX9VFXA4c")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const n = d && d.fields && d.fields.name && d.fields.name.stringValue;
+        if(n){
+          parrainNom = String(n).slice(0, 60);
+          document.getElementById('parrainNom').textContent = parrainNom;
+        }
+      })
+      .catch(() => {});
+  }
+
   const form = document.getElementById('bilanForm');
   const submitBtn = document.getElementById('submitBtn');
   const btnFill = document.getElementById('btnFill');
@@ -418,6 +453,12 @@
       source: 'site', statut: 'nouveau', createdAt: dateISO,
       consentement: dateISO          // preuve de consentement, exigée par la règle prospectDuSite()
     };
+    // Champs facultatifs, acceptés par `prospectDuSite()` : présents seulement si la
+    // personne est arrivée par un lien de parrainage.
+    if(parrainId){
+      prospect.parrainId = parrainId;
+      prospect.parrainNom = parrainNom;
+    }
     const envoiFirestore = fetch(FIRESTORE_PROSPECTS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -432,7 +473,8 @@
         prenom, nom, telephone: tel, ville,
         format_souhaite: selectedFormat,
         objectif,
-        consentement: 'accepté le ' + dateISO
+        consentement: 'accepté le ' + dateISO,
+        parraine_par: parrainId ? (parrainNom || parrainId) : ''
       })
     }).then(r => { if(!r.ok) throw new Error('Formspree ' + r.status); return r; });
 

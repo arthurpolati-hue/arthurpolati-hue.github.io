@@ -158,6 +158,22 @@ rendez-vous, après le bilan.
 - ⚠️ Hauteur de la zone calculée sur le **nombre de lignes**, pas sur `scrollHeight` : la mesure
   vaut 0 tant que la mise en page n'est pas faite, et la zone restait minuscule.
 
+**Parrainage (30/09/2026)** — `parrainage.js` : −10 % pour le client sur sa prochaine mensualité,
+−10 % pour la personne qu'il parraine sur son premier mois.
+- **Le lien** est `index.html?p=<clientId>` : pas de code à gérer, l'identifiant du client suffit.
+  Le formulaire public affiche « Parrainé par … » (nom lu en REST sur `clients/{id}`, dont la
+  lecture publique était déjà autorisée) et ajoute `parrainId` / `parrainNom` au prospect.
+- **Côté client** : une carte sous la séance (lien + Copier + Partager) et un pop-up montré **une
+  seule fois**, jamais par-dessus le mode d'emploi. `navigator.share` sur téléphone, repli sur la
+  copie ailleurs. Aucune écriture en base depuis `s.html` : c'est le formulaire qui crée le prospect.
+- ⚠️ **Règle Firestore modifiée** : `prospectDuSite()` refusait tout champ non listé. `parrainId` et
+  `parrainNom` sont ajoutés au `hasOnly`, et **facultatifs** (`hasAny` avant de contrôler le type) —
+  les liens sans parrainage doivent continuer à passer.
+- **La remise du parrain n'est jamais automatique** : elle est due quand le filleul devient client,
+  et Arthur l'applique sur la facture suivante (bouton « − Parrainage (10 %) » de la facture à la
+  main, qui pose une `ligneRemise` négative). Rien ne modifie un tarif tout seul.
+- Côté coach : la fiche prospect affiche « 🎁 parrainé par … ».
+
 **Recherche — classement (22/09/2026)** : les recherches libres demandent à PubMed un tri par
 pertinence, puis les articles sont reclassés sur les mots réellement tapés (titre prioritaire) ;
 ceux dont le titre ne contient aucun mot cherché sont écartés. Une **comparaison « A vs B »** lance
