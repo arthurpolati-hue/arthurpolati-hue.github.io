@@ -4711,7 +4711,17 @@ async function telechargerFacturePdf(f){
     const d = new JsPDF({ unit:'mm', format:'a4' });
     const BLEU = [62, 142, 255], ENCRE = [11, 14, 17], GRIS = [125, 132, 138], TRAIT = [225, 228, 232];
     const G = 18, L = 210, droite = L - G;
-    const txt = (t, x, y, opts) => d.text(String(t == null ? '' : t), x, y, opts);
+    // ⚠️ jsPDF n'embarque que les polices de base (encodage WinAnsi) : le signe moins
+    // « − » (U+2212) sortait en guillemet (« Parrainage (" 10 %) »), et l'espace fine
+    // insécable des milliers aurait cassé tout montant à quatre chiffres. Tout le texte
+    // dessiné passe donc par ce nettoyage — c'est le seul endroit à maintenir.
+    const pourPdf = s => String(s == null ? '' : s)
+      .replace(/[−–—]/g, '-')        // moins, tirets demi et cadratin
+      .replace(/[‘’ʼ]/g, "'")        // apostrophes typographiques
+      .replace(/[“”]/g, '"')
+      .replace(/…/g, '...')
+      .replace(/[   ]/g, ' ');       // espaces insécables et fines
+    const txt = (t, x, y, opts) => d.text(pourPdf(t), x, y, opts);
     const titre = (t, x, y, taille, couleur) => {
       d.setFont('helvetica', 'bold'); d.setFontSize(taille);
       d.setTextColor(...(couleur || ENCRE)); d.setCharSpace(0.6);
@@ -4788,7 +4798,8 @@ async function telechargerFacturePdf(f){
     y += 8;
 
     (f.lignes || []).forEach(l => {
-      const lignesTexte = d.splitTextToSize(String(l.libelle || ''), droite - G - 66);
+      // Nettoyé AVANT la découpe : la largeur se mesure sur le texte réellement dessiné.
+      const lignesTexte = d.splitTextToSize(pourPdf(l.libelle), droite - G - 66);
       corps(9.5, l.remise ? BLEU : ENCRE, !!l.remise);
       lignesTexte.forEach((t, i) => txt(t, G + 2, y + i * 4.6));
       if(!l.remise){

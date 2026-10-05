@@ -24,12 +24,13 @@ export function parrainDeLUrl(search){
   return /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : '';
 }
 
-/** Message prêt à envoyer, que le client peut coller ou partager tel quel. */
+/**
+ * Message prêt à envoyer, que le client partage tel quel.
+ * Texte voulu court par Arthur : une phrase et le lien, rien d'autre.
+ * Tiret ASCII volontaire (« -10 % ») : certains SMS abîment le signe moins typographique.
+ */
 export const texteInvitation = (prenom, lien) =>
-  `Salut ! Je suis suivi${''} par Arthur d'ARD Coaching et franchement ça me fait du bien.`
-  + ` Si tu veux essayer, il offre un bilan pour faire le point, et avec mon lien tu as `
-  + `${fmtRemiseParrainage()} sur ton premier mois :\n${lien}`
-  + (prenom ? `\n\n${prenom}` : '');
+  `Voici ton lien de parrainage, il t'offre -10 % sur toutes les formules de coaching d'Arthur :\n${lien}`;
 
 /** Libellé de la ligne de remise sur la facture du parrain. */
 export const libelleRemiseParrain = filleul =>

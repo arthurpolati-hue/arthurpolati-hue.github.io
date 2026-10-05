@@ -112,6 +112,11 @@ reste (lister, supprimer, relire les photos).
   ⚠️ `construireFacture` doit garder les lignes négatives : un filtre `total >= 0` les supprimait.
 - PDF fabriqué dans le navigateur avec jsPDF, chargé **à la demande** depuis jsDelivr, aux couleurs
   d'ARD (logo `icons/icon-192.png`, bleu de la marque, fond blanc pour rester imprimable).
+- ⚠️ **jsPDF n'a que les polices de base (WinAnsi)** : le signe moins « − » (U+2212) de la ligne de
+  remise sortait en guillemet (« Parrainage (" 10 %) »), et l'espace fine insécable des milliers
+  aurait cassé tout montant à quatre chiffres. Tout le texte dessiné passe par `pourPdf()` dans
+  `telechargerFacturePdf()` — **seul endroit à maintenir** si d'autres caractères typographiques
+  apparaissent. Le défaut ne se voit pas à l'écran : l'interface HTML, elle, affiche « − » très bien.
 - Facturation électronique : réception obligatoire au 01/09/2026, émission au 01/09/2027 pour les
   micro-entreprises ; les ventes aux particuliers relèvent du **e-reporting**, pas de la facture
   électronique. À reprendre avant septembre 2027.
