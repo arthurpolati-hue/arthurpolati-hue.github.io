@@ -123,6 +123,15 @@
   .ex-rem textarea{min-height:38px;font-size:0.88rem;padding:9px 11px;}
   .ex-rem textarea.rempli{border-color:rgba(62,142,255,0.45);}
 
+  /* ---- Séance faite avec le coach ? ---- */
+  .coach-card h2{margin-bottom:6px;}
+  .coach-q{font-size:0.86rem;color:#D6D8DA;line-height:1.5;margin:0 0 12px;}
+  .coach-choix{display:flex;gap:10px;}
+  .coach-opt{flex:1;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);
+    border-radius:10px;padding:13px 10px;font-weight:700;font-size:0.9rem;cursor:pointer;
+    font-family:'Work Sans',sans-serif;}
+  .coach-opt.on{background:var(--blue-dim);border-color:var(--blue);color:var(--blue-soft);}
+
   /* ---- Ressenti / réussite en boutons ---- */
   .rpe-aide{font-size:0.72rem;color:var(--fog);line-height:1.45;margin:0 0 12px;}
   .rpe-aide b{color:var(--paper);}
@@ -1156,6 +1165,10 @@ async function renderDay(key){
 
   const draftKey = `ard:draft:${sessionId}`;
   let notesGlobales = existing ? (existing.notesGlobales||'') : '';
+  // Séance faite en présentiel avec le coach : sert à décompter le forfait côté coach.
+  // Par défaut NON : la plupart des séances se font seul, et une case cochée par erreur
+  // retirerait une séance du forfait sans que personne ne s'en aperçoive.
+  let avecCoach = existing ? !!existing.avecCoach : false;
   const draftRestored = restoreDraft(draftKey, exercices, (n)=>{ notesGlobales = n; });
 
   let html = '';
@@ -1169,6 +1182,14 @@ async function renderDay(key){
     html += `<div class="banner banner-draft"><span>Saisie en cours récupérée (elle était enregistrée sur ton téléphone).</span><button type="button" id="clearDraftBtn">Repartir de zéro</button></div>`;
   }
   html += `<form id="crForm">`;
+  html += `<div class="card coach-card">
+      <h2>Séance avec ton coach ?</h2>
+      <p class="coach-q">Réponds seulement si tu fais cette séance <b>avec Arthur</b>, en présentiel.</p>
+      <div class="coach-choix">
+        <button type="button" class="coach-opt${avecCoach ? ' on' : ''}" data-coach="oui">Oui, avec Arthur</button>
+        <button type="button" class="coach-opt${avecCoach ? '' : ' on'}" data-coach="non">Non, tout seul</button>
+      </div>
+    </div>`;
   if(dayData.echauffement && dayData.echauffement.trim()){
     html += `<div class="card"><h2>Échauffement</h2><div class="objectif-box">${escapeHtml(dayData.echauffement).replace(/\n/g,'<br>')}</div></div>`;
   }
@@ -1205,6 +1226,11 @@ async function renderDay(key){
 
   $('#notesGlobales').addEventListener('input', ()=> saveDraft(draftKey, exercices, $('#notesGlobales').value));
 
+  $$('.coach-opt').forEach(b => b.addEventListener('click', ()=>{
+    avecCoach = b.dataset.coach === 'oui';
+    $$('.coach-opt').forEach(x => x.classList.toggle('on', x === b));
+  }));
+
   loadLastTime(exercices, dateISO, token);
 
   const form = $('#crForm');
@@ -1240,6 +1266,7 @@ async function renderDay(key){
         status: 'completed',
         filledBy: clientName,
         notesGlobales: $('#notesGlobales').value.trim(),
+        avecCoach,
         completedAt: serverTimestamp(),
         results: exercices.map(ex => ({
           nom: ex.nom, seriesCible: ex.seriesCible, repCible: ex.repCible,

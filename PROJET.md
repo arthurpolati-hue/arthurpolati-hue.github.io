@@ -163,6 +163,18 @@ rendez-vous, après le bilan.
 - ⚠️ Hauteur de la zone calculée sur le **nombre de lignes**, pas sur `scrollHeight` : la mesure
   vaut 0 tant que la mise en page n'est pas faite, et la zone restait minuscule.
 
+**Séances en présentiel — décompte (08/10/2026)** — en tête de sa séance, le client répond
+« Séance avec ton coach ? » (Oui / Non). La réponse part dans `sessions.avecCoach`.
+- **Défaut : Non.** La plupart des séances se font seul, et une réponse « oui » posée par défaut
+  retirerait une séance du forfait sans que personne ne s'en aperçoive. Si la séance a déjà été
+  envoyée, la réponse enregistrée est restaurée (c'est normal de la revoir cochée).
+- Fiche client : champ **« Séances en présentiel incluses / mois »** (`clients.seancesPresentiel`,
+  vide = pas de décompte). Le bandeau de statistiques affiche alors « N présentiel restant
+  (x/quota ce mois) ».
+- Le décompte est **mensuel** et se remet à zéro au changement de mois, comme la facturation.
+- Aucune règle Firestore à changer : `avecCoach` est un champ de plus dans `sessions`, déjà
+  écrit par le client.
+
 **Parrainage (30/09/2026)** — `parrainage.js` : −10 % pour le client sur sa prochaine mensualité,
 −10 % pour la personne qu'il parraine sur son premier mois.
 - **Le lien** est `index.html?p=<clientId>` : pas de code à gérer, l'identifiant du client suffit.

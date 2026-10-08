@@ -986,6 +986,8 @@
             <div class="field"><label>Offre</label><select id="editClientOffre"></select></div>
             <div class="field"><label>Tarif mensuel avant remise (€)</label><input type="number" id="editClientTarif" min="0" step="10"></div>
             <div class="field"><label>Offre depuis</label><input type="date" id="editClientOffreDepuis"></div>
+            <div class="field"><label>Séances en présentiel incluses / mois</label>
+              <input type="number" id="editClientPresentiel" min="0" max="31" step="1" placeholder="ex. 4"></div>
           </div>
           <label class="check-partenaire"><input type="checkbox" id="editClientPartenaire"> Adhérent de la salle partenaire (<span class="remise-taux"></span>)</label>
           <p class="sub" id="offreDetail" style="margin:0 0 12px;font-size:0.8rem;"></p>
@@ -1742,6 +1744,7 @@ async function openClient(client){
   $('#editClientOffre').value = client.offre || '';
   $('#editClientTarif').value = client.offre ? tarifBase(client) : '';
   $('#editClientPartenaire').checked = !!client.partenaire;
+  $('#editClientPresentiel').value = (client.seancesPresentiel === 0 || client.seancesPresentiel) ? client.seancesPresentiel : '';
   $('#editClientOffreDepuis').value = client.offreDepuis || '';
   majDetailOffre();
   majBoutonActif();
@@ -2075,7 +2078,10 @@ $('#saveClientBtn').addEventListener('click', async ()=>{
   spinner(true);
   try{
     const partenaire = $('#editClientPartenaire').checked;
-    const maj = { name, phone, adresse, objectif, cycleStart, offre: offre || '', tarif, offreDepuis, partenaire };
+    // Forfait de séances en présentiel : vide = pas de décompte pour ce client.
+    const presSaisi = parseInt($('#editClientPresentiel').value, 10);
+    const seancesPresentiel = isNaN(presSaisi) ? '' : Math.max(0, Math.min(31, presSaisi));
+    const maj = { name, phone, adresse, objectif, cycleStart, offre: offre || '', tarif, offreDepuis, partenaire, seancesPresentiel };
     await updateDoc(doc(db, 'clients', currentClient.id), maj);
     Object.assign(currentClient, maj);
     const inList = allClients.find(c => c.id === currentClient.id);
@@ -5195,10 +5201,21 @@ function renderHistoryStats(el, sessions){
   const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
   const weekISO = isoLocal(weekAgo);
   const thisWeek = done.filter(s => (s.date||'') >= weekISO).length;
+  // Séances faites AVEC le coach ce mois-ci, et ce qu'il reste sur le forfait.
+  // Le client répond lui-même « oui / non » au début de sa séance.
+  const moisISO = isoLocal(new Date()).slice(0, 7);
+  const presentiel = done.filter(s => s.avecCoach && (s.date || '').slice(0, 7) === moisISO).length;
+  const quota = parseInt(currentClient && currentClient.seancesPresentiel, 10);
+  const aForfait = !isNaN(quota) && quota > 0;
+  const reste = aForfait ? Math.max(0, quota - presentiel) : null;
+
   el.innerHTML = `<div class="stat-strip">
     <div class="stat"><div class="v">${done.length}</div><div class="k">séances reçues</div></div>
     <div class="stat"><div class="v">${thisWeek}</div><div class="k">ces 7 jours</div></div>
     <div class="stat"><div class="v">${last ? escapeHtml(fmtDate(last.date)) : '—'}</div><div class="k">dernière séance</div></div>
+    ${aForfait
+      ? `<div class="stat"><div class="v">${reste}</div><div class="k">présentiel restant (${presentiel}/${quota} ce mois)</div></div>`
+      : (presentiel ? `<div class="stat"><div class="v">${presentiel}</div><div class="k">en présentiel ce mois</div></div>` : '')}
   </div>`;
 }
 
