@@ -81,6 +81,9 @@
   .flux-trad{display:inline-block;margin-top:8px;font-size:0.76rem;color:var(--blue);text-decoration:none;
     border:1px solid var(--blue-dim);border-radius:999px;padding:3px 10px;}
   .flux-trad:hover{border-color:var(--blue);}
+  button.flux-trad{background:none;font:inherit;font-size:0.76rem;cursor:pointer;}
+  .flux-auto{font-size:0.68rem;color:var(--fog);opacity:0.75;margin:6px 0 0;}
+  .flux-item.traduction-en-cours .flux-titre,.flux-item.traduction-en-cours .flux-concl bdi{opacity:0.55;}
   .veille-chip .x{margin-left:7px;opacity:0.55;}
   .veille-chip .x:hover{opacity:1;}
   .bilan-resume{background:var(--blue-dim);border:1px solid rgba(62,142,255,0.4);border-radius:10px;
@@ -3167,13 +3170,93 @@ async function chargerFlux(forcer){
   }
 }
 
-// Traduction : pas d'IA ni de clé, on ouvre Google Traduction avec le texte de l'article.
-// Seuls le titre et la conclusion (publics, déjà publiés) sortent du site ; aucune donnée
-// client n'est concernée. Le navigateur sait aussi traduire la page entière : les textes
-// anglais portent lang="en" pour que Safari et Chrome le proposent.
-function lienTraduction(it){
-  const texte = [it.titre, it.conclusion].filter(Boolean).join('\n\n').slice(0, 4500);
-  return 'https://translate.google.com/?sl=en&tl=fr&op=translate&text=' + encodeURIComponent(texte);
+// Traduction DANS la page (plus d'onglet Google Traduction à ouvrir).
+// Pas de clé ni de serveur. Trois moteurs essayés dans l'ordre :
+//   1. le service public de Google Traduction (même moteur que translate.google.com) ;
+//   2. le traducteur intégré de Chrome (sur l'appareil, Chrome récent sur ordinateur) ;
+//   3. MyMemory (gratuit, qualité plus inégale) en dernier recours.
+// Seuls le titre et la conclusion (publics, déjà publiés) sortent du site : aucune
+// donnée client. Chaque traduction est gardée sur l'appareil, donc faite une seule fois.
+// ⚠️ Le service Google utilisé n'est pas documenté officiellement : s'il cesse un jour
+// de répondre, les deux autres prennent le relais sans rien casser.
+const CLE_TRAD = 'ard:trad:v1:';
+let traducteurChrome = null;
+
+async function viaGoogle(texte){
+  const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fr&dt=t&q='
+    + encodeURIComponent(texte));
+  if(!r.ok) throw new Error('google HTTP ' + r.status);
+  const j = await r.json();
+  const t = (Array.isArray(j) && Array.isArray(j[0]) ? j[0] : []).map(x => (x && x[0]) || '').join('');
+  if(!t.trim()) throw new Error('google vide');
+  return t;
+}
+async function viaChrome(texte){
+  if(!('Translator' in self)) throw new Error('chrome indisponible');
+  if(!traducteurChrome){
+    const dispo = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'fr' });
+    if(dispo === 'unavailable') throw new Error('chrome indisponible');
+    traducteurChrome = await Translator.create({ sourceLanguage: 'en', targetLanguage: 'fr' });
+  }
+  return traducteurChrome.translate(texte);
+}
+async function viaMyMemory(texte){
+  const r = await fetch('https://api.mymemory.translated.net/get?langpair=en|fr&q=' + encodeURIComponent(texte.slice(0, 480)));
+  const j = await r.json();
+  const t = j && j.responseStatus === 200 && j.responseData && j.responseData.translatedText;
+  if(!t) throw new Error('mymemory');
+  return t;
+}
+async function traduireTexte(texte){
+  if(!texte) return '';
+  for(const moteur of [viaGoogle, viaChrome, viaMyMemory]){
+    try{ return await moteur(texte); }catch(e){ /* moteur suivant */ }
+  }
+  throw new Error('aucun traducteur disponible');
+}
+async function traductionArticle(it){
+  const cle = CLE_TRAD + it.pmid;
+  try{ const c = JSON.parse(localStorage.getItem(cle) || 'null'); if(c && c.titre) return c; }catch(e){}
+  const titre = await traduireTexte(it.titre);
+  const conclusion = await traduireTexte(it.conclusion || '');
+  const tr = { titre, conclusion };
+  try{ localStorage.setItem(cle, JSON.stringify(tr)); }catch(e){}
+  return tr;
+}
+
+// Affiche un article en français ou dans sa version originale.
+function afficherLangue(carte, it, tr, fr){
+  const titre = $('.flux-titre', carte), concl = $('.flux-concl bdi', carte), bouton = $('[data-orig]', carte);
+  titre.textContent = fr ? tr.titre : it.titre;
+  titre.lang = fr ? 'fr' : 'en';
+  if(concl){ concl.textContent = fr ? (tr.conclusion || it.conclusion) : it.conclusion; concl.lang = fr ? 'fr' : 'en'; }
+  bouton.hidden = false;
+  bouton.textContent = fr ? "Voir l'original en anglais" : 'Voir en français';
+  bouton.dataset.fr = fr ? '1' : '0';
+  $('.flux-auto', carte).hidden = !fr;
+}
+
+// Traduit toute la liste, un article après l'autre (pour ne pas se faire bloquer).
+// La liste s'affiche tout de suite en anglais, puis passe en français au fur et à mesure.
+let jetonTrad = 0;
+async function traduireFlux(items){
+  const jeton = ++jetonTrad;
+  const cartes = $$('#veilleFlux .flux-item');
+  for(let i = 0; i < items.length; i++){
+    const carte = cartes[i], it = items[i];
+    if(!carte) continue;
+    carte.classList.add('traduction-en-cours');
+    try{
+      const tr = await traductionArticle(it);
+      if(jeton !== jetonTrad) return;               // une autre recherche a été lancée
+      afficherLangue(carte, it, tr, true);
+      $('[data-orig]', carte).onclick = e => afficherLangue(carte, it, tr, e.currentTarget.dataset.fr !== '1');
+    }catch(e){
+      if(jeton !== jetonTrad) return;
+      console.warn('[ARD] Traduction impossible', e);
+    }
+    carte.classList.remove('traduction-en-cours');
+  }
 }
 
 function renderFlux(s, cache, horsLigne){
@@ -3193,8 +3276,9 @@ function renderFlux(s, cache, horsLigne){
       </div>
       <a class="flux-titre" href="${escapeHtml(lien)}" target="_blank" rel="noopener" lang="en">${escapeHtml(it.titre)}</a>
       <div class="flux-meta" style="margin:4px 0 0;">${escapeHtml(auteurs)}</div>
-      ${it.conclusion ? `<p class="flux-concl" lang="en"><span>Conclusion des auteurs</span>${escapeHtml(it.conclusion)}</p>` : ''}
-      <a class="flux-trad" href="${escapeHtml(lienTraduction(it))}" target="_blank" rel="noopener">🌐 Traduire en français</a>
+      ${it.conclusion ? `<p class="flux-concl"><span>Conclusion des auteurs</span><bdi lang="en">${escapeHtml(it.conclusion)}</bdi></p>` : ''}
+      <p class="flux-auto" hidden>Traduction automatique : en cas de doute, vérifie l'original.</p>
+      <button class="flux-trad" type="button" data-orig hidden></button>
     </div>`;
   }).join('') : `<p class="sub" style="margin:0;">Aucune publication trouvée${s.libre ? ' pour cette recherche. Essaie des mots plus larges, ou un seul mot de moins.' : ' pour ce thème.'}</p>`;
   const quand = new Date(cache.t);
@@ -3207,8 +3291,8 @@ function renderFlux(s, cache, horsLigne){
     + `${(cache.total || 0).toLocaleString('fr-FR')} publications · mis à jour le `
     + `${quand.toLocaleDateString('fr-FR')} à ${quand.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}. `
     + `Une méta-analyse n'est pas infaillible : elle vaut ce que valent les études qu'elle rassemble. `
-    + `Les articles sont en anglais : « Traduire en français » ouvre la traduction du titre et de la conclusion, `
-    + `et ton navigateur peut traduire toute la page (Safari : menu « aA » ; Chrome : clic droit).`;
+    + `Titres et conclusions traduits automatiquement en français ; « Voir l'original en anglais » affiche le texte des auteurs.`;
+  if(items.length) traduireFlux(items);   // hors ligne, les traductions déjà gardées s'affichent quand même
 }
 
 /* ------------------------------------------------------- Photos des clients */
