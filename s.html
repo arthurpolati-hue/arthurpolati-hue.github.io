@@ -1414,7 +1414,7 @@ function buildExerciseCard(ex, idx, exercices, draftKey){
 }
 
 function applyLastTime(card, ex){
-  const hit = lastTimeMap.get(ex.nom);
+  const hit = lastTimeMap.get(normNom(ex.nom));
   const el = $('[data-lastime]', card);
   if(!hit || !el) return;
   const parts = hit.date.split('-');
@@ -1473,28 +1473,51 @@ function restoreDraft(key, exercices, setNotes){
 
 /* ------------------------------------- "La dernière fois" (progression) */
 // Les règles Firestore interdisent de lister `sessions` sans être connecté :
-// on interroge donc les IDs déterministes des 21 derniers jours, un par un.
+// on interroge donc les IDs déterministes jour par jour, par tranches de 21 jours,
+// en remontant jusqu'à 84 jours tant qu'un exercice n'a pas été retrouvé.
 // Chargé après le rendu pour ne jamais retarder l'affichage de la séance.
+const LAST_TIME_TRANCHE = 21, LAST_TIME_MAX = 84;
+
+// « Hack Squat », « hack squat », « Hack-squat » => même exercice.
+function normNom(n){
+  return (n||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[-_.]/g,' ').replace(/\s+/g,' ').trim();
+}
+// Un résultat ne compte que s'il contient vraiment des reps ou une charge :
+// un exercice sauté ou laissé vide ne doit pas masquer la vraie séance d'avant.
+function aDesPerfs(r){
+  if(Array.isArray(r.sets) && r.sets.some(s => (s.reps||'').toString().trim() || (s.charge||'').toString().trim())) return true;
+  if(Array.isArray(r.sets) && r.sets.length) return false;
+  const vrai = v => (v||'').toString().replace(/[—\/\s]/g,'') !== '';
+  return vrai(r.reps) || vrai(r.charge);
+}
+
 async function loadLastTime(exercices, dateISO, token){
   const base = new Date(dateISO + 'T12:00:00');
-  const days = Array.from({length:21}, (_,i)=> isoLocal(addDays(base, -(i+1))));
-  const snaps = await Promise.all(days.map(d =>
-    getDoc(doc(db, 'sessions', `${clientId}_${d}`)).catch(()=>null)
-  ));
-  if(token !== renderToken) return;
+  const voulus = new Set(exercices.map(e => normNom(e.nom)));
+  const manquants = ()=> [...voulus].some(n => !lastTimeMap.has(n));
 
-  snaps.forEach((snap, i)=>{                       // du plus récent au plus ancien
-    if(!snap || !snap.exists()) return;
-    const data = snap.data();
-    (data.results||[]).forEach(r=>{
-      if(!r.nom || lastTimeMap.has(r.nom)) return;
-      lastTimeMap.set(r.nom, { date: days[i], r });
+  for(let offset = 0; offset < LAST_TIME_MAX && manquants(); offset += LAST_TIME_TRANCHE){
+    const days = Array.from({length:LAST_TIME_TRANCHE}, (_,i)=> isoLocal(addDays(base, -(offset+i+1))));
+    const snaps = await Promise.all(days.map(d =>
+      getDoc(doc(db, 'sessions', `${clientId}_${d}`)).catch(()=>null)
+    ));
+    if(token !== renderToken) return;
+
+    snaps.forEach((snap, i)=>{                     // du plus récent au plus ancien
+      if(!snap || !snap.exists()) return;
+      const data = snap.data();
+      (data.results||[]).forEach(r=>{
+        const cle = normNom(r.nom);
+        if(!cle || lastTimeMap.has(cle) || !aDesPerfs(r)) return;
+        lastTimeMap.set(cle, { date: days[i], r });
+      });
     });
-  });
 
-  $$('.ex-card').forEach((card, idx)=>{
-    if(exercices[idx]) applyLastTime(card, exercices[idx]);
-  });
+    $$('.ex-card').forEach((card, idx)=>{
+      if(exercices[idx]) applyLastTime(card, exercices[idx]);
+    });
+  }
 }
 function summarise(r){
   if(Array.isArray(r.sets) && r.sets.length){
