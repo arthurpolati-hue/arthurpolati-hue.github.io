@@ -5280,5 +5280,29 @@ function renderSessionDetail(s){
   return html || '<i>Pas de détail enregistré.</i>';
 }
 </script>
+<!-- Filet de sécurité contre la « page noire ».
+     `#loginView` et `#appView` sont cachés par le CSS, et c'est `onAuthStateChanged`
+     qui en révèle un. Si le module ne prend jamais la main — Firebase injoignable,
+     fichier à moitié chargé, cache abîmé — la page restait noire sans rien dire.
+     ⚠️ Script CLASSIQUE volontairement : il s'exécute même si le module échoue à se
+     charger ou contient une erreur, ce qu'un `<script type="module">` ne ferait pas. -->
+<script>
+(function(){
+  var DELAI = 7000;
+  function visible(el){ return !!el && window.getComputedStyle(el).display !== 'none'; }
+  setTimeout(function(){
+    var login = document.getElementById('loginView');
+    var app = document.getElementById('appView');
+    if(visible(login) || visible(app)) return;      // l'application a démarré : rien à faire
+    if(login) login.style.display = 'block';
+    var err = document.getElementById('loginError');
+    if(err){
+      err.textContent = "La connexion au serveur n'a pas abouti. Vérifie ta connexion internet, "
+        + "puis recharge la page. Si l'écran reste vide, recharge en vidant le cache.";
+      err.style.display = 'block';
+    }
+  }, DELAI);
+})();
+</script>
 </body>
 </html>
