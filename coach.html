@@ -3306,11 +3306,16 @@ function majDetailOffre(){
   const partenaire = $('#editClientPartenaire').checked;
   const saisi = parseFloat($('#editClientTarif').value);
   const base = isNaN(saisi) ? (o ? o.prix : 0) : saisi;
-  $('#offreDetail').innerHTML = o
+  // Abonnement qui n'a pas encore démarré : il ne compte pas encore, autant le dire ici
+  // plutôt que de laisser Arthur chercher pourquoi son CA ne bouge pas.
+  const debut = $('#editClientOffreDepuis').value;
+  const aVenir = o && debut && debut > todayISO();
+  $('#offreDetail').innerHTML = (o
     ? escapeHtml(o.detail) + '. ' + (partenaire
         ? `Remise partenaire : <b>${fmtEuros(avecRemise(base, true))}/mois</b> au lieu de ${fmtEuros(base)} — c'est ce montant qui compte dans ton chiffre d'affaires.`
         : "Le tarif mensuel compte dans ton chiffre d'affaires.")
-    : "Sans offre, ce client ne compte pas dans ton chiffre d'affaires.";
+    : "Sans offre, ce client ne compte pas dans ton chiffre d'affaires.")
+    + (aVenir ? ` <b style="color:var(--blue);">Démarre le ${escapeHtml(fmtDate(debut))} : il ne comptera dans ton chiffre d'affaires qu'à partir de cette date.</b>` : '');
 }
 $$('.remise-taux').forEach(el => { el.textContent = fmtRemise(); });
 $('#editClientPartenaire').addEventListener('change', majDetailOffre);
@@ -3670,7 +3675,9 @@ function renderProspects(){
           <div class="field"><label>Offre choisie</label>
             <select data-conv-offre>${OFFRES.map(o => `<option value="${o.k}">${escapeHtml(o.l)}</option>`).join('')}</select></div>
           <div class="field"><label>Tarif mensuel avant remise (€)</label><input type="number" data-conv-tarif min="0" step="10" value="${OFFRES[0].prix}"></div>
+          <div class="field"><label>Début de l'abonnement</label><input type="date" data-conv-debut value="${todayISO()}"></div>
         </div>
+        <p class="sub" style="margin:0 0 10px;font-size:0.78rem;">Tu peux créer la fiche et le programme à l'avance : tant que cette date n'est pas arrivée, l'abonnement ne compte pas dans ton chiffre d'affaires.</p>
         <label class="check-partenaire"><input type="checkbox" data-conv-partenaire> Adhérent de la salle partenaire (${fmtRemise()})</label>
         <div class="row">
           <button class="btn btn-blue btn-sm" type="button" data-conv-ok>Créer la fiche client</button>
@@ -3778,18 +3785,23 @@ $('#prospectList').addEventListener('click', async (e)=>{
     const o = offreDe($('[data-conv-offre]', row).value);
     const tarif = parseFloat($('[data-conv-tarif]', row).value);
     if(!o){ showToast('Choisis une offre.', true); return; }
-    await convertirProspect(p, o, isNaN(tarif) ? o.prix : tarif, $('[data-conv-partenaire]', row).checked);
+    const debut = $('[data-conv-debut]', row).value || todayISO();
+    await convertirProspect(p, o, isNaN(tarif) ? o.prix : tarif, $('[data-conv-partenaire]', row).checked, debut);
   }
 });
 
-async function convertirProspect(p, o, tarif, partenaire){
+// `debut` : date de démarrage réel de l'abonnement. Arthur crée souvent la fiche et le
+// programme en avance, le suivi ne commence que plus tard — le cycle de 4 semaines et le
+// chiffre d'affaires partent donc de cette date, pas du jour de la création.
+async function convertirProspect(p, o, tarif, partenaire, debut){
   const name = [p.prenom, p.nom].filter(Boolean).join(' ').trim() || 'Nouveau client';
   const aujourdhui = todayISO();
+  const demarrage = debut || aujourdhui;
   spinner(true);
   try{
     const ref = await addDoc(collection(db, 'clients'), {
       name, phone: p.tel || '', createdAt: serverTimestamp(),
-      offre: o.k, tarif, partenaire: !!partenaire, offreDepuis: aujourdhui, cycleStart: aujourdhui
+      offre: o.k, tarif, partenaire: !!partenaire, offreDepuis: demarrage, cycleStart: demarrage
     });
     await setDoc(doc(db, 'programs', ref.id), {});
     const dates = { ...(p.dates || {}), converti: (p.dates && p.dates.converti) || aujourdhui };
@@ -4893,6 +4905,11 @@ function renderCa(){
       <b>${m.sansOffre.length} client(s) actif(s) sans offre</b> — ils ne comptent pas dans le chiffre d'affaires :
       ${m.sansOffre.map(c => `<div class="ap-classer"><span class="n">${escapeHtml(c.name || '')}</span>
         <button class="btn btn-ghost btn-sm" type="button" data-sans-offre="${escapeHtml(c.id)}">Renseigner l'offre</button></div>`).join('')}
+    </div>` : ''}
+    ${(m.aVenir && m.aVenir.length) ? `<div class="ap-warn">
+      <b>${m.aVenir.length} abonnement(s) pas encore démarré(s)</b> — fiche et programme prêts, mais le suivi commence plus tard : ils entreront dans le chiffre d'affaires à leur date de début.
+      ${m.aVenir.map(c => `<div class="ap-classer"><span class="n">${escapeHtml(c.name || '')}</span>
+        <span class="sub" style="margin:0;font-size:0.8rem;">démarre le ${escapeHtml(fmtDate(debutOffre(c)))}</span></div>`).join('')}
     </div>` : ''}
     <p class="viz-note" style="margin-top:10px;">Chiffre d'affaires calculé à partir des offres et des tarifs saisis sur les fiches, plus les ventes à l'unité au mois de leur date : c'est ce que tu dois encaisser, pas ce que tu as reçu. L'historique applique le tarif actuel de chaque client à tous les mois, et ne retire pas les mois d'une pause suivie d'une reprise.</p>`;
 

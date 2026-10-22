@@ -163,6 +163,17 @@ rendez-vous, après le bilan.
 - ⚠️ Hauteur de la zone calculée sur le **nombre de lignes**, pas sur `scrollHeight` : la mesure
   vaut 0 tant que la mise en page n'est pas faite, et la zone restait minuscule.
 
+**Abonnement qui démarre plus tard (22/10/2026)** — Arthur crée la fiche et le programme avant le
+vrai début du suivi, parfois un mois à l'avance.
+- La conversion d'un prospect demande une **date de début** (`offreDepuis` **et** `cycleStart`), au
+  lieu de forcer la date du jour. Modifiable ensuite sur la fiche.
+- ⚠️ `caMensuel()` comptait **tout client actif ayant une offre**, sans regarder la date : un
+  abonnement qui démarrait le mois suivant gonflait déjà le CA du mois. Il est maintenant exclu
+  (`aDemarrerPlusTard`), et le **dernier point de la courbe 12 mois applique la même règle** —
+  sans ça, la courbe et le chiffre affiché au-dessus ne concordaient plus.
+- Ces clients ne disparaissent pas pour autant : la carte Chiffre d'affaires liste les
+  « abonnements pas encore démarrés », et la fiche affiche « Démarre le JJ/MM ».
+
 **Séances en présentiel — décompte (08/10/2026)** — en tête de sa séance, le client répond
 « Séance avec ton coach ? » (Oui / Non). La réponse part dans `sessions.avecCoach`.
 - **Défaut : Non.** La plupart des séances se font seul, et une réponse « oui » posée par défaut

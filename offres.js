@@ -151,10 +151,22 @@ function isoDe(v){
 /** Date de début de l'offre : saisie par le coach, sinon date de création du client. */
 export const debutOffre = c => (c && (c.offreDepuis || isoDe(c.createdAt))) || null;
 
+/**
+ * Abonnement dont la date de début n'est pas encore arrivée.
+ * Le coach crée la fiche et le programme en avance : tant que le suivi n'a pas
+ * commencé, le client ne doit pas gonfler le chiffre d'affaires du mois.
+ */
+export function aDemarrerPlusTard(c, auj = isoLocal(new Date())){
+  const d = debutOffre(c);
+  return !!(d && d > auj);
+}
+
 /** CA mensuel actuel : clients actifs ayant une offre. */
 export function caMensuel(clients){
+  const auj = isoLocal(new Date());
   const actifs = (clients || []).filter(c => c.actif !== false);
-  const avecOffre = actifs.filter(c => offreDe(c.offre));
+  const aVenir = actifs.filter(c => offreDe(c.offre) && aDemarrerPlusTard(c, auj));
+  const avecOffre = actifs.filter(c => offreDe(c.offre) && !aDemarrerPlusTard(c, auj));
   const parOffre = OFFRES.map(o=>{
     const cs = avecOffre.filter(c => c.offre === o.k);
     return { k:o.k, l:o.l, nb:cs.length, ca: cs.reduce((n, c) => n + tarifClient(c), 0) };
@@ -169,7 +181,8 @@ export function caMensuel(clients){
     nbPayants: avecOffre.length,
     panierMoyen: avecOffre.length ? Math.round(total / avecOffre.length) : 0,
     parOffre,
-    sansOffre: actifs.filter(c => !offreDe(c.offre))
+    sansOffre: actifs.filter(c => !offreDe(c.offre)),
+    aVenir                      // abonnements qui démarrent plus tard
   };
 }
 
@@ -199,6 +212,9 @@ export function caHistorique(clients, nbMois = 12, reference = new Date(), vente
       const debut = debutOffre(c);
       if(!debut || debut > d1) return;
       if(i === 0 && c.actif === false) return;
+      // Le dernier point doit valoir exactement le CA mensuel affiché : un abonnement
+      // qui démarre plus tard dans le mois n'y est pas encore.
+      if(i === 0 && debut > isoLocal(reference)) return;
       if(c.actif === false && c.pauseLe && c.pauseLe < d0) return;
       ca += tarifClient(c); nb++;
     });
