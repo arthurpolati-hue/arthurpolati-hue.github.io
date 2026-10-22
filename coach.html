@@ -3123,7 +3123,7 @@ async function chargerFlux(forcer){
     const groupes = (analyse && analyse.groupes) ? analyse.groupes.map(g => g.en) : [];
     const options = { tri: s.libre ? 'pertinence' : 'date', termes: groupes.flat(), groupes };
     const comparaison = !!(analyse && analyse.mode === 'ou' && groupes.length > 1);
-    let res, large = false;
+    let res, large = false, ignores = [];
     if(comparaison){
       // Une recherche par côté, sinon le sujet le plus étudié occupe toute la liste.
       const filtre = inclureClinique ? '' : EXCLU_CLINIQUE;
@@ -3141,8 +3141,23 @@ async function chargerFlux(forcer){
         const r2 = await chercherPubmed(s.requeteLarge, options);
         if(r2.total > res.total){ res = r2; large = true; }
       }
+      // Toujours rien et un mot n'est pas dans le lexique : c'est presque toujours lui
+      // (un mot français envoyé tel quel à PubMed, rendu obligatoire). On relance sans lui.
+      if(!res.items.length && analyse && analyse.inconnus && analyse.inconnus.length){
+        const connus = analyse.groupes.filter(g => !g.inconnu);
+        if(connus.length){
+          const filtre = inclureClinique ? '' : EXCLU_CLINIQUE;
+          const opt2 = { ...options, termes: connus.flatMap(g => g.en), groupes: connus.map(g => g.en) };
+          let r3 = await chercherPubmed('(' + construireRequete(connus, 'ti', analyse.mode) + ')' + filtre, opt2);
+          if(r3.total < SEUIL_ELARGIR_VEILLE){
+            const r4 = await chercherPubmed('(' + construireRequete(connus, 'tiab', analyse.mode) + ')' + filtre, opt2);
+            if(r4.total > r3.total){ r3 = r4; large = true; }
+          }
+          if(r3.items.length){ res = r3; ignores = analyse.inconnus.slice(); }
+        }
+      }
     }
-    cache = { t: Date.now(), total: res.total, items: res.items, large, comparaison };
+    cache = { t: Date.now(), total: res.total, items: res.items, large, comparaison, ignores };
     try{ localStorage.setItem(cle, JSON.stringify(cache)); }catch(e){}
     if(themeVeille === attendu) renderFlux(s, cache);
   } catch(e){
@@ -3184,6 +3199,7 @@ function renderFlux(s, cache, horsLigne){
   }).join('') : `<p class="sub" style="margin:0;">Aucune publication trouvée${s.libre ? ' pour cette recherche. Essaie des mots plus larges, ou un seul mot de moins.' : ' pour ce thème.'}</p>`;
   const quand = new Date(cache.t);
   $('#veilleNote').textContent = `${horsLigne ? 'Hors ligne : dernière liste enregistrée. ' : ''}`
+    + `${cache.ignores && cache.ignores.length ? `Rien avec « ${cache.ignores.join(' », « ')} » (mot non reconnu) : recherche faite sans. ` : ''}`
     + `Source : PubMed (NCBI) · méta-analyses et revues systématiques, articles rétractés exclus`
     + `${s.libre && !inclureClinique ? ', études sur des patients écartées' : ''}`
     + `${cache.large ? ', recherche élargie aux résumés (peu de résultats dans les titres)' : ''}`

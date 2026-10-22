@@ -70,8 +70,21 @@ const LEXIQUE = [
   [['charge lourde', 'charges lourdes', 'lourd'], ['"heavy load"', '"high-load"', '"high load"']],
   [['charge legere', 'charges legeres', 'leger'], ['"low-load"', '"low load"', '"light load"']],
   [['charge', 'load'], ['load']],
-  [['volume'], ['volume']],
-  [['frequence', 'frequency'], ['frequency']],
+  [['volume', 'serie', 'series', 'nombre de series', 'series par semaine', 'sets'], ['volume', 'sets']],
+  [['temps de repos', 'temps de repos entre les series', 'temps de repos entre series', 'repos entre series', 'repos entre les series', 'recuperation entre les series', 'rest interval'], ['"rest interval"', '"rest intervals"', '"inter-set rest"']],
+  [['squat', 'squats'], ['squat*']],
+  [['souleve de terre', 'deadlift', 'sdt'], ['deadlift*']],
+  [['developpe couche', 'bench press', 'bench'], ['"bench press"']],
+  [['traction', 'tractions', 'pull up'], ['"pull-up"', '"pull-ups"', '"chin-up"']],
+  [['pompe', 'pompes', 'push up'], ['"push-up"', '"push-ups"']],
+  [['fessier', 'fessiers', 'glute', 'hip thrust'], ['glute*', 'gluteal', '"hip thrust"']],
+  [['mollet', 'mollets', 'calf'], ['calf', 'calves']],
+  [['amplitude complete', 'amplitude partielle', 'partielle', 'demi amplitude'], ['"range of motion"', '"partial range"']],
+  [['testosterone', 'hormone', 'hormones'], ['testosterone', 'hormon*']],
+  [['frequence', 'frequency', 'frequence d entrainement', 'nombre de seance', 'nombre de seances', 'nombre d entrainement',
+    'seance par semaine', 'seances par semaine', 'entrainement par semaine', 'entrainements par semaine',
+    'fois par semaine', 'jour par semaine', 'jours par semaine', 'training frequency'],
+   ['frequency', '"training frequency"']],
   [['intensite', 'intensity'], ['intensity']],
   [['echec', 'echec musculaire', 'failure'], ['failure']],
   [['periodisation', 'periodization'], ['periodization', 'periodisation']],
@@ -98,7 +111,7 @@ const LEXIQUE = [
   [['posture', 'postural'], ['posture', 'postural']],
   [['mal de dos', 'lombalgie', 'dos', 'lombaire'], ['"low back pain"', '"back pain"']],
   [['cervicale', 'nuque', 'cou'], ['"neck pain"', 'cervical']],
-  [['genou', 'rotule'], ['knee', 'patellofemoral']],
+  [['genou', 'genoux', 'rotule'], ['knee', 'patellofemoral']],
   [['epaule', 'coiffe des rotateurs'], ['shoulder', '"rotator cuff"']],
 
   // ── Perte de gras, nutrition, santé
@@ -155,6 +168,11 @@ const LEXIQUE = [
   [['natation', 'nageur', 'nageuse', 'swimming'], ['swim*']],
   [['cyclisme', 'cycliste', 'velo', 'cycling'], ['cycling', 'cyclist*']],
   [['course a pied', 'coureur', 'coureuse', 'running', 'course', 'trail'], ['running', 'runner*']],
+  // ⚠️ Ni « marche » ni « pas » seuls : ce sont la négation (« ne fait pas ») et
+  // « ça marche », bien plus fréquents que la marche à pied. Ils sont dans VIDES,
+  // et seules les formes sans ambiguïté sont traduites ici.
+  [['marche a pied', 'nombre de pas', 'podometre', 'marcher', 'walking'], ['walking', '"step count"']],
+  [['cardio', 'cardio training'], ['"aerobic exercise"', '"aerobic training"', '"endurance training"']],
   [['athletisme', 'sprinter', 'sprinteur', 'track and field'], ['"track and field"', 'sprinter*']],
   [['sport collectif', 'sports collectifs', 'sport co', 'team sport'], ['"team sport*"']],
   [['sport de combat', 'sports de combat', 'combat', 'judo', 'boxe', 'mma'], ['"combat sport*"', 'judo', 'boxing']],
@@ -174,6 +192,10 @@ const VIDES = new Set(('de du des la le les l d un une et ou en sur pour avec a 
   + 'effet impact influence benefice bienfait interet developpement developper amelioration ameliorer augmenter augmentation '
   + 'optimiser optimisation travail travailler methode meilleur meilleure efficacite efficace role lien relation etude meta analyse '
   + 'programme entrainement exercice exercices joueur joueuse pratiquant personne sujet gain progres progresser performance '
+  + 'avant apres pendant durant seance semaine jour mois an annee fois chaque combien nombre quand pourquoi faut faire fait '
+  + 'il elle on est sont etre ce cet cette ces que qui quoi mon ma mes ton ta tes son sa ses notre votre leur se ne pas plus moins '
+  + 'entrainer entraine entrainé muscle musculaire minimum minimal minimale maximum optimal optimale optimum ideal ideale suffisant suffisante necessaire besoin '
+  + 'tres bien bon bonne vraiment utile utilite sert servir marche fonctionne vrai faux mythe conseil recommandation '
   + 'the of and on in for with effect training exercise how best').split(' ').map(m => singulier(m)));
 
 export function normaliser(texte){
@@ -187,7 +209,7 @@ export function normaliser(texte){
 // qu'après « au »/« eu » : « vo2max » ou « max » restent intacts.
 function singulier(m){
   if(m.length > 3 && /s$/.test(m) && !/(ss|us|is)$/.test(m)) return m.slice(0, -1);
-  if(m.length > 4 && /(aux|eux)$/.test(m)) return m.slice(0, -1);
+  if(m.length > 4 && /(aux|eux|oux)$/.test(m)) return m.slice(0, -1);
   return m;
 }
 
