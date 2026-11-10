@@ -185,6 +185,11 @@ cardio, course, mobilité (plus « mixte » côté jour).
 - Repères issus d'une recherche (articles de coaching, pas des études) : Tabata 8 × 20/10,
   intervalles 30/30 et 40/20, EMOM 10 à 20 min, AMRAP sans repos prescrit. Ce sont des valeurs de
   départ, pas des prescriptions.
+- **Temps lu sur chaque ligne** (`tempsDeLaLigne`) : un circuit mélange « 5 calories au bike » et
+  « 20s de corde » — chaque ligne qui annonce un temps compte le sien, les autres retombent sur
+  l'effort commun du bloc. Sans ça la durée était inventée (45 s par poste par défaut).
+  ⚠️ Le repérage est **plus strict** que `parseRestSeconds` : frontière de mot après l'unité,
+  sinon « 10 squats » était lu comme 10 secondes.
 - ⚠️ `analyse.js` **importe puis ré-exporte** `estAuTemps`/`dureeBloc`/`postesDe` : un simple
   `export … from` ne crée pas de variable locale, et les fonctions du fichier plantaient.
 

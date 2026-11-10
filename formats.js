@@ -28,6 +28,35 @@ export const postesDe = ex => String((ex && ex.postes) || '')
 
 const nbPostes = ex => Math.max(1, postesDe(ex).length);
 
+/**
+ * Temps annoncé par une ligne d'exercice : « 20s de corde » → 20.
+ * ⚠️ Volontairement plus strict que `parseRestSeconds` : « 10 squats » ne doit PAS
+ * être lu comme 10 secondes. D'où la frontière de mot après l'unité.
+ * Une ligne sans temps (« 5 calories au bike ») renvoie null : on retombe alors sur
+ * l'effort commun du bloc.
+ */
+export function tempsDeLaLigne(ligne){
+  const s = String(ligne || '').toLowerCase();
+  let m = s.match(/(\d+(?:[.,]\d+)?)\s*(?:min|minutes?)\b/);
+  if(m) return Math.round(parseFloat(m[1].replace(',', '.')) * 60);
+  m = s.match(/(\d+)\s*(?:s|sec|secondes?)\b/);
+  return m ? +m[1] : null;
+}
+
+/**
+ * Durée d'un tour : chaque ligne compte son propre temps quand elle en annonce un,
+ * sinon l'effort commun du bloc. C'est ce qui permet de mélanger « 5 calories au
+ * bike » et « 20s de corde » dans le même circuit sans inventer de chiffre.
+ */
+function dureeTour(ex, travailDefaut, recupDefaut){
+  const lignes = postesDe(ex);
+  const effortCommun = sec(ex.travail, travailDefaut);
+  const total = lignes.length
+    ? lignes.reduce((t, l) => t + (tempsDeLaLigne(l) ?? effortCommun), 0)
+    : effortCommun;
+  return total + Math.max(0, lignes.length - 1) * sec(ex.repos, recupDefaut);
+}
+
 export const FORMATS = [
   {
     k: 'muscu', l: 'Musculation', court: 'Muscu',
@@ -44,21 +73,20 @@ export const FORMATS = [
     ],
     postes: true, postesLabel: 'Positions enchaînées (une par ligne)',
     score: { type: 'tours', l: 'Séries tenues', ph: 'ex. 3' },
-    duree: ex => parseSetCount(ex.series) * (nbPostes(ex) * sec(ex.travail, 45)
-                 + Math.max(0, nbPostes(ex) - 1) * sec(ex.repos, 30))
+    duree: ex => parseSetCount(ex.series) * dureeTour(ex, 45, 30)
   },
   {
     k: 'circuit', l: 'Circuit training', court: 'Circuit',
     aide: 'Plusieurs exercices enchaînés, répétés en tours.',
     champs: [
       { f: 'series',  l: 'Tours',  ph: '3' },
-      { f: 'travail', l: 'Effort par exercice', ph: '45s' },
+      { f: 'travail', l: 'Effort par exercice (si au temps)', ph: '45s' },
       { f: 'repos',   l: 'Récup',  ph: '15s' }
     ],
     postes: true,
+    postesLabel: 'Exercices enchaînés (un par ligne — précise reps, calories ou secondes)',
     score: { type: 'tours', l: 'Tours réalisés', ph: 'ex. 3' },
-    duree: ex => parseSetCount(ex.series) * (nbPostes(ex) * sec(ex.travail, 45)
-                 + Math.max(0, nbPostes(ex) - 1) * sec(ex.repos, 15))
+    duree: ex => parseSetCount(ex.series) * dureeTour(ex, 45, 15)
                  + Math.max(0, parseSetCount(ex.series) - 1) * sec(ex.repos, 15)
   },
   {
@@ -72,8 +100,7 @@ export const FORMATS = [
     ],
     postes: true,
     score: { type: 'tours', l: 'Tours tenus', ph: 'ex. 8' },
-    duree: ex => parseSetCount(ex.series) * (nbPostes(ex) * sec(ex.travail, 20)
-                 + sec(ex.repos, 10))
+    duree: ex => parseSetCount(ex.series) * (dureeTour(ex, 20, 10) + sec(ex.repos, 10))
   },
   {
     k: 'intervalles', l: 'Intervalles (30/30, 40/20…)', court: 'Intervalles',
@@ -86,7 +113,7 @@ export const FORMATS = [
     ],
     postes: true,
     score: { type: 'tours', l: 'Répétitions tenues', ph: 'ex. 10' },
-    duree: ex => parseSetCount(ex.series) * (sec(ex.travail, 30) + sec(ex.repos, 30))
+    duree: ex => parseSetCount(ex.series) * (dureeTour(ex, 30, 30) + sec(ex.repos, 30))
   },
   {
     k: 'emom', l: 'EMOM — à chaque début de minute', court: 'EMOM',
