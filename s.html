@@ -124,6 +124,8 @@
   .ex-rem textarea.rempli{border-color:rgba(62,142,255,0.45);}
 
   /* ---- Bloc au temps : Tabata, circuit, cardio ---- */
+  .postes{margin:0 0 12px;padding-left:22px;}
+  .postes li{font-size:0.92rem;color:var(--paper);line-height:1.5;margin-bottom:3px;}
   .temps-ligne{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
   .temps-fait{flex:1;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);
     border-radius:10px;padding:13px 10px;font-weight:700;font-size:0.92rem;cursor:pointer;
@@ -1171,6 +1173,7 @@ async function renderDay(key){
       // seulement si c'est fait et combien de tours ont été tenus.
       type: pe.type || 'muscu',
       travailCible: pe.travail || '',
+      postesCible: pe.postes || '',          // exercices enchaînés, un par ligne
       fait: !!(prev && prev.fait),
       toursFaits: (prev && prev.toursFaits) || '',
       sets
@@ -1346,6 +1349,8 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
     : [ex.seriesCible ? ex.seriesCible + ' tours' : '', ex.travailCible ? ex.travailCible + ' d\'effort' : '',
        ex.reposCible ? ex.reposCible + ' de récup' : ''].filter(Boolean).join(' · ');
 
+  const postes = String(ex.postesCible || '').split('\n').map(s => s.trim()).filter(Boolean);
+
   card.innerHTML = `
     <div class="ex-head">
       <span class="ex-num">${idx+1}</span>
@@ -1353,6 +1358,8 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
     </div>
     <div class="objectif-box"><b>${escapeHtml(LIB[ex.type] || 'Bloc')} :</b> ${escapeHtml(details || 'à ton rythme')}
       ${ex.notesCible ? `<br><span style="opacity:0.85;">${escapeHtml(ex.notesCible)}</span>` : ''}</div>
+    ${postes.length ? `<div class="section-tag">Dans l'ordre, à chaque tour</div>
+      <ol class="postes">${postes.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ol>` : ''}
     <div class="section-tag">Ce que tu as fait</div>
     <div class="temps-ligne">
       <button type="button" class="temps-fait${ex.fait ? ' on' : ''}" data-fait>${ex.fait ? '✓ Fait' : "J'ai fait ce bloc"}</button>

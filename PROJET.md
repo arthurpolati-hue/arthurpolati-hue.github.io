@@ -173,6 +173,17 @@ choix bloc par bloc (c'est le seul cas où le sélecteur par bloc s'affiche).
 - ⚠️ Changer de type **ne détruit rien** : les champs de musculation (charge, répétitions, RPE)
   restent enregistrés et réapparaissent si on revient en arrière. Vérifié.
 
+**Circuit à plusieurs exercices (10/11/2026)** — un circuit enchaîne plusieurs exercices par tour :
+le champ **« Exercices enchaînés (un par ligne) »** (`postes`, une chaîne, une ligne par exercice)
+s'ajoute aux blocs circuit et Tabata. `postesDe()` la découpe, `dureeBloc()` la compte :
+tours × (postes × effort + récups). Le client voit la liste numérotée « Dans l'ordre, à chaque tour ».
+- La durée estimée se **rafraîchit sur place** à la frappe (`[data-duree]`, `[data-postes-info]`) :
+  redessiner la carte ferait perdre le curseur en pleine saisie.
+- ⚠️ **Piège rencontré** : `'… n\\'a …'` dans un littéral de gabarit casse tout le module — page
+  noire, interface vide. Préférer les guillemets doubles pour un texte contenant une apostrophe.
+  Le filet anti-page-noire a fait son travail, mais le test n'avait rien vu tant que je n'avais pas
+  chargé la page sans harnais : **toujours vérifier la page nue après un changement d'affichage.**
+
 **Blocs au temps — Tabata, circuit, cardio, course (10/11/2026)** — chaque exercice porte un `type` :
 `muscu` (défaut), `tabata`, `circuit`, `cardio`, `course`. Les blocs au temps réutilisent `series` pour les
 **tours** et `repos` pour la récupération, et ajoutent `travail` (durée d'effort).

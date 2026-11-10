@@ -70,12 +70,23 @@ const HORS_VOLUME = new Set(['Cardio','Échauffement','Étirement']);
 export const AU_TEMPS = new Set(['tabata', 'circuit', 'cardio', 'course']);
 export const estAuTemps = ex => !!ex && AU_TEMPS.has(ex.type);
 
-/** Durée d'un bloc au temps, en secondes : tours × effort + récupérations entre les tours. */
+/** Les exercices enchaînés dans un circuit ou un Tabata, un par ligne. */
+export const postesDe = ex => String((ex && ex.postes) || '')
+  .split('\n').map(s => s.trim()).filter(Boolean);
+
+/**
+ * Durée d'un bloc au temps, en secondes.
+ * Un circuit enchaîne plusieurs exercices par tour : la durée dépend du nombre de
+ * postes, pas seulement du nombre de tours.
+ */
 export function dureeBloc(ex){
   const tours = Math.max(1, parseSetCount(ex.series));
   const effort = parseRestSeconds(ex.travail) ?? 30;
   const recup = parseRestSeconds(ex.repos) ?? 0;
-  return tours * effort + Math.max(0, tours - 1) * recup;
+  const postes = Math.max(1, postesDe(ex).length);
+  // Par tour : chaque poste = un effort, suivi d'une récup sauf après le dernier.
+  const parTour = postes * effort + Math.max(0, postes - 1) * recup;
+  return tours * parTour + Math.max(0, tours - 1) * recup;
 }
 
 /** Durée estimée d'une journée, en secondes. */

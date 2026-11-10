@@ -1073,7 +1073,7 @@ import { EXERCICES } from "./exercices.js";
 import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue,
-         estAuTemps, dureeBloc } from "./analyse.js";
+         estAuTemps, dureeBloc, postesDe } from "./analyse.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
 import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES, venteDe, ventesDuMois,
          ETAPES, SOURCES, sourceDe, CLE_DATE, etapesAtteintes,
@@ -1719,7 +1719,7 @@ const dirtyDays = new Set();   // jours modifiés depuis le dernier enregistreme
 
 // `type` : 'muscu' par défaut, sinon 'tabata', 'circuit' ou 'cardio' — blocs au temps,
 // où `travail` porte la durée d'effort et `series` le nombre de tours.
-function blankExercise(){ return { id: uid(), type:'muscu', nom:'', series:'', repetitions:'', charge:'', repos:'', travail:'', rpe:'', groupe:'', notes:'' }; }
+function blankExercise(){ return { id: uid(), type:'muscu', nom:'', series:'', repetitions:'', charge:'', repos:'', travail:'', postes:'', rpe:'', groupe:'', notes:'' }; }
 
 let apercuTimer = null;
 // `jourCourantConcerne` : faux quand la modification porte sur d'autres jours que celui
@@ -1924,7 +1924,9 @@ function saveCurrentDayToMemory(){
         repos: ex.repos, rpe: ex.rpe || '', notes: ex.notes,
         // `type` n'est écrit que s'il sort de la musculation : les programmes existants
         // ne changent pas de forme, et `estAuTemps()` les lit comme avant.
-        ...(ex.type && ex.type !== 'muscu' ? { type: ex.type, travail: ex.travail || '' } : {}),
+        ...(ex.type && ex.type !== 'muscu'
+          ? { type: ex.type, travail: ex.travail || '', ...(ex.postes ? { postes: ex.postes } : {}) }
+          : {}),
         ...(groupe ? { groupe } : {})
       };
     })
@@ -1943,7 +1945,7 @@ function loadDay(key){
   $('#dayEchauffement').value = dayData.echauffement || '';
   exerciseRows = (dayData.exercises && dayData.exercises.length ? dayData.exercises : []).map(ex => ({
     id: uid(), type: ex.type || 'muscu', nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'',
-    charge: ex.charge||'', repos: ex.repos||'', travail: ex.travail||'',
+    charge: ex.charge||'', repos: ex.repos||'', travail: ex.travail||'', postes: ex.postes||'',
     rpe: ex.rpe||'', groupe: ex.groupe||'', notes: ex.notes||''
   }));
   renderExCards();
@@ -1989,8 +1991,14 @@ function renderExCards(){
         <div class="field"><label>Tours</label><input type="text" data-field="series" placeholder="${ex.type === 'tabata' ? '8' : '3'}" value="${escapeHtml(ex.series)}"></div>
         <div class="field"><label>Effort</label><input type="text" data-field="travail" placeholder="${ex.type === 'tabata' ? '20s' : '45s'}" value="${escapeHtml(ex.travail)}"></div>
         <div class="field"><label>Récup</label><input type="text" data-field="repos" placeholder="${ex.type === 'tabata' ? '10s' : '15s'}" value="${escapeHtml(ex.repos)}"></div>`}
-        <div class="field"><label>Durée estimée</label><input type="text" value="${escapeHtml(fmtDuree(dureeBloc(ex)))}" disabled></div>
+        <div class="field"><label>Durée estimée</label><input type="text" data-duree value="${escapeHtml(fmtDuree(dureeBloc(ex)))}" disabled></div>
       </div>
+      ${(ex.type === 'cardio' || ex.type === 'course') ? '' : `
+      <div class="field"><label>Exercices enchaînés (un par ligne)</label>
+        <textarea data-field="postes" rows="3" placeholder="Fentes sautées&#10;Squats&#10;Gainage">${escapeHtml(ex.postes || '')}</textarea>
+        <p class="sub" data-postes-info style="margin:4px 0 0;font-size:0.76rem;">${postesDe(ex).length
+          ? `${postesDe(ex).length} exercice(s) × ${escapeHtml(ex.series || '1')} tour(s)`
+          : "Laisse vide si le bloc n'a qu'un seul exercice."}</p></div>`}
       <p class="sub" style="margin:-4px 0 10px;font-size:0.78rem;">Bloc au temps : il compte dans la durée de la séance, mais pas dans le volume de musculation.</p>`
       : `
       <div class="ex-grid">
@@ -2017,6 +2025,18 @@ function renderExCards(){
         markDirty();
         // Changer de type change les champs affichés : on redessine la carte.
         if(inp.dataset.field === 'type'){ renderExCards(); renderApercu(); return; }
+        // Durée d'un bloc au temps : elle dépend des tours, de l'effort, de la récup ET du
+        // nombre d'exercices enchaînés. On la rafraîchit sur place — redessiner la carte
+        // ferait perdre le curseur en pleine saisie.
+        if(estAuTemps(exerciseRows[idx])){
+          const ex2 = exerciseRows[idx];
+          const champDuree = $('[data-duree]', card);
+          if(champDuree) champDuree.value = fmtDuree(dureeBloc(ex2));
+          const info = $('[data-postes-info]', card);
+          if(info) info.textContent = postesDe(ex2).length
+            ? `${postesDe(ex2).length} exercice(s) × ${ex2.series || '1'} tour(s)`
+            : "Laisse vide si le bloc n'a qu'un seul exercice.";
+        }
         // Le compteur de l'onglet dépend du nom : on rafraîchit à la volée.
         if(inp.dataset.field === 'nom'){ renderDayTabs(); injecterDernieresPerfs(); majChampGroupe(card, idx); }
       });
