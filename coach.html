@@ -1074,6 +1074,7 @@ import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue,
          estAuTemps, dureeBloc, postesDe } from "./analyse.js";
+import { FORMATS, formatDe, resumeBloc } from "./formats.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
 import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES, venteDe, ventesDuMois,
          ETAPES, SOURCES, sourceDe, CLE_DATE, etapesAtteintes,
@@ -1881,14 +1882,26 @@ function renderDayTabs(){
 /* --- Type de séance, choisi pour le JOUR entier ---------------------------
    Le coach annonce « mardi = course », et l'interface s'adapte : les champs
    d'un exercice suivent ce type. « Mixte » rend le choix bloc par bloc. */
+// La liste vient de `formats.js` : une seule table pour le coach et pour le client.
 const TYPES_JOUR = [
-  ['muscu',   'Musculation', 'Séries, répétitions, charge et RPE.'],
-  ['circuit', 'Circuit training', 'Tours, temps d\'effort et récupération entre les tours.'],
-  ['tabata',  'Tabata / intervalles', 'Par défaut 8 tours de 20s d\'effort et 10s de récup.'],
-  ['cardio',  'Cardio (vélo, rameur, corde…)', 'Durée et allure, sans séries à compter.'],
-  ['course',  'Course à pied', 'Durée (ou distance) et allure.'],
-  ['mixte',   'Mixte — je choisis bloc par bloc', 'Chaque exercice garde son propre type.']
+  ...FORMATS.map(f => [f.k, f.l, f.aide]),
+  ['mixte', 'Mixte — je choisis bloc par bloc', 'Chaque exercice garde son propre type.']
 ];
+
+// Valeurs de départ d'un format (8 × 20s/10s pour un Tabata…), posées seulement sur
+// les champs restés vides : on n'écrase jamais ce que le coach a déjà écrit.
+function appliquerDefauts(ex){
+  const f = formatDe(ex.type);
+  Object.entries(f.defauts || {}).forEach(([champ, val]) => {
+    if(!String(ex[champ] || '').trim()) ex[champ] = val;
+  });
+}
+
+function infoPostes(ex){
+  const n = postesDe(ex).length;
+  return n ? `${n} exercice(s) × ${ex.series || '1'} tour(s)`
+           : "Laisse vide si le bloc n'a qu'un seul exercice.";
+}
 const typeDuJour = () => ($('#dayType') && $('#dayType').value) || 'muscu';
 
 $('#dayType').innerHTML = TYPES_JOUR.map(([v, l]) => `<option value="${v}">${escapeHtml(l)}</option>`).join('');
@@ -1902,7 +1915,7 @@ $('#dayType').addEventListener('change', ()=>{
   const t = typeDuJour();
   // On applique le type à tous les blocs du jour. Rien n'est perdu : les champs de
   // musculation restent enregistrés, ils réapparaissent si on revient en arrière.
-  if(t !== 'mixte') exerciseRows.forEach(ex => { ex.type = t; });
+  if(t !== 'mixte') exerciseRows.forEach(ex => { ex.type = t; appliquerDefauts(ex); });
   majAideType();
   renderExCards();
   renderApercu();
@@ -1984,22 +1997,18 @@ function renderExCards(){
           .map(([v,l])=>`<option value="${v}" ${v===(ex.type||'muscu')?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select></div>` : ''}
       ${estAuTemps(ex) ? `
       <div class="ex-grid">
-        ${(ex.type === 'cardio' || ex.type === 'course') ? `
-        <div class="field"><label>Durée</label><input type="text" data-field="travail" placeholder="30min" value="${escapeHtml(ex.travail)}"></div>
-        <div class="field"><label>${ex.type === 'course' ? 'Distance / allure' : 'Allure / intensité'}</label><input type="text" data-field="repetitions" placeholder="${ex.type === 'course' ? '5 km, 6 min/km' : 'footing, RPE 6'}" value="${escapeHtml(ex.repetitions)}"></div>`
-        : `
-        <div class="field"><label>Tours</label><input type="text" data-field="series" placeholder="${ex.type === 'tabata' ? '8' : '3'}" value="${escapeHtml(ex.series)}"></div>
-        <div class="field"><label>Effort</label><input type="text" data-field="travail" placeholder="${ex.type === 'tabata' ? '20s' : '45s'}" value="${escapeHtml(ex.travail)}"></div>
-        <div class="field"><label>Récup</label><input type="text" data-field="repos" placeholder="${ex.type === 'tabata' ? '10s' : '15s'}" value="${escapeHtml(ex.repos)}"></div>`}
+        ${(formatDe(ex.type).champs || []).map(c => `<div class="field"><label>${escapeHtml(c.l)}</label>
+          <input type="text" data-field="${escapeHtml(c.f)}" placeholder="${escapeHtml(c.ph)}" value="${escapeHtml(ex[c.f] || '')}"></div>`).join('')}
         <div class="field"><label>Durée estimée</label><input type="text" data-duree value="${escapeHtml(fmtDuree(dureeBloc(ex)))}" disabled></div>
       </div>
-      ${(ex.type === 'cardio' || ex.type === 'course') ? '' : `
-      <div class="field"><label>Exercices enchaînés (un par ligne)</label>
+      ${formatDe(ex.type).postes ? `
+      <div class="field"><label>${escapeHtml(formatDe(ex.type).postesLabel || 'Exercices enchaînés (un par ligne)')}</label>
         <textarea data-field="postes" rows="3" placeholder="Fentes sautées&#10;Squats&#10;Gainage">${escapeHtml(ex.postes || '')}</textarea>
-        <p class="sub" data-postes-info style="margin:4px 0 0;font-size:0.76rem;">${postesDe(ex).length
-          ? `${postesDe(ex).length} exercice(s) × ${escapeHtml(ex.series || '1')} tour(s)`
-          : "Laisse vide si le bloc n'a qu'un seul exercice."}</p></div>`}
-      <p class="sub" style="margin:-4px 0 10px;font-size:0.78rem;">Bloc au temps : il compte dans la durée de la séance, mais pas dans le volume de musculation.</p>`
+        <p class="sub" data-postes-info style="margin:4px 0 0;font-size:0.76rem;">${escapeHtml(infoPostes(ex))}</p></div>` : ''}
+      <p class="sub" style="margin:-4px 0 10px;font-size:0.78rem;">${escapeHtml(formatDe(ex.type).aide)}${
+        formatDe(ex.type).score && formatDe(ex.type).score.l
+          ? ` Le client notera : <b>${escapeHtml(formatDe(ex.type).score.l.toLowerCase())}</b>.` : ''}
+        Compté dans la durée de la séance, pas dans le volume de musculation.</p>`
       : `
       <div class="ex-grid">
         <div class="field"><label>Séries</label><input type="text" data-field="series" placeholder="4" value="${escapeHtml(ex.series)}"></div>
@@ -2033,9 +2042,7 @@ function renderExCards(){
           const champDuree = $('[data-duree]', card);
           if(champDuree) champDuree.value = fmtDuree(dureeBloc(ex2));
           const info = $('[data-postes-info]', card);
-          if(info) info.textContent = postesDe(ex2).length
-            ? `${postesDe(ex2).length} exercice(s) × ${ex2.series || '1'} tour(s)`
-            : "Laisse vide si le bloc n'a qu'un seul exercice.";
+          if(info) info.textContent = infoPostes(ex2);
         }
         // Le compteur de l'onglet dépend du nom : on rafraîchit à la volée.
         if(inp.dataset.field === 'nom'){ renderDayTabs(); injecterDernieresPerfs(); majChampGroupe(card, idx); }
@@ -2117,7 +2124,7 @@ function choisirGroupe(idx, valeur){
 $('#addExBtn').addEventListener('click', ()=>{
   const nouveau = blankExercise();
   // Un nouveau bloc prend le type du jour : on ne redemande pas ce qui vient d'être dit.
-  if(typeDuJour() !== 'mixte') nouveau.type = typeDuJour();
+  if(typeDuJour() !== 'mixte'){ nouveau.type = typeDuJour(); appliquerDefauts(nouveau); }
   exerciseRows.push(nouveau);
   renderExCards();
   markDirty();
@@ -5514,8 +5521,11 @@ function renderSessionDetail(s){
     let setsHtml;
     if(r.type && r.type !== 'muscu'){
       // Bloc au temps : pas de séries, seulement fait ou non et les tours tenus.
-      setsHtml = `<span class="res-set${r.fait ? ' done' : ''}">${r.fait ? '✓ fait' : 'non fait'}`
-        + `${r.toursFaits ? ' · ' + escapeHtml(r.toursFaits) + ' tours' : ''}</span>`;
+      // Le score dépend du format : tours pour un AMRAP, temps pour un « pour le temps »…
+      const libScore = (formatDe(r.type).score || {}).l || 'Noté';
+      setsHtml = `<span class="res-set${r.fait ? ' done' : ''}">${r.fait ? '✓ fait' : 'non fait'}</span>`
+        + `${r.score ? `<span class="res-set">${escapeHtml(libScore)} : ${escapeHtml(r.score)}</span>` : ''}`
+        + `${r.toursFaits ? `<span class="res-set">${escapeHtml(r.toursFaits)} tours</span>` : ''}`;
     } else if(Array.isArray(r.sets) && r.sets.length){
       setsHtml = r.sets.map((st,i)=>
         `<span class="res-set${st.done ? ' done' : ''}">S${i+1} · ${escapeHtml(st.reps||'—')} × ${escapeHtml(st.charge||'—')}${st.rpe ? ` · RPE ${escapeHtml(String(st.rpe).replace('.', ','))}` : ''}</span>`

@@ -173,6 +173,21 @@ choix bloc par bloc (c'est le seul cas où le sélecteur par bloc s'affiche).
 - ⚠️ Changer de type **ne détruit rien** : les champs de musculation (charge, répétitions, RPE)
   restent enregistrés et réapparaissent si on revient en arrière. Vérifié.
 
+**Formats de séance — `formats.js` (10/11/2026)** — une **seule table** décrit chaque format et
+pilote les trois côtés : les champs du coach, le calcul de la durée, et **ce que le client note**.
+Onze formats : musculation, gainage, circuit, Tabata, intervalles, EMOM, AMRAP, pour le temps,
+cardio, course, mobilité (plus « mixte » côté jour).
+- Le **score** est le point clé : un AMRAP se note en tours, un « pour le temps » en minutes, un
+  EMOM en minutes tenues, une course en distance + temps. Sans ça le client écrit n'importe quoi.
+- `defauts` pré-remplit les valeurs de référence (Tabata 8 × 20s/10s, AMRAP 12min…), **seulement
+  sur les champs vides** : on n'écrase jamais ce qui a été saisi.
+- Ajouter un format = une entrée dans la table. Aucun `if` à écrire dans `coach.html` ou `s.html`.
+- Repères issus d'une recherche (articles de coaching, pas des études) : Tabata 8 × 20/10,
+  intervalles 30/30 et 40/20, EMOM 10 à 20 min, AMRAP sans repos prescrit. Ce sont des valeurs de
+  départ, pas des prescriptions.
+- ⚠️ `analyse.js` **importe puis ré-exporte** `estAuTemps`/`dureeBloc`/`postesDe` : un simple
+  `export … from` ne crée pas de variable locale, et les fonctions du fichier plantaient.
+
 **Circuit à plusieurs exercices (10/11/2026)** — un circuit enchaîne plusieurs exercices par tour :
 le champ **« Exercices enchaînés (un par ligne) »** (`postes`, une chaîne, une ligne par exercice)
 s'ajoute aux blocs circuit et Tabata. `postesDe()` la découpe, `dureeBloc()` la compte :

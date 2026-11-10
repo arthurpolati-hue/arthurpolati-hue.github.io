@@ -630,6 +630,7 @@ import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
          parseSetCount, parseRestSeconds, nombreDe } from "./commun.js";
 import { lienParrainage, texteInvitation } from "./parrainage.js";
+import { formatDe, resumeBloc } from "./formats.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -1174,6 +1175,7 @@ async function renderDay(key){
       type: pe.type || 'muscu',
       travailCible: pe.travail || '',
       postesCible: pe.postes || '',          // exercices enchaînés, un par ligne
+      score: (prev && prev.score) || '',     // ce que le format demande de noter
       fait: !!(prev && prev.fait),
       toursFaits: (prev && prev.toursFaits) || '',
       sets
@@ -1293,7 +1295,8 @@ async function renderDay(key){
           remarque: (ex.remarque || '').trim(),
           // Blocs au temps : ce qui compte est « fait ou non » et les tours tenus.
           ...(ex.type && ex.type !== 'muscu'
-            ? { type: ex.type, travailCible: ex.travailCible, fait: !!ex.fait, toursFaits: (ex.toursFaits || '').trim() }
+            ? { type: ex.type, travailCible: ex.travailCible, postesCible: ex.postesCible,
+                fait: !!ex.fait, score: String(ex.score || '').trim() }
             : {}),
           // Résumés lisibles, conservés pour l'affichage côté coach.
           reps: ex.sets.map(s=>s.reps||'—').join(' / '),
@@ -1332,7 +1335,7 @@ function objectifLine(series, reps, charge, repos, notes, rpe){
 const auTemps = ex => !!ex && ex.type && ex.type !== 'muscu';
 
 function hasInput(ex){
-  if(auTemps(ex)) return !!ex.fait || String(ex.toursFaits || '').trim() !== '';
+  if(auTemps(ex)) return !!ex.fait || String(ex.score || '').trim() !== '';
   return ex.sets.some(s => (s.reps||'').trim() !== '' || (s.charge||'').trim() !== '' || s.done);
 }
 // Le RPE seul ne suffit pas à considérer un exercice comme fait : il est facultatif
@@ -1343,11 +1346,11 @@ function hasInput(ex){
 function buildBlocTemps(ex, idx, exercices, draftKey){
   const card = document.createElement('div');
   card.className = 'ex-card bloc-temps';
-  const LIB = { tabata:'Tabata', circuit:'Circuit', cardio:'Cardio', course:'Course' };
-  const details = (ex.type === 'cardio' || ex.type === 'course')
-    ? [ex.travailCible, ex.repCible].filter(Boolean).join(' · ')
-    : [ex.seriesCible ? ex.seriesCible + ' tours' : '', ex.travailCible ? ex.travailCible + ' d\'effort' : '',
-       ex.reposCible ? ex.reposCible + ' de récup' : ''].filter(Boolean).join(' · ');
+  // Le format décide de tout : le libellé, la phrase de consigne et ce qui est demandé.
+  const f = formatDe(ex.type);
+  const brut = { type: ex.type, series: ex.seriesCible, travail: ex.travailCible,
+                 repos: ex.reposCible, repetitions: ex.repCible, postes: ex.postesCible };
+  const details = resumeBloc(brut);
 
   const postes = String(ex.postesCible || '').split('\n').map(s => s.trim()).filter(Boolean);
 
@@ -1356,16 +1359,18 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
       <span class="ex-num">${idx+1}</span>
       <span class="ex-title">${escapeHtml(ex.nom)}</span>
     </div>
-    <div class="objectif-box"><b>${escapeHtml(LIB[ex.type] || 'Bloc')} :</b> ${escapeHtml(details || 'à ton rythme')}
+    <div class="objectif-box"><b>${escapeHtml(f.court || 'Bloc')} :</b> ${escapeHtml(details || 'à ton rythme')}
       ${ex.notesCible ? `<br><span style="opacity:0.85;">${escapeHtml(ex.notesCible)}</span>` : ''}</div>
     ${postes.length ? `<div class="section-tag">Dans l'ordre, à chaque tour</div>
       <ol class="postes">${postes.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ol>` : ''}
     <div class="section-tag">Ce que tu as fait</div>
     <div class="temps-ligne">
       <button type="button" class="temps-fait${ex.fait ? ' on' : ''}" data-fait>${ex.fait ? '✓ Fait' : "J'ai fait ce bloc"}</button>
-      ${(ex.type === 'cardio' || ex.type === 'course') ? '' : `<input type="text" inputmode="numeric" data-tours placeholder="tours tenus" value="${escapeHtml(ex.toursFaits)}" aria-label="Tours réalisés">`}
     </div>
-    <div class="set-hint">Si tu t'es arrêté avant la fin, note le nombre de tours tenus.</div>
+    ${(f.score && f.score.type !== 'fait') ? `<div class="field" style="margin-bottom:10px;">
+      <label for="sc-${idx}">${escapeHtml(f.score.l)}</label>
+      <input id="sc-${idx}" type="text" data-score placeholder="${escapeHtml(f.score.ph || '')}" value="${escapeHtml(ex.score || '')}">
+    </div>` : ''}
     <div class="ex-rem">
       <label for="rem-${idx}">Remarque sur ce bloc (optionnel)</label>
       <textarea id="rem-${idx}" data-rem rows="1" placeholder="Essoufflement, douleur, matériel...">${escapeHtml(ex.remarque || '')}</textarea>
@@ -1383,8 +1388,8 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
     btn.textContent = ex.fait ? '✓ Fait' : "J'ai fait ce bloc";
     sync();
   });
-  const tours = $('[data-tours]', card);
-  if(tours) tours.addEventListener('input', ()=>{ ex.toursFaits = tours.value; sync(); });
+  const champScore = $('[data-score]', card);
+  if(champScore) champScore.addEventListener('input', ()=>{ ex.score = champScore.value; sync(); });
   const rem = $('[data-rem]', card);
   rem.classList.toggle('rempli', (ex.remarque || '').trim() !== '');
   rem.addEventListener('input', ()=>{

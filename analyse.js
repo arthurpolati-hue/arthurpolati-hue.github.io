@@ -64,30 +64,12 @@ export function groupeCatalogue(nom){
 // Groupes qui ne représentent pas un volume de musculation à comptabiliser.
 const HORS_VOLUME = new Set(['Cardio','Échauffement','Étirement']);
 
-// Blocs « au temps » : Tabata, circuit training, cardio continu. Leur durée ne se
-// déduit pas d'un nombre de séries mais du chronomètre, et ils ne comptent pas dans
-// le volume de musculation — 8 tours de Tabata ne sont pas 8 séries de squat.
-export const AU_TEMPS = new Set(['tabata', 'circuit', 'cardio', 'course']);
-export const estAuTemps = ex => !!ex && AU_TEMPS.has(ex.type);
-
-/** Les exercices enchaînés dans un circuit ou un Tabata, un par ligne. */
-export const postesDe = ex => String((ex && ex.postes) || '')
-  .split('\n').map(s => s.trim()).filter(Boolean);
-
-/**
- * Durée d'un bloc au temps, en secondes.
- * Un circuit enchaîne plusieurs exercices par tour : la durée dépend du nombre de
- * postes, pas seulement du nombre de tours.
- */
-export function dureeBloc(ex){
-  const tours = Math.max(1, parseSetCount(ex.series));
-  const effort = parseRestSeconds(ex.travail) ?? 30;
-  const recup = parseRestSeconds(ex.repos) ?? 0;
-  const postes = Math.max(1, postesDe(ex).length);
-  // Par tour : chaque poste = un effort, suivi d'une récup sauf après le dernier.
-  const parTour = postes * effort + Math.max(0, postes - 1) * recup;
-  return tours * parTour + Math.max(0, tours - 1) * recup;
-}
+// Les formats de séance (Tabata, AMRAP, EMOM, course…) vivent dans `formats.js` :
+// c'est la seule table, lue aussi par le lien client.
+// ⚠️ On IMPORTE puis on ré-exporte : `export … from` ne créerait pas de variable
+// utilisable ici, et `estAuTemps()` plus bas serait introuvable.
+import { estAuTemps, dureeBloc, postesDe } from './formats.js';
+export { estAuTemps, dureeBloc, postesDe };
 
 /** Durée estimée d'une journée, en secondes. */
 export function dureeJour(jour){
