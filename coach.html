@@ -839,6 +839,12 @@
           <p class="tabs-hint" id="tabsHint"></p>
 
           <div class="field">
+            <label>Type de séance</label>
+            <select id="dayType"></select>
+            <p class="sub" id="dayTypeAide" style="margin:6px 0 0;font-size:0.78rem;"></p>
+          </div>
+
+          <div class="field">
             <label>Échauffement</label>
             <textarea id="dayEchauffement" placeholder="Ex: 5min vélo + mobilité épaules/hanches..."></textarea>
           </div>
@@ -1872,8 +1878,42 @@ function renderDayTabs(){
     : `${filledDays} jour(s) programmé(s) · le chiffre indique le nombre d'exercices. Aujourd'hui : ${cap(tk)}.`;
 }
 
+/* --- Type de séance, choisi pour le JOUR entier ---------------------------
+   Le coach annonce « mardi = course », et l'interface s'adapte : les champs
+   d'un exercice suivent ce type. « Mixte » rend le choix bloc par bloc. */
+const TYPES_JOUR = [
+  ['muscu',   'Musculation', 'Séries, répétitions, charge et RPE.'],
+  ['circuit', 'Circuit training', 'Tours, temps d\'effort et récupération entre les tours.'],
+  ['tabata',  'Tabata / intervalles', 'Par défaut 8 tours de 20s d\'effort et 10s de récup.'],
+  ['cardio',  'Cardio (vélo, rameur, corde…)', 'Durée et allure, sans séries à compter.'],
+  ['course',  'Course à pied', 'Durée (ou distance) et allure.'],
+  ['mixte',   'Mixte — je choisis bloc par bloc', 'Chaque exercice garde son propre type.']
+];
+const typeDuJour = () => ($('#dayType') && $('#dayType').value) || 'muscu';
+
+$('#dayType').innerHTML = TYPES_JOUR.map(([v, l]) => `<option value="${v}">${escapeHtml(l)}</option>`).join('');
+
+function majAideType(){
+  const t = TYPES_JOUR.find(x => x[0] === typeDuJour());
+  $('#dayTypeAide').textContent = t ? t[2] : '';
+}
+
+$('#dayType').addEventListener('change', ()=>{
+  const t = typeDuJour();
+  // On applique le type à tous les blocs du jour. Rien n'est perdu : les champs de
+  // musculation restent enregistrés, ils réapparaissent si on revient en arrière.
+  if(t !== 'mixte') exerciseRows.forEach(ex => { ex.type = t; });
+  majAideType();
+  renderExCards();
+  renderApercu();
+  markDirty();
+});
+
 function saveCurrentDayToMemory(){
+  const tJour = typeDuJour();
   currentProgram[currentDay] = {
+    // Écrit seulement s'il sort de la musculation : les programmes existants ne bougent pas.
+    ...(tJour && tJour !== 'muscu' ? { type: tJour } : {}),
     echauffement: $('#dayEchauffement').value.trim(),
     exercises: exerciseRows.filter(e => (e.nom||'').trim() !== '').map(ex=>{
       // Le classement du coach est recopié dans chaque programme enregistré : il ne
@@ -1894,6 +1934,12 @@ function saveCurrentDayToMemory(){
 function loadDay(key){
   currentDay = key;
   const dayData = currentProgram[key] || {};
+  // Pas de type enregistré (programme d'avant) : on le déduit des blocs — tous du même
+  // type, c'est celui-là ; plusieurs types mélangés, c'est « mixte ».
+  const typesPresents = new Set((dayData.exercises || []).map(e => e.type || 'muscu'));
+  $('#dayType').value = dayData.type
+    || (typesPresents.size > 1 ? 'mixte' : ([...typesPresents][0] || 'muscu'));
+  majAideType();
   $('#dayEchauffement').value = dayData.echauffement || '';
   exerciseRows = (dayData.exercises && dayData.exercises.length ? dayData.exercises : []).map(ex => ({
     id: uid(), type: ex.type || 'muscu', nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'',
@@ -1931,15 +1977,14 @@ function renderExCards(){
         </span>
         <button class="rm-btn" type="button" data-rm title="Supprimer">✕</button>
       </div>
-      <div class="field f-type"><label>Type de bloc</label>
-        <select data-field="type">${[['muscu','Musculation — séries et répétitions'],
-            ['tabata','Tabata / intervalles'],['circuit','Circuit training'],['cardio','Cardio continu']]
-          .map(([v,l])=>`<option value="${v}" ${v===(ex.type||'muscu')?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select></div>
+      ${typeDuJour() === 'mixte' ? `<div class="field f-type"><label>Type de ce bloc</label>
+        <select data-field="type">${TYPES_JOUR.filter(t => t[0] !== 'mixte')
+          .map(([v,l])=>`<option value="${v}" ${v===(ex.type||'muscu')?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select></div>` : ''}
       ${estAuTemps(ex) ? `
       <div class="ex-grid">
-        ${ex.type === 'cardio' ? `
+        ${(ex.type === 'cardio' || ex.type === 'course') ? `
         <div class="field"><label>Durée</label><input type="text" data-field="travail" placeholder="30min" value="${escapeHtml(ex.travail)}"></div>
-        <div class="field"><label>Allure / intensité</label><input type="text" data-field="repetitions" placeholder="footing, RPE 6" value="${escapeHtml(ex.repetitions)}"></div>`
+        <div class="field"><label>${ex.type === 'course' ? 'Distance / allure' : 'Allure / intensité'}</label><input type="text" data-field="repetitions" placeholder="${ex.type === 'course' ? '5 km, 6 min/km' : 'footing, RPE 6'}" value="${escapeHtml(ex.repetitions)}"></div>`
         : `
         <div class="field"><label>Tours</label><input type="text" data-field="series" placeholder="${ex.type === 'tabata' ? '8' : '3'}" value="${escapeHtml(ex.series)}"></div>
         <div class="field"><label>Effort</label><input type="text" data-field="travail" placeholder="${ex.type === 'tabata' ? '20s' : '45s'}" value="${escapeHtml(ex.travail)}"></div>
@@ -2050,7 +2095,10 @@ function choisirGroupe(idx, valeur){
 }
 
 $('#addExBtn').addEventListener('click', ()=>{
-  exerciseRows.push(blankExercise());
+  const nouveau = blankExercise();
+  // Un nouveau bloc prend le type du jour : on ne redemande pas ce qui vient d'être dit.
+  if(typeDuJour() !== 'mixte') nouveau.type = typeDuJour();
+  exerciseRows.push(nouveau);
   renderExCards();
   markDirty();
   const last = $('#exCardsWrap').lastElementChild;

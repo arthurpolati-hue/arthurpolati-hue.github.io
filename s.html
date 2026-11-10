@@ -1340,8 +1340,8 @@ function hasInput(ex){
 function buildBlocTemps(ex, idx, exercices, draftKey){
   const card = document.createElement('div');
   card.className = 'ex-card bloc-temps';
-  const LIB = { tabata:'Tabata', circuit:'Circuit', cardio:'Cardio' };
-  const details = ex.type === 'cardio'
+  const LIB = { tabata:'Tabata', circuit:'Circuit', cardio:'Cardio', course:'Course' };
+  const details = (ex.type === 'cardio' || ex.type === 'course')
     ? [ex.travailCible, ex.repCible].filter(Boolean).join(' · ')
     : [ex.seriesCible ? ex.seriesCible + ' tours' : '', ex.travailCible ? ex.travailCible + ' d\'effort' : '',
        ex.reposCible ? ex.reposCible + ' de récup' : ''].filter(Boolean).join(' · ');
@@ -1356,7 +1356,7 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
     <div class="section-tag">Ce que tu as fait</div>
     <div class="temps-ligne">
       <button type="button" class="temps-fait${ex.fait ? ' on' : ''}" data-fait>${ex.fait ? '✓ Fait' : "J'ai fait ce bloc"}</button>
-      ${ex.type === 'cardio' ? '' : `<input type="text" inputmode="numeric" data-tours placeholder="tours tenus" value="${escapeHtml(ex.toursFaits)}" aria-label="Tours réalisés">`}
+      ${(ex.type === 'cardio' || ex.type === 'course') ? '' : `<input type="text" inputmode="numeric" data-tours placeholder="tours tenus" value="${escapeHtml(ex.toursFaits)}" aria-label="Tours réalisés">`}
     </div>
     <div class="set-hint">Si tu t'es arrêté avant la fin, note le nombre de tours tenus.</div>
     <div class="ex-rem">

@@ -67,7 +67,7 @@ const HORS_VOLUME = new Set(['Cardio','Échauffement','Étirement']);
 // Blocs « au temps » : Tabata, circuit training, cardio continu. Leur durée ne se
 // déduit pas d'un nombre de séries mais du chronomètre, et ils ne comptent pas dans
 // le volume de musculation — 8 tours de Tabata ne sont pas 8 séries de squat.
-export const AU_TEMPS = new Set(['tabata', 'circuit', 'cardio']);
+export const AU_TEMPS = new Set(['tabata', 'circuit', 'cardio', 'course']);
 export const estAuTemps = ex => !!ex && AU_TEMPS.has(ex.type);
 
 /** Durée d'un bloc au temps, en secondes : tours × effort + récupérations entre les tours. */

@@ -163,8 +163,18 @@ rendez-vous, après le bilan.
 - ⚠️ Hauteur de la zone calculée sur le **nombre de lignes**, pas sur `scrollHeight` : la mesure
   vaut 0 tant que la mise en page n'est pas faite, et la zone restait minuscule.
 
-**Blocs au temps — Tabata, circuit, cardio (10/11/2026)** — chaque exercice porte un `type` :
-`muscu` (défaut), `tabata`, `circuit`, `cardio`. Les blocs au temps réutilisent `series` pour les
+**Type de séance par jour (10/11/2026)** — un menu **« Type de séance »** au-dessus de
+l'échauffement : Musculation, Circuit training, Tabata, Cardio, Course à pied, ou **Mixte**.
+Choisir un type l'applique à **tous les blocs du jour** et adapte les champs ; « Mixte » rend le
+choix bloc par bloc (c'est le seul cas où le sélecteur par bloc s'affiche).
+- Enregistré dans `programs/{id}[jour].type`, **seulement** s'il sort de la musculation.
+- Un jour sans type enregistré est **déduit de ses blocs** : tous pareils → ce type, mélangés →
+  « Mixte ». Les anciens programmes s'affichent donc correctement sans migration.
+- ⚠️ Changer de type **ne détruit rien** : les champs de musculation (charge, répétitions, RPE)
+  restent enregistrés et réapparaissent si on revient en arrière. Vérifié.
+
+**Blocs au temps — Tabata, circuit, cardio, course (10/11/2026)** — chaque exercice porte un `type` :
+`muscu` (défaut), `tabata`, `circuit`, `cardio`, `course`. Les blocs au temps réutilisent `series` pour les
 **tours** et `repos` pour la récupération, et ajoutent `travail` (durée d'effort).
 - `type` et `travail` ne sont écrits dans Firestore **que** pour les blocs au temps : les
   programmes existants gardent exactement la même forme.
