@@ -185,6 +185,13 @@ cardio, course, mobilité (plus « mixte » côté jour).
 - Repères issus d'une recherche (articles de coaching, pas des études) : Tabata 8 × 20/10,
   intervalles 30/30 et 40/20, EMOM 10 à 20 min, AMRAP sans repos prescrit. Ce sont des valeurs de
   départ, pas des prescriptions.
+- **Chronomètre côté client (10/11/2026)** : `phasesDuBloc()` découpe le bloc en phases
+  (effort / récup, tour par tour) et `s.html` les déroule en plein écran — vibration à chaque
+  changement, pause, fond bleu sur les récups, `wakeLock` pour que l'écran ne s'éteigne pas.
+  ⚠️ Comme le chrono de repos, il retient l'**heure de fin** et recalcule : un compteur qui
+  décrémente prend des minutes de retard dès qu'iOS gèle la page.
+  ⚠️ Une ligne sans temps (« 5 calories au bike ») donne une phase **manuelle** : le chrono
+  attend « C'est fait → » au lieu d'imposer une durée inventée. Le total affiché devient « ≈ ».
 - **Temps lu sur chaque ligne** (`tempsDeLaLigne`) : un circuit mélange « 5 calories au bike » et
   « 20s de corde » — chaque ligne qui annonce un temps compte le sien, les autres retombent sur
   l'effort commun du bloc. Sans ça la durée était inventée (45 s par poste par défaut).

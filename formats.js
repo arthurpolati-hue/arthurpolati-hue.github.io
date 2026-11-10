@@ -188,6 +188,54 @@ export const FORMATS = [
 
 export const formatDe = k => FORMATS.find(f => f.k === k) || FORMATS[0];
 
+/**
+ * Découpe un bloc en phases pour le chronomètre du client :
+ * [{ label, detail, sec, effort }] — « 20s de corde » puis « Récup 10s », etc.
+ * Renvoie un tableau VIDE quand il n'y a rien à chronométrer (musculation, ou bloc
+ * dont aucune durée n'est connue) : le bouton ne s'affiche alors pas.
+ */
+export function phasesDuBloc(ex){
+  const f = formatDe(ex && ex.type);
+  if(!f || f.classique) return [];
+  const tours = Math.max(1, parseSetCount(ex.series));
+  const lignes = postesDe(ex);
+  const recup = parseRestSeconds(ex.repos) ?? 0;
+  const out = [];
+
+  // EMOM : une phase par minute, le travail est annoncé mais pas minuté.
+  if(f.k === 'emom'){
+    for(let i = 1; i <= tours; i++){
+      out.push({ label: ex.repetitions || 'Travail', detail: `Minute ${i}/${tours}`, sec: 60, effort: true });
+    }
+    return out;
+  }
+  // Un seul bloc minuté : AMRAP, pour le temps, cardio, course, mobilité.
+  if(['amrap', 'chrono', 'cardio', 'course', 'mobilite'].includes(f.k)){
+    const t = parseRestSeconds(ex.travail);
+    return t ? [{ label: f.court, detail: ex.repetitions || '', sec: t, effort: true }] : [];
+  }
+
+  // Tabata, intervalles, circuit, gainage : tours × postes, effort puis récup.
+  const defautEffort = f.k === 'tabata' ? 20 : f.k === 'intervalles' ? 30 : 45;
+  const postes = lignes.length ? lignes : [''];
+  const effortCommun = parseRestSeconds(ex.travail);
+  for(let tour = 1; tour <= tours; tour++){
+    postes.forEach((p, i) => {
+      // Un poste qui n'annonce pas de temps et sans effort commun (« 5 calories au
+      // bike », « 10 squats ») ne se chronomètre pas : il se termine quand il est
+      // fini. Le chrono attend alors que le client appuie, plutôt que d'imposer une
+      // durée inventée.
+      const propre = tempsDeLaLigne(p);
+      const d = propre ?? effortCommun ?? (lignes.length ? null : defautEffort);
+      out.push({ label: p || 'Effort', detail: `Tour ${tour}/${tours}`,
+                 sec: d, manuel: d === null, effort: true });
+      const dernier = (i === postes.length - 1) && (tour === tours);
+      if(recup && !dernier) out.push({ label: 'Récup', detail: `Tour ${tour}/${tours}`, sec: recup, effort: false });
+    });
+  }
+  return out;
+}
+
 /** Un bloc qui n'est pas de la musculation classique. */
 export const estAuTemps = ex => !!ex && !!ex.type && ex.type !== 'muscu';
 

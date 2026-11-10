@@ -123,6 +123,26 @@
   .ex-rem textarea{min-height:38px;font-size:0.88rem;padding:9px 11px;}
   .ex-rem textarea.rempli{border-color:rgba(62,142,255,0.45);}
 
+  /* ---- Chronomètre de bloc (plein écran) ---- */
+  .chrono-lancer{width:100%;background:var(--blue);color:#071527;border:none;border-radius:10px;
+    padding:14px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:'Work Sans',sans-serif;
+    margin-bottom:12px;}
+  .chrono{position:fixed;inset:0;z-index:90;background:#070a0d;display:none;
+    align-items:center;justify-content:center;padding:24px;text-align:center;}
+  .chrono.show{display:flex;}
+  .chrono.repos{background:#0b1726;}
+  .chrono-in{width:100%;max-width:420px;}
+  .chrono-detail{font-size:0.8rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--fog);margin-bottom:10px;}
+  .chrono-label{font-size:1.35rem;font-weight:700;color:var(--paper);line-height:1.3;margin-bottom:6px;word-break:break-word;}
+  .chrono-temps{font-family:'Bebas Neue',sans-serif;font-size:5.5rem;line-height:1;color:var(--blue);
+    font-variant-numeric:tabular-nums;margin:6px 0 4px;}
+  .chrono.repos .chrono-temps{color:var(--blue-soft);}
+  .chrono-suite{font-size:0.88rem;color:var(--fog);min-height:22px;margin-bottom:22px;}
+  .chrono-actions{display:flex;gap:12px;}
+  .chrono-btn{flex:1;background:var(--steel);border:1.5px solid var(--steel-line);color:var(--paper);
+    border-radius:12px;padding:15px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:'Work Sans',sans-serif;}
+  .chrono-stop{background:var(--blue);color:#071527;border-color:var(--blue);}
+
   /* ---- Bloc au temps : Tabata, circuit, cardio ---- */
   .postes{margin:0 0 12px;padding-left:22px;}
   .postes li{font-size:0.92rem;color:var(--paper);line-height:1.5;margin-bottom:3px;}
@@ -547,6 +567,21 @@
     </div>
   </div>
 
+  <!-- Chronomètre d'un bloc au temps : il déroule les phases calculées par
+       `phasesDuBloc()` (effort, récup, tour par tour). -->
+  <div class="chrono" id="chrono" role="dialog" aria-modal="true" aria-label="Chronomètre">
+    <div class="chrono-in">
+      <div class="chrono-detail" id="chronoDetail"></div>
+      <div class="chrono-label" id="chronoLabel"></div>
+      <div class="chrono-temps" id="chronoTemps">0:00</div>
+      <div class="chrono-suite" id="chronoSuite"></div>
+      <div class="chrono-actions">
+        <button type="button" class="chrono-btn" id="chronoPause">Pause</button>
+        <button type="button" class="chrono-btn chrono-stop" id="chronoFermer">Terminer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Offre de parrainage : montrée une seule fois, puis accessible par la carte
        en bas de la séance. Jamais avant le mode d'emploi. -->
   <div class="tuto" id="parrainPop" role="dialog" aria-modal="true" aria-label="Parrainage">
@@ -630,7 +665,7 @@ import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
          parseSetCount, parseRestSeconds, nombreDe } from "./commun.js";
 import { lienParrainage, texteInvitation } from "./parrainage.js";
-import { formatDe, resumeBloc } from "./formats.js";
+import { formatDe, resumeBloc, phasesDuBloc } from "./formats.js";
 injecterStylesViz();
 
 const firebaseConfig = {
@@ -883,6 +918,98 @@ function peutEtreMontrerTuto(){
   try{ vu = localStorage.getItem(cleTuto()); }catch(e){ return; }   // navigation privée : on ne force pas
   if(!vu) ouvrirTuto(); else peutEtreMontrerParrainage();
 }
+
+/* --------------------------------------------- Chronomètre d'un bloc au temps */
+// Déroule les phases calculées par `phasesDuBloc()` : effort, récup, tour par tour.
+// ⚠️ Même principe que le chrono de repos : on retient l'HEURE DE FIN et on recalcule
+// à chaque tick. Un compteur qui décrémente prend des minutes de retard dès que iOS
+// gèle la page (écran éteint, application en arrière-plan).
+let chrono = { phases: [], i: 0, fin: 0, timer: null, pause: false, restant: 0 };
+let veilleEcran = null;
+
+const fmtChrono = s => Math.floor(Math.max(0, s) / 60) + ':' + String(Math.max(0, s) % 60).padStart(2, '0');
+function vibrerChrono(motif){ try{ if(navigator.vibrate) navigator.vibrate(motif); }catch(e){} }
+
+// L'écran ne doit pas s'éteindre pendant un Tabata. Refusé ou non supporté : tant pis,
+// le chrono fonctionne quand même.
+async function garderEcranAllume(actif){
+  try{
+    if(actif && 'wakeLock' in navigator && !veilleEcran){
+      veilleEcran = await navigator.wakeLock.request('screen');
+    } else if(!actif && veilleEcran){
+      await veilleEcran.release();
+      veilleEcran = null;
+    }
+  }catch(e){ veilleEcran = null; }
+}
+
+function afficherPhase(reste){
+  const p = chrono.phases[chrono.i];
+  const suivante = chrono.phases[chrono.i + 1];
+  $('#chrono').classList.toggle('repos', !p.effort);
+  $('#chronoDetail').textContent = p.detail || '';
+  $('#chronoLabel').textContent = p.label;
+  // Phase non minutée (« 5 calories au bike ») : pas de compte à rebours, on attend.
+  $('#chronoTemps').textContent = p.manuel ? '—' : fmtChrono(reste);
+  $('#chronoPause').textContent = p.manuel ? "C'est fait →" : (chrono.pause ? 'Reprendre' : 'Pause');
+  $('#chronoSuite').textContent = p.manuel
+    ? 'Appuie quand tu as fini'
+    : (suivante ? 'Ensuite : ' + suivante.label : 'Dernière phase');
+}
+function phaseSuivante(){
+  chrono.i++;
+  if(chrono.i >= chrono.phases.length){ vibrerChrono([200,100,200,100,200]); fermerChrono(); return; }
+  vibrerChrono([140]);
+  demarrerPhase();
+}
+function demarrerPhase(){
+  const p = chrono.phases[chrono.i];
+  chrono.pause = false;
+  clearInterval(chrono.timer);
+  if(p.manuel){                      // rien à décompter : on attend l'appui
+    chrono.fin = 0;
+    afficherPhase(0);
+    return;
+  }
+  chrono.fin = Date.now() + p.sec * 1000;
+  chrono.timer = setInterval(tickChrono, 200);
+  afficherPhase(p.sec);
+}
+function tickChrono(){
+  if(chrono.pause) return;
+  const reste = Math.ceil((chrono.fin - Date.now()) / 1000);
+  if(reste <= 0){ phaseSuivante(); return; }
+  afficherPhase(reste);
+}
+function ouvrirChrono(brut){
+  const phases = phasesDuBloc(brut);
+  if(!phases.length) return;
+  chrono.phases = phases; chrono.i = 0; chrono.pause = false;
+  $('#chronoPause').textContent = 'Pause';
+  $('#chrono').classList.add('show');
+  garderEcranAllume(true);
+  demarrerPhase();
+}
+function fermerChrono(){
+  clearInterval(chrono.timer);
+  chrono.timer = null;
+  $('#chrono').classList.remove('show');
+  garderEcranAllume(false);
+}
+$('#chronoFermer').addEventListener('click', fermerChrono);
+$('#chronoPause').addEventListener('click', ()=>{
+  const p = chrono.phases[chrono.i];
+  if(p && p.manuel){ phaseSuivante(); return; }   // « C'est fait → »
+  if(chrono.pause){
+    chrono.fin = Date.now() + chrono.restant * 1000;
+    chrono.pause = false;
+    $('#chronoPause').textContent = 'Pause';
+  } else {
+    chrono.restant = Math.max(0, Math.ceil((chrono.fin - Date.now()) / 1000));
+    chrono.pause = true;
+    $('#chronoPause').textContent = 'Reprendre';
+  }
+});
 
 /* ------------------------------------------------------------- Parrainage */
 // −10 % pour le client sur sa prochaine mensualité, −10 % pour la personne qu'il
@@ -1353,6 +1480,11 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
   const details = resumeBloc(brut);
 
   const postes = String(ex.postesCible || '').split('\n').map(s => s.trim()).filter(Boolean);
+  // Séquence chronométrable du bloc. Vide (aucune durée connue) = pas de bouton.
+  const phases = phasesDuBloc(brut);
+  // Les phases non minutées ne comptent pas dans le total : il devient approximatif.
+  const totalChrono = phases.reduce((t, p) => t + (p.sec || 0), 0);
+  const chronoApprox = phases.some(p => p.manuel);
 
   card.innerHTML = `
     <div class="ex-head">
@@ -1363,6 +1495,8 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
       ${ex.notesCible ? `<br><span style="opacity:0.85;">${escapeHtml(ex.notesCible)}</span>` : ''}</div>
     ${postes.length ? `<div class="section-tag">Dans l'ordre, à chaque tour</div>
       <ol class="postes">${postes.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ol>` : ''}
+    ${phases.length ? `<button type="button" class="chrono-lancer" data-chrono>▶ Lancer le chrono${
+      totalChrono ? ` · ${chronoApprox ? '≈ ' : ''}${Math.max(1, Math.round(totalChrono / 60))} min` : ''}</button>` : ''}
     <div class="section-tag">Ce que tu as fait</div>
     <div class="temps-ligne">
       <button type="button" class="temps-fait${ex.fait ? ' on' : ''}" data-fait>${ex.fait ? '✓ Fait' : "J'ai fait ce bloc"}</button>
@@ -1388,6 +1522,9 @@ function buildBlocTemps(ex, idx, exercices, draftKey){
     btn.textContent = ex.fait ? '✓ Fait' : "J'ai fait ce bloc";
     sync();
   });
+  const btnChrono = $('[data-chrono]', card);
+  if(btnChrono) btnChrono.addEventListener('click', ()=> ouvrirChrono(brut));
+
   const champScore = $('[data-score]', card);
   if(champScore) champScore.addEventListener('input', ()=>{ ex.score = champScore.value; sync(); });
   const rem = $('[data-rem]', card);
