@@ -141,6 +141,7 @@
   .fact-row .qui{flex:1 1 120px;min-width:0;}
   .fact-row .qui small{display:block;color:var(--fog);font-size:0.74rem;}
   .badge-payee{font-size:0.7rem;border:1px solid var(--blue);color:var(--blue);border-radius:999px;padding:1px 8px;}
+  .badge-externe{font-size:0.7rem;border:1px solid var(--steel-line);color:var(--fog);border-radius:999px;padding:1px 8px;}
   .tache-form{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
   .tache-form input{flex:1 1 220px;width:auto;}
   .tache-form select{width:auto;flex:0 0 auto;}
@@ -680,6 +681,7 @@
             <input type="month" id="factMois" aria-label="Mois à facturer">
             <button class="btn btn-blue btn-sm" id="factPreparerBtn" type="button">Préparer les factures</button>
             <button class="btn btn-ghost btn-sm" id="factNouvelleBtn" type="button">+ Facture à la main</button>
+            <button class="btn btn-ghost btn-sm" id="factExterneBtn" type="button">+ Facture émise ailleurs</button>
           </div>
         </div>
         <details class="fact-reglages" id="factReglagesBox">
@@ -721,6 +723,25 @@
           </div>
           <button class="btn btn-blue btn-sm" id="factReglagesSave" type="button">Enregistrer mes informations</button>
         </details>
+        <!-- Facture éditée hors du site (autre logiciel, carnet). On ne la refabrique pas :
+             on la déclare pour que la suite des numéros reste continue, sans trou ni doublon. -->
+        <div id="factExterne" class="prospect-form" hidden>
+          <p class="sub" style="margin:0 0 12px;">Une facture que tu as faite ailleurs. Elle ne sera pas regénérée ici : elle sert à garder la numérotation continue. Mets le numéro exactement tel qu'il est écrit dessus.</p>
+          <div class="row">
+            <div class="field"><label>Numéro</label><input type="text" id="fxNumero" maxlength="30" placeholder="37"></div>
+            <div class="field"><label>Date d'émission</label><input type="date" id="fxDate"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Client</label><input type="text" id="fxClient" maxlength="80" placeholder="Nom sur la facture"></div>
+            <div class="field"><label>Montant (€)</label><input type="number" id="fxTotal" min="0" step="0.01"></div>
+          </div>
+          <div class="field"><label>Note (facultatif)</label><input type="text" id="fxNote" maxlength="200" placeholder="Ex : facturée depuis mon ancien logiciel"></div>
+          <div class="row">
+            <button class="btn btn-blue btn-sm" id="fxEnregistrer" type="button">Enregistrer</button>
+            <button class="btn btn-ghost btn-sm" id="fxAnnuler" type="button">Annuler</button>
+          </div>
+        </div>
+
         <div id="factNouvelle"></div>
         <div id="factPrepare"></div>
         <div id="factListe"></div>
@@ -4458,16 +4479,58 @@ function renderFacturation(){
           <span class="num">${escapeHtml(f.numero || '')}</span>
           <span class="qui"><b>${escapeHtml(f.clientNom || '')}</b><small>${escapeHtml(f.periode || fmtDate(f.dateEmission))} · émise le ${escapeHtml(fmtDate(f.dateEmission))}</small></span>
           <span class="fact-total">${fmtEuros(f.total)}</span>
+          ${f.externe ? '<span class="badge-externe">émise ailleurs</span>' : ''}
           ${f.statut === 'payee' ? '<span class="badge-payee">Payée</span>' : ''}
           <span style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn btn-ghost btn-sm" type="button" data-pdf>PDF</button>
-            <button class="mini-btn" type="button" data-copier>Copier</button>
+            ${f.externe ? '' : `<button class="btn btn-ghost btn-sm" type="button" data-pdf>PDF</button>
+            <button class="mini-btn" type="button" data-copier>Copier</button>`}
             <button class="mini-btn" type="button" data-payee>${f.statut === 'payee' ? 'Non payée' : 'Payée'}</button>
             <button class="mini-btn" type="button" data-suppr aria-label="Supprimer">✕</button>
           </span>
         </div>`).join('')
     : '<p class="taches-vide">Aucune facture émise pour l\'instant.</p>';
 }
+
+/* --- Factures émises ailleurs : déclarées pour garder la numérotation continue --- */
+$('#factExterneBtn').addEventListener('click', ()=>{
+  const zone = $('#factExterne');
+  zone.hidden = !zone.hidden;
+  $('#factExterneBtn').textContent = zone.hidden ? '+ Facture émise ailleurs' : 'Fermer';
+  if(!zone.hidden && !$('#fxDate').value) $('#fxDate').value = todayISO();
+});
+$('#fxAnnuler').addEventListener('click', ()=>{
+  $('#factExterne').hidden = true;
+  $('#factExterneBtn').textContent = '+ Facture émise ailleurs';
+});
+$('#fxEnregistrer').addEventListener('click', async ()=>{
+  const numero = $('#fxNumero').value.trim();
+  const dateEmission = $('#fxDate').value || todayISO();
+  if(!numero){ showToast('Mets le numéro de la facture.', true); return; }
+  if(factures.some(f => String(f.numero || '').trim() === numero)){
+    showToast('Ce numéro est déjà enregistré.', true); return;
+  }
+  const total = parseFloat($('#fxTotal').value);
+  spinner(true);
+  try{
+    const docu = {
+      numero, dateEmission,
+      clientNom: $('#fxClient').value.trim(),
+      total: isNaN(total) ? 0 : Math.round(total * 100) / 100,
+      note: $('#fxNote').value.trim(),
+      externe: true, statut: 'externe', lignes: [], cree: Date.now()
+    };
+    const ref = await addDoc(collection(db, 'factures'), docu);
+    factures.push({ id: ref.id, ...docu });
+    ['#fxNumero', '#fxClient', '#fxTotal', '#fxNote'].forEach(s => { $(s).value = ''; });
+    $('#factExterne').hidden = true;
+    $('#factExterneBtn').textContent = '+ Facture émise ailleurs';
+    renderFacturation();
+    showToast(`Facture ${numero} enregistrée — la prochaine sera ${numeroSuivant(reglagesFact, factures)} ✓`);
+  } catch(err){
+    console.error('[ARD] Facture externe refusée (code:', err && err.code, ')', err);
+    showToast('Enregistrement refusé — voir la console.', true);
+  } finally { spinner(false); }
+});
 
 /* --- Facture à la main : on choisit le client et on écrit les lignes --- */
 let nouvelle = null;      // { clientId, nom, adresse, mois, dateEmission, lignes:[] }

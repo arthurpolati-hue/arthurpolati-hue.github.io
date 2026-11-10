@@ -61,9 +61,20 @@ export function numeroSuivant(reglages, factures, date = new Date()){
   let max = Math.max(0, (Number(r.prochainNumero) || 1) - 1);
   (factures || []).forEach(f => {
     const num = String(f.numero || '');
-    if(!num.startsWith(debut)) return;
-    const n = parseInt(num.slice(debut.length), 10);
-    if(!isNaN(n) && n > max) max = n;
+    // Factures émises par le site : « F2026-0007 ».
+    if(num.startsWith(debut)){
+      const n = parseInt(num.slice(debut.length), 10);
+      if(!isNaN(n) && n > max) max = n;
+      return;
+    }
+    // Factures émises AILLEURS (autre logiciel, carnet) et déclarées ici : le numéro est
+    // libre (« 37 », « FA-37 »), on ne retient que les chiffres de fin, et seulement pour
+    // l'année en cours. Sans ça, le site repartait à 1 et créait un doublon de numéro.
+    if(f.externe && String(f.dateEmission || '').slice(0, 4) === annee){
+      const m = num.match(/(\d+)\s*$/);
+      const n = m ? parseInt(m[1], 10) : NaN;
+      if(!isNaN(n) && n > max) max = n;
+    }
   });
   return `${debut}${String(max + 1).padStart(4, '0')}`;
 }
