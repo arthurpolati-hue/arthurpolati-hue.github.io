@@ -1066,7 +1066,8 @@ import {
 import { EXERCICES } from "./exercices.js";
 import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
-import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue } from "./analyse.js";
+import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue,
+         estAuTemps, dureeBloc } from "./analyse.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm } from "./commun.js";
 import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES, venteDe, ventesDuMois,
          ETAPES, SOURCES, sourceDe, CLE_DATE, etapesAtteintes,
@@ -1710,7 +1711,9 @@ let exerciseRows = [];
 let isDirty = false;
 const dirtyDays = new Set();   // jours modifiés depuis le dernier enregistrement
 
-function blankExercise(){ return { id: uid(), nom:'', series:'', repetitions:'', charge:'', repos:'', rpe:'', groupe:'', notes:'' }; }
+// `type` : 'muscu' par défaut, sinon 'tabata', 'circuit' ou 'cardio' — blocs au temps,
+// où `travail` porte la durée d'effort et `series` le nombre de tours.
+function blankExercise(){ return { id: uid(), type:'muscu', nom:'', series:'', repetitions:'', charge:'', repos:'', travail:'', rpe:'', groupe:'', notes:'' }; }
 
 let apercuTimer = null;
 // `jourCourantConcerne` : faux quand la modification porte sur d'autres jours que celui
@@ -1879,6 +1882,9 @@ function saveCurrentDayToMemory(){
       return {
         nom: ex.nom, series: ex.series, repetitions: ex.repetitions, charge: ex.charge,
         repos: ex.repos, rpe: ex.rpe || '', notes: ex.notes,
+        // `type` n'est écrit que s'il sort de la musculation : les programmes existants
+        // ne changent pas de forme, et `estAuTemps()` les lit comme avant.
+        ...(ex.type && ex.type !== 'muscu' ? { type: ex.type, travail: ex.travail || '' } : {}),
         ...(groupe ? { groupe } : {})
       };
     })
@@ -1890,8 +1896,9 @@ function loadDay(key){
   const dayData = currentProgram[key] || {};
   $('#dayEchauffement').value = dayData.echauffement || '';
   exerciseRows = (dayData.exercises && dayData.exercises.length ? dayData.exercises : []).map(ex => ({
-    id: uid(), nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'',
-    charge: ex.charge||'', repos: ex.repos||'', rpe: ex.rpe||'', groupe: ex.groupe||'', notes: ex.notes||''
+    id: uid(), type: ex.type || 'muscu', nom: ex.nom||'', series: ex.series||'', repetitions: ex.repetitions||'',
+    charge: ex.charge||'', repos: ex.repos||'', travail: ex.travail||'',
+    rpe: ex.rpe||'', groupe: ex.groupe||'', notes: ex.notes||''
   }));
   renderExCards();
   renderDayTabs();
@@ -1924,6 +1931,23 @@ function renderExCards(){
         </span>
         <button class="rm-btn" type="button" data-rm title="Supprimer">✕</button>
       </div>
+      <div class="field f-type"><label>Type de bloc</label>
+        <select data-field="type">${[['muscu','Musculation — séries et répétitions'],
+            ['tabata','Tabata / intervalles'],['circuit','Circuit training'],['cardio','Cardio continu']]
+          .map(([v,l])=>`<option value="${v}" ${v===(ex.type||'muscu')?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select></div>
+      ${estAuTemps(ex) ? `
+      <div class="ex-grid">
+        ${ex.type === 'cardio' ? `
+        <div class="field"><label>Durée</label><input type="text" data-field="travail" placeholder="30min" value="${escapeHtml(ex.travail)}"></div>
+        <div class="field"><label>Allure / intensité</label><input type="text" data-field="repetitions" placeholder="footing, RPE 6" value="${escapeHtml(ex.repetitions)}"></div>`
+        : `
+        <div class="field"><label>Tours</label><input type="text" data-field="series" placeholder="${ex.type === 'tabata' ? '8' : '3'}" value="${escapeHtml(ex.series)}"></div>
+        <div class="field"><label>Effort</label><input type="text" data-field="travail" placeholder="${ex.type === 'tabata' ? '20s' : '45s'}" value="${escapeHtml(ex.travail)}"></div>
+        <div class="field"><label>Récup</label><input type="text" data-field="repos" placeholder="${ex.type === 'tabata' ? '10s' : '15s'}" value="${escapeHtml(ex.repos)}"></div>`}
+        <div class="field"><label>Durée estimée</label><input type="text" value="${escapeHtml(fmtDuree(dureeBloc(ex)))}" disabled></div>
+      </div>
+      <p class="sub" style="margin:-4px 0 10px;font-size:0.78rem;">Bloc au temps : il compte dans la durée de la séance, mais pas dans le volume de musculation.</p>`
+      : `
       <div class="ex-grid">
         <div class="field"><label>Séries</label><input type="text" data-field="series" placeholder="4" value="${escapeHtml(ex.series)}"></div>
         <div class="field"><label>Répét. cible</label><input type="text" data-field="repetitions" placeholder="8-12" value="${escapeHtml(ex.repetitions)}"></div>
@@ -1938,7 +1962,7 @@ function renderExCards(){
             ${GROUPES.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('')}
           </select>
           <div class="grp-hint" data-grp-hint></div></div>
-      </div>
+      </div>`}
       <div class="field"><label>Consignes / notes</label><textarea data-field="notes" placeholder="Ex: dos droit, contrôle la descente...">${escapeHtml(ex.notes)}</textarea></div>
     `;
     attachAutocomplete($('input[data-field="nom"]', card), $('.ac-list', card), idx);
@@ -1946,12 +1970,16 @@ function renderExCards(){
       inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', ()=>{
         exerciseRows[idx][inp.dataset.field] = inp.value;
         markDirty();
+        // Changer de type change les champs affichés : on redessine la carte.
+        if(inp.dataset.field === 'type'){ renderExCards(); renderApercu(); return; }
         // Le compteur de l'onglet dépend du nom : on rafraîchit à la volée.
         if(inp.dataset.field === 'nom'){ renderDayTabs(); injecterDernieresPerfs(); majChampGroupe(card, idx); }
       });
     });
     majChampGroupe(card, idx);
-    $('select[data-groupe]', card).addEventListener('change', (e)=> choisirGroupe(idx, e.target.value));
+    // Absent sur les blocs au temps (Tabata, circuit, cardio) : pas de groupe musculaire.
+    const selGroupe = $('select[data-groupe]', card);
+    if(selGroupe) selGroupe.addEventListener('change', (e)=> choisirGroupe(idx, e.target.value));
     $('[data-rm]', card).addEventListener('click', ()=>{
       exerciseRows.splice(idx,1); renderExCards(); markDirty();
     });
@@ -5416,7 +5444,11 @@ function renderSessionDetail(s){
     ].filter(Boolean).join(' · ');
 
     let setsHtml;
-    if(Array.isArray(r.sets) && r.sets.length){
+    if(r.type && r.type !== 'muscu'){
+      // Bloc au temps : pas de séries, seulement fait ou non et les tours tenus.
+      setsHtml = `<span class="res-set${r.fait ? ' done' : ''}">${r.fait ? '✓ fait' : 'non fait'}`
+        + `${r.toursFaits ? ' · ' + escapeHtml(r.toursFaits) + ' tours' : ''}</span>`;
+    } else if(Array.isArray(r.sets) && r.sets.length){
       setsHtml = r.sets.map((st,i)=>
         `<span class="res-set${st.done ? ' done' : ''}">S${i+1} · ${escapeHtml(st.reps||'—')} × ${escapeHtml(st.charge||'—')}${st.rpe ? ` · RPE ${escapeHtml(String(st.rpe).replace('.', ','))}` : ''}</span>`
       ).join('');

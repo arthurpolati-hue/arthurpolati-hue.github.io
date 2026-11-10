@@ -123,6 +123,14 @@
   .ex-rem textarea{min-height:38px;font-size:0.88rem;padding:9px 11px;}
   .ex-rem textarea.rempli{border-color:rgba(62,142,255,0.45);}
 
+  /* ---- Bloc au temps : Tabata, circuit, cardio ---- */
+  .temps-ligne{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
+  .temps-fait{flex:1;background:var(--ink);border:1.5px solid var(--steel-line);color:var(--fog);
+    border-radius:10px;padding:13px 10px;font-weight:700;font-size:0.92rem;cursor:pointer;
+    font-family:'Work Sans',sans-serif;}
+  .temps-fait.on{background:var(--blue-dim);border-color:var(--blue);color:var(--blue-soft);}
+  .temps-ligne input{flex:0 0 120px;text-align:center;}
+
   /* ---- Séance faite avec le coach ? ---- */
   .coach-card h2{margin-bottom:6px;}
   .coach-q{font-size:0.86rem;color:#D6D8DA;line-height:1.5;margin:0 0 12px;}
@@ -1159,6 +1167,12 @@ async function renderDay(key){
       // Remarque libre sur CET exercice (douleur, matériel, sensation) : facultative,
       // elle ne compte pas dans la barre de progression.
       remarque: (prev && prev.remarque) || '',
+      // Blocs au temps (Tabata, circuit, cardio) : pas de séries à remplir, on note
+      // seulement si c'est fait et combien de tours ont été tenus.
+      type: pe.type || 'muscu',
+      travailCible: pe.travail || '',
+      fait: !!(prev && prev.fait),
+      toursFaits: (prev && prev.toursFaits) || '',
       sets
     };
   });
@@ -1274,6 +1288,10 @@ async function renderDay(key){
           rpeCible: ex.rpeCible,
           sets: ex.sets.map(s => ({ reps: s.reps, charge: s.charge, rpe: s.rpe || '', done: !!s.done })),
           remarque: (ex.remarque || '').trim(),
+          // Blocs au temps : ce qui compte est « fait ou non » et les tours tenus.
+          ...(ex.type && ex.type !== 'muscu'
+            ? { type: ex.type, travailCible: ex.travailCible, fait: !!ex.fait, toursFaits: (ex.toursFaits || '').trim() }
+            : {}),
           // Résumés lisibles, conservés pour l'affichage côté coach.
           reps: ex.sets.map(s=>s.reps||'—').join(' / '),
           charge: ex.sets.map(s=>s.charge||'—').join(' / ')
@@ -1308,13 +1326,71 @@ function objectifLine(series, reps, charge, repos, notes, rpe){
   return line;
 }
 
+const auTemps = ex => !!ex && ex.type && ex.type !== 'muscu';
+
 function hasInput(ex){
+  if(auTemps(ex)) return !!ex.fait || String(ex.toursFaits || '').trim() !== '';
   return ex.sets.some(s => (s.reps||'').trim() !== '' || (s.charge||'').trim() !== '' || s.done);
 }
 // Le RPE seul ne suffit pas à considérer un exercice comme fait : il est facultatif
 // et ne doit pas gonfler la barre de progression.
 
+// Bloc au temps : le client n'a ni charge ni répétitions à noter, seulement s'il l'a
+// fait et, s'il a dû s'arrêter avant, combien de tours il a tenus.
+function buildBlocTemps(ex, idx, exercices, draftKey){
+  const card = document.createElement('div');
+  card.className = 'ex-card bloc-temps';
+  const LIB = { tabata:'Tabata', circuit:'Circuit', cardio:'Cardio' };
+  const details = ex.type === 'cardio'
+    ? [ex.travailCible, ex.repCible].filter(Boolean).join(' · ')
+    : [ex.seriesCible ? ex.seriesCible + ' tours' : '', ex.travailCible ? ex.travailCible + ' d\'effort' : '',
+       ex.reposCible ? ex.reposCible + ' de récup' : ''].filter(Boolean).join(' · ');
+
+  card.innerHTML = `
+    <div class="ex-head">
+      <span class="ex-num">${idx+1}</span>
+      <span class="ex-title">${escapeHtml(ex.nom)}</span>
+    </div>
+    <div class="objectif-box"><b>${escapeHtml(LIB[ex.type] || 'Bloc')} :</b> ${escapeHtml(details || 'à ton rythme')}
+      ${ex.notesCible ? `<br><span style="opacity:0.85;">${escapeHtml(ex.notesCible)}</span>` : ''}</div>
+    <div class="section-tag">Ce que tu as fait</div>
+    <div class="temps-ligne">
+      <button type="button" class="temps-fait${ex.fait ? ' on' : ''}" data-fait>${ex.fait ? '✓ Fait' : "J'ai fait ce bloc"}</button>
+      ${ex.type === 'cardio' ? '' : `<input type="text" inputmode="numeric" data-tours placeholder="tours tenus" value="${escapeHtml(ex.toursFaits)}" aria-label="Tours réalisés">`}
+    </div>
+    <div class="set-hint">Si tu t'es arrêté avant la fin, note le nombre de tours tenus.</div>
+    <div class="ex-rem">
+      <label for="rem-${idx}">Remarque sur ce bloc (optionnel)</label>
+      <textarea id="rem-${idx}" data-rem rows="1" placeholder="Essoufflement, douleur, matériel...">${escapeHtml(ex.remarque || '')}</textarea>
+    </div>`;
+
+  const sync = ()=>{
+    card.classList.toggle('complete', hasInput(ex));
+    saveDraft(draftKey, exercices, $('#notesGlobales') ? $('#notesGlobales').value : '');
+    updateProgress(exercices);
+  };
+  const btn = $('[data-fait]', card);
+  btn.addEventListener('click', ()=>{
+    ex.fait = !ex.fait;
+    btn.classList.toggle('on', ex.fait);
+    btn.textContent = ex.fait ? '✓ Fait' : "J'ai fait ce bloc";
+    sync();
+  });
+  const tours = $('[data-tours]', card);
+  if(tours) tours.addEventListener('input', ()=>{ ex.toursFaits = tours.value; sync(); });
+  const rem = $('[data-rem]', card);
+  rem.classList.toggle('rempli', (ex.remarque || '').trim() !== '');
+  rem.addEventListener('input', ()=>{
+    ex.remarque = rem.value;
+    rem.classList.toggle('rempli', rem.value.trim() !== '');
+    saveDraft(draftKey, exercices, $('#notesGlobales') ? $('#notesGlobales').value : '');
+  });
+  card.classList.toggle('complete', hasInput(ex));
+  return card;
+}
+
 function buildExerciseCard(ex, idx, exercices, draftKey){
+  if(auTemps(ex)) return buildBlocTemps(ex, idx, exercices, draftKey);
   const card = document.createElement('div');
   card.className = 'ex-card';
   const restSec = parseRestSeconds(ex.reposCible);

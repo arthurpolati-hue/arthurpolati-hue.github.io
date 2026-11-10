@@ -64,15 +64,33 @@ export function groupeCatalogue(nom){
 // Groupes qui ne représentent pas un volume de musculation à comptabiliser.
 const HORS_VOLUME = new Set(['Cardio','Échauffement','Étirement']);
 
+// Blocs « au temps » : Tabata, circuit training, cardio continu. Leur durée ne se
+// déduit pas d'un nombre de séries mais du chronomètre, et ils ne comptent pas dans
+// le volume de musculation — 8 tours de Tabata ne sont pas 8 séries de squat.
+export const AU_TEMPS = new Set(['tabata', 'circuit', 'cardio']);
+export const estAuTemps = ex => !!ex && AU_TEMPS.has(ex.type);
+
+/** Durée d'un bloc au temps, en secondes : tours × effort + récupérations entre les tours. */
+export function dureeBloc(ex){
+  const tours = Math.max(1, parseSetCount(ex.series));
+  const effort = parseRestSeconds(ex.travail) ?? 30;
+  const recup = parseRestSeconds(ex.repos) ?? 0;
+  return tours * effort + Math.max(0, tours - 1) * recup;
+}
+
 /** Durée estimée d'une journée, en secondes. */
 export function dureeJour(jour){
   if(!jour || !jour.exercises || jour.exercises.length === 0) return 0;
   let t = (jour.echauffement && jour.echauffement.trim()) ? DUREE.echauffementSec : 0;
   jour.exercises.forEach((ex, i)=>{
-    const n = parseSetCount(ex.series);
-    const repos = parseRestSeconds(ex.repos) ?? DUREE.reposDefautSec;
-    // n séries : n exécutions, mais seulement n-1 repos entre elles.
-    t += n * DUREE.serieSec + Math.max(0, n - 1) * repos;
+    if(estAuTemps(ex)){
+      t += dureeBloc(ex);                       // le chronomètre fait foi
+    } else {
+      const n = parseSetCount(ex.series);
+      const repos = parseRestSeconds(ex.repos) ?? DUREE.reposDefautSec;
+      // n séries : n exécutions, mais seulement n-1 repos entre elles.
+      t += n * DUREE.serieSec + Math.max(0, n - 1) * repos;
+    }
     if(i < jour.exercises.length - 1) t += DUREE.transitionSec;
   });
   return Math.round(t);
@@ -102,6 +120,7 @@ export function apercuSemaine(program){
     let seriesJour = 0;
     const groupesDuJour = new Set();
     exos.forEach(ex=>{
+      if(estAuTemps(ex)) return;                // Tabata, circuit, cardio : hors volume
       const n = parseSetCount(ex.series);
       const g = groupeDe(ex.nom, ex.groupe);
       if(g === 'Non classé' && (ex.nom||'').trim()) nonClasses.add(ex.nom.trim());

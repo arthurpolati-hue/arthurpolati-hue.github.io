@@ -163,6 +163,25 @@ rendez-vous, après le bilan.
 - ⚠️ Hauteur de la zone calculée sur le **nombre de lignes**, pas sur `scrollHeight` : la mesure
   vaut 0 tant que la mise en page n'est pas faite, et la zone restait minuscule.
 
+**Blocs au temps — Tabata, circuit, cardio (10/11/2026)** — chaque exercice porte un `type` :
+`muscu` (défaut), `tabata`, `circuit`, `cardio`. Les blocs au temps réutilisent `series` pour les
+**tours** et `repos` pour la récupération, et ajoutent `travail` (durée d'effort).
+- `type` et `travail` ne sont écrits dans Firestore **que** pour les blocs au temps : les
+  programmes existants gardent exactement la même forme.
+- ⚠️ `dureeJour()` compte ces blocs au chronomètre (`dureeBloc` = tours × effort + récups), pas en
+  séries, et `apercuSemaine()` les **exclut du volume** : 8 tours de Tabata ne sont pas 8 séries.
+- Côté client : ni charge ni répétitions, un bouton « J'ai fait ce bloc » et, si besoin, le nombre
+  de tours tenus. La remarque par exercice y est aussi.
+- ⚠️ Le champ « groupe musculaire » disparaît pour ces blocs : tout code qui lit `[data-groupe]`
+  doit tolérer son absence (`majChampGroupe` le fait déjà, l'écouteur a dû être protégé).
+
+**Facturation — factures émises ailleurs (10/11/2026)** — un site statique **ne peut pas** lire un
+dossier de l'ordinateur (pas de serveur, et le navigateur l'interdit). Les factures faites hors du
+site se **déclarent** donc : numéro, date, client, montant.
+- `numeroSuivant()` lit les chiffres de fin des numéros libres (« 37 », « FA-37 ») des factures
+  marquées `externe`, pour l'année en cours : après une 37 déclarée, la suivante est `F2026-0038`.
+- Un numéro déjà enregistré est refusé ; ces lignes n'ont ni PDF ni copie.
+
 **Abonnement qui démarre plus tard (22/10/2026)** — Arthur crée la fiche et le programme avant le
 vrai début du suivi, parfois un mois à l'avance.
 - La conversion d'un prospect demande une **date de début** (`offreDepuis` **et** `cycleStart`), au
