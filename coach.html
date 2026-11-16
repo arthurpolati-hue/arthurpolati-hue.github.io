@@ -850,7 +850,7 @@
               <div class="row">
                 <div class="field"><label>Séances dans le cycle</label>
                   <select id="cycleLongueur"></select></div>
-                <div class="field"><label>Aujourd'hui, le client fait</label>
+                <div class="field"><label>Prochaine séance du client</label>
                   <select id="cyclePosition"></select></div>
               </div>
               <p class="sub" id="cycleAide" style="margin:0 0 10px;font-size:0.78rem;"></p>
@@ -1102,7 +1102,7 @@ import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalo
          estAuTemps, dureeBloc, postesDe } from "./analyse.js";
 import { FORMATS, formatDe, resumeBloc } from "./formats.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong, norm,
-         estEnCycle, longueurCycle, clesUtilisees, cleSeance, nomSeance, debutPourPosition, CYCLE_MAX } from "./commun.js";
+         estEnCycle, longueurCycle, clesUtilisees, cleSeance, nomSeance, seanceCycle, seancesDuCycle, CYCLE_MAX } from "./commun.js";
 import { OFFRES, offreDe, tarifClient, tarifBase, avecRemise, fmtRemise, VENTES, venteDe, ventesDuMois,
          ETAPES, SOURCES, sourceDe, CLE_DATE, etapesAtteintes,
          tunnel, caMensuel, caHistorique, fmtEuros, debutOffre } from "./offres.js";
@@ -1241,10 +1241,13 @@ async function loadTodayStatuses(){
         getDoc(doc(db, 'sessions', `${c.id}_${iso}`))
       ]);
       if(prog.exists()) learnFromProgram(prog.data());
-      // Semaine fixe ou cycle : `cleSeance` donne la case à faire aujourd'hui.
+      // Semaine fixe : la case du jour. Cycle : il y a toujours une séance à faire
+      // (la suivante), sauf si le cycle est entièrement vide.
       const data = prog.exists() ? prog.data() : {};
       const day = data[cleSeance(data, new Date())] || {};
-      const hasSession = day.exercises && day.exercises.length > 0;
+      const hasSession = estEnCycle(data)
+        ? seancesDuCycle(data).length > 0
+        : !!(day.exercises && day.exercises.length > 0);
       todayStatus.set(c.id, sess.exists() ? 'done' : (hasSession ? 'todo' : 'rest'));
     }catch(e){ /* statut simplement absent */ }
   }));
@@ -1829,7 +1832,8 @@ async function openClient(client){
   spinner(false);
 
   markClean();
-  currentDay = cleSeance(currentProgram, new Date());
+  currentSessions = [];
+  currentDay = cleDuJour();
   resultatsCharges = false;
   perfIndex = new Map();
   currentSessions = [];
@@ -1888,7 +1892,7 @@ function dayExerciseCount(key){
 function renderDayTabs(){
   const wrap = $('#dayTabs');
   wrap.innerHTML = '';
-  const tk = cleSeance(currentProgram, new Date());
+  const tk = cleDuJour();
   const enCycle = estEnCycle(currentProgram);
   casesAffichees().forEach(([key,label])=>{
     const n = dayExerciseCount(key);
@@ -1900,7 +1904,7 @@ function renderDayTabs(){
       + (key===tk ? ' today' : '')
       + (dirtyDays.has(key) ? ' dirty' : '');
     tab.innerHTML = `${escapeHtml(label)}<span class="cnt">${n > 0 ? n : '—'}</span><span class="unsaved"></span>`;
-    tab.title = n > 0 ? `${n} exercice(s)` : (enCycle ? 'Repos dans le cycle' : 'Jour de repos');
+    tab.title = n > 0 ? `${n} exercice(s)` : (enCycle ? 'Séance vide : le client la saute' : 'Jour de repos');
     tab.addEventListener('click', ()=>{ saveCurrentDayToMemory(); loadDay(key); });
     wrap.appendChild(tab);
   });
@@ -1908,21 +1912,29 @@ function renderDayTabs(){
   $('#tabsHint').textContent = enCycle
     ? (filledDays === 0
         ? "Aucune séance programmée : le client verra « repos » tous les jours."
-        : `${filledDays} séance(s) sur ${longueurCycle(currentProgram)} jour(s) de cycle · le chiffre indique le nombre d'exercices. Aujourd'hui : ${libelleCase(tk)}.`)
+        : `${filledDays} séance(s) dans le cycle · le chiffre indique le nombre d'exercices. Prochaine séance du client : ${libelleCase(tk)}.`)
     : (filledDays === 0
         ? "Aucun jour programmé : le client verra « repos » toute la semaine."
         : `${filledDays} jour(s) programmé(s) · le chiffre indique le nombre d'exercices. Aujourd'hui : ${cap(tk)}.`);
 }
 
 /* --- Programmation en cycle -----------------------------------------------
-   « Par cycle » : les N premières cases deviennent Séance 1 … Séance N et tournent
-   en boucle (Upper 1 → Lower 1 → Upper 2 → Lower 2 → Upper 1…), sans tenir compte
-   du jour de la semaine. Calcul dans `commun.js` (cleSeance), partagé avec le lien
-   client : coach et client voient la même séance pour une date donnée.
+   « Par cycle » : les N premières cases deviennent Séance 1 … Séance N, sans lien
+   avec les jours de la semaine. Le client fait toujours la séance qui suit la
+   dernière qu'il a envoyée (Upper 1 → Lower 1 → Upper 2 → Lower 2 → Upper 1…),
+   le jour où il s'entraîne. Les séances vides sont sautées. Calcul dans `commun.js`
+   (seanceCycle), partagé avec le lien client.
    Les cases au-delà de N ne sont jamais effacées : réduire puis rallonger le cycle
    les retrouve. Rien n'est écrit en base sans « Enregistrer ». */
 function libelleCase(cle){ return nomSeance(currentProgram, cle); }
 function casesAffichees(){ return clesUtilisees(currentProgram).map(k => [k, libelleCase(k)]); }
+
+// La séance « du jour » côté coach : la case du jour de la semaine, ou en cycle la
+// prochaine séance du client (d'après son historique, chargé par loadHistory).
+function cleDuJour(){
+  if(!estEnCycle(currentProgram)) return cleSeance(currentProgram, new Date());
+  return seanceCycle(currentProgram, currentSessions, todayISO()) || clesUtilisees(currentProgram)[0];
+}
 
 function marquerReglageModifie(){
   markDirty(false);
@@ -1941,20 +1953,27 @@ function renderModeProg(){
   $('#seanceNomField').hidden = !enCycle;
   $('#progTitre').textContent = enCycle ? 'Programme en cycle' : 'Programme de la semaine';
   $('#copyDayBtn').textContent = enCycle ? 'Copier cette séance vers…' : 'Copier ce jour vers…';
-  $('#clearDayBtn').textContent = enCycle ? 'Vider cette séance (repos)' : 'Vider ce jour (repos)';
+  $('#clearDayBtn').textContent = enCycle ? 'Vider cette séance' : 'Vider ce jour (repos)';
   if(!enCycle) return;
 
   const n = longueurCycle(currentProgram);
   $('#cycleLongueur').innerHTML = Array.from({ length: CYCLE_MAX }, (_, i) =>
-    `<option value="${i + 1}" ${i + 1 === n ? 'selected' : ''}>${i + 1} jour${i ? 's' : ''}</option>`).join('');
-  const pos = clesUtilisees(currentProgram).indexOf(cleSeance(currentProgram, new Date()));
-  $('#cyclePosition').innerHTML = casesAffichees().map(([k, l], i) =>
-    `<option value="${i}" ${i === pos ? 'selected' : ''}>${escapeHtml(l)}${dayExerciseCount(k) ? '' : ' (repos)'}</option>`).join('');
+    `<option value="${i + 1}" ${i + 1 === n ? 'selected' : ''}>${i + 1} séance${i ? 's' : ''}</option>`).join('');
+  const actives = seancesDuCycle(currentProgram);
+  const prochaine = cleDuJour();
+  $('#cyclePosition').innerHTML = actives.length
+    ? actives.map(k => `<option value="${k}" ${k === prochaine ? 'selected' : ''}>${escapeHtml(libelleCase(k))}</option>`).join('')
+    : '<option value="">— aucune séance remplie —</option>';
+  $('#cyclePosition').disabled = !actives.length;
   // Cases cachées qui contiennent encore des exercices : on le dit, sans rien effacer.
   const cachees = CLES_JOURS_PROG.slice(n).filter(k => (currentProgram[k] && currentProgram[k].exercises || []).length);
+  const vides = clesUtilisees(currentProgram).length - actives.length;
   $('#cycleAide').innerHTML =
-    `Le client enchaîne ${casesAffichees().map(([, l]) => '<b>' + escapeHtml(l) + '</b>').join(' → ')}, puis recommence, quel que soit le jour de la semaine. `
-    + `Une séance vide = repos dans le cycle (ajoute-en une pour un jour off).`
+    (actives.length
+      ? `Le client enchaîne ${actives.map(k => '<b>' + escapeHtml(libelleCase(k)) + '</b>').join(' → ')}, puis recommence. `
+        + `Chaque fois qu'il s'entraîne, il voit la séance suivante, quel que soit le jour : s'il ne vient pas, rien n'est sauté. `
+      : `Remplis au moins une séance : le client les fera dans l'ordre, puis recommencera. `)
+    + (vides > 0 ? `${vides} séance(s) vide(s), ignorée(s). ` : '')
     + (cachees.length ? `<br>${cachees.length} séance(s) au-delà du cycle sont gardées de côté, invisibles pour le client.` : '');
 }
 const CLES_JOURS_PROG = DAYS.map(([k]) => k);
@@ -1964,35 +1983,33 @@ $$('.mode-opt').forEach(b => b.addEventListener('click', ()=>{
   if(versCycle === estEnCycle(currentProgram)) return;
   saveCurrentDayToMemory();
   if(versCycle){
-    // Longueur de départ : le nombre de jours déjà programmés (4 si rien), Séance 1 aujourd'hui.
-    const remplis = CLES_JOURS_PROG.filter(k => (currentProgram[k] && currentProgram[k].exercises || []).length).length;
-    currentProgram.cycle = { longueur: Math.min(CYCLE_MAX, Math.max(2, remplis || 4)),
-                             debut: debutPourPosition(0), noms: {} };
-    showToast("Mode cycle : les séances tournent en boucle. Pense à enregistrer.");
+    // Longueur de départ : jusqu'au dernier jour déjà programmé (les jours vides entre
+    // deux sont sautés, rien n'est caché), 4 si rien n'est programmé.
+    const dernier = CLES_JOURS_PROG.reduce((m, k, i) => (currentProgram[k] && currentProgram[k].exercises || []).length ? i + 1 : m, 0);
+    currentProgram.cycle = { longueur: Math.min(CYCLE_MAX, Math.max(2, dernier || 4)), noms: {} };
+    showToast("Mode cycle : le client fait les séances dans l'ordre, en boucle. Pense à enregistrer.");
   } else {
     if(!confirm("Revenir au programme par jour de la semaine ? Les noms de séances du cycle seront perdus (les exercices restent, rangés du lundi au dimanche).")) return;
     delete currentProgram.cycle;
   }
   marquerReglageModifie();
-  loadDay(cleSeance(currentProgram, new Date()));
+  loadDay(cleDuJour());
 }));
 
 $('#cycleLongueur').addEventListener('change', ()=>{
   saveCurrentDayToMemory();
-  // On garde la séance du jour à sa place : si le client fait Upper 2 aujourd'hui,
-  // il le fait encore après avoir allongé le cycle.
-  const posAvant = clesUtilisees(currentProgram).indexOf(cleSeance(currentProgram, new Date()));
-  const n = parseInt($('#cycleLongueur').value, 10);
-  currentProgram.cycle.longueur = n;
-  currentProgram.cycle.debut = debutPourPosition(Math.min(posAvant, n - 1));
+  currentProgram.cycle.longueur = parseInt($('#cycleLongueur').value, 10);
   marquerReglageModifie();
   loadDay(clesUtilisees(currentProgram).includes(currentDay) ? currentDay : CLES_JOURS_PROG[0]);
 });
 
+// Le coach fixe la prochaine séance : seules les séances envoyées APRÈS ce moment
+// comptent ensuite pour la suite du cycle.
 $('#cyclePosition').addEventListener('change', ()=>{
-  currentProgram.cycle.debut = debutPourPosition(parseInt($('#cyclePosition').value, 10));
+  const cle = $('#cyclePosition').value;
+  if(!cle) return;
+  currentProgram.cycle.repere = { cle, at: Date.now() };
   marquerReglageModifie();
-  renderDayTabs();
 });
 
 $('#seanceNom').addEventListener('input', ()=>{
@@ -2261,7 +2278,9 @@ $('#addExBtn').addEventListener('click', ()=>{
 
 $('#clearDayBtn').addEventListener('click', ()=>{
   if(exerciseRows.length === 0 && !$('#dayEchauffement').value.trim()) return;
-  if(!confirm(`Vider ${libelleCase(currentDay)} ? Le client verra « Jour de repos ».`)) return;
+  if(!confirm(estEnCycle(currentProgram)
+    ? `Vider ${libelleCase(currentDay)} ? Le client la sautera et passera à la séance suivante.`
+    : `Vider ${libelleCase(currentDay)} ? Le client verra « Jour de repos ».`)) return;
   exerciseRows = [];
   $('#dayEchauffement').value = '';
   renderExCards();
@@ -2897,13 +2916,13 @@ function renderApercu(){
   const conflits = conflitsPlanning(a.jours, a.enCycle);
   wrap.innerHTML = `
     <div class="ap-kpis">
-      <div class="ap-kpi"><div class="v">${String(a.totalSeances).replace('.', ',')}</div><div class="k">séances / semaine${a.enCycle ? ' (moy.)' : ''}</div></div>
-      <div class="ap-kpi"><div class="v">${String(a.totalSeries).replace('.', ',')}</div><div class="k">séries / semaine${a.enCycle ? ' (moy.)' : ''}</div></div>
+      <div class="ap-kpi"><div class="v">${a.totalSeances}</div><div class="k">${a.enCycle ? 'séances dans le cycle' : 'séances / semaine'}</div></div>
+      <div class="ap-kpi"><div class="v">${a.totalSeries}</div><div class="k">${a.enCycle ? 'séries par cycle' : 'séries / semaine'}</div></div>
       <div class="ap-kpi"><div class="v">${escapeHtml(fmtDuree(a.dureeMoyenne))}</div><div class="k">par séance (est.)</div></div>
-      <div class="ap-kpi"><div class="v">${escapeHtml(fmtDuree(a.dureeTotale))}</div><div class="k">total hebdo (est.)</div></div>
+      <div class="ap-kpi"><div class="v">${escapeHtml(fmtDuree(a.dureeTotale))}</div><div class="k">${a.enCycle ? 'total du cycle (est.)' : 'total hebdo (est.)'}</div></div>
     </div>
 
-    <div class="section-tag" style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);margin-bottom:6px;">${a.enCycle ? `Le cycle (${a.jours.length} jour${a.jours.length > 1 ? 's' : ''}, en boucle)` : 'Planning de la semaine'}</div>
+    <div class="section-tag" style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);margin-bottom:6px;">${a.enCycle ? `Le cycle (${a.jours.length} séance${a.jours.length > 1 ? 's' : ''}, dans l'ordre, en boucle)` : 'Planning de la semaine'}</div>
     <div class="plan" id="planSemaine">
       ${a.jours.map(j=>`<div class="plan-jour${j.repos ? ' repos' : ''}${j.cle === currentDay ? ' courant' : ''}${j.cle === jourChoisi ? ' choisi' : ''}"
            draggable="true" data-jour="${escapeHtml(j.cle)}" title="${escapeHtml(j.label)}${j.repos ? ' — repos' : ''}">
@@ -2917,7 +2936,7 @@ function renderApercu(){
       ? `<b style="color:var(--blue);">${escapeHtml(libelleCase(jourChoisi))} sélectionné</b> — appuie sur un autre jour pour les intervertir, ou à nouveau dessus pour annuler.`
       : 'Glisse un jour sur un autre pour les intervertir. Sur téléphone : appuie sur un jour, puis sur celui avec lequel l\'échanger.'}</p>
     ${conflits.length ? `<div class="plan-conflit">
-      <b>Jours qui se suivent avec le même groupe :</b>
+      <b>${a.enCycle ? 'Séances qui se suivent' : 'Jours qui se suivent'} avec le même groupe :</b>
       ${conflits.map(c => `<div>${escapeHtml(libelleCase(c.a))} et ${escapeHtml(libelleCase(c.b))} → ${escapeHtml(c.communs.join(', '))}</div>`).join('')}
       <div style="margin-top:4px;opacity:0.9;">À toi de juger : c'est parfois voulu (haut/bas alterné, spécialisation), mais un même groupe deux jours d'affilée laisse peu de temps de récupération.</div>
     </div>` : ''}
@@ -2926,9 +2945,9 @@ function renderApercu(){
     ${a.groupes.map(g=>`<div class="ap-bar">
       <span class="nom">${escapeHtml(g.nom)}</span>
       <span class="piste"><span class="fill" style="width:${Math.round((g.series/maxSeries)*100)}%"></span></span>
-      <span class="val"><b>${String(g.series).replace('.', ',')}</b> séries · ${String(g.frequence).replace('.', ',')}×/sem</span>
+      <span class="val"><b>${g.series}</b> séries · ${g.frequence}×/${a.enCycle ? 'cycle' : 'sem'}</span>
     </div>`).join('')}
-    <p class="viz-note" style="margin-top:10px;">${a.enCycle ? `Cycle de ${a.jours.length} jours : il tourne ${String(Math.round(70 / a.jours.length) / 10).replace('.', ',')} fois par semaine, donc séries et fréquences sont des <b>moyennes ramenées à 7 jours</b>. ` : ''}Séries hebdomadaires par groupe, et sur combien de jours différents il est travaillé. Le cardio, l'échauffement et les étirements ne sont pas comptés dans le volume.</p>
+    <p class="viz-note" style="margin-top:10px;">${a.enCycle ? `Séances liées à aucun jour : les chiffres portent sur <b>un tour complet du cycle</b>, pas sur une semaine. Séries par groupe, et dans combien de séances il est travaillé.` : 'Séries hebdomadaires par groupe, et sur combien de jours différents il est travaillé.'} Le cardio, l'échauffement et les étirements ne sont pas comptés dans le volume.</p>
     ${a.nonClasses.length ? `<div class="ap-warn">
       <b>${a.nonClasses.length === 1 ? 'Un exercice non classé' : a.nonClasses.length + ' exercices non classés'}</b> —
       le catalogue ne les connaît pas, donc ils ne comptent dans aucun groupe. Choisis leur groupe ici, ou dans le champ « Groupe musculaire » de l'exercice :
@@ -5503,6 +5522,7 @@ $('#lightbox').addEventListener('click', (e)=>{ if(e.target.id === 'lightbox') $
 $('#reloadHistoryBtn').addEventListener('click', ()=> loadHistory());
 
 async function loadHistory(){
+  const client = currentClient;
   const wrap = $('#historyWrap');
   const stats = $('#historyStats');
   wrap.innerHTML = '<p class="sub" style="margin:0;">Chargement...</p>';
@@ -5520,7 +5540,15 @@ async function loadHistory(){
     sessions = await historyFallback(currentClient.id, 30);
   }
   sessions.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  if(!currentClient || client !== currentClient) return;   // fiche changée entre-temps
   currentSessions = sessions;
+  // En cycle, la prochaine séance dépend de l'historique : on la recalcule maintenant,
+  // et on l'ouvre si le coach n'a encore rien touché.
+  if(estEnCycle(currentProgram)){
+    if(!isDirty) loadDay(cleDuJour());
+    renderDayTabs();
+    renderModeProg();
+  }
   construirePerfIndex(sessions);
   if(currentMeasures) renderBilan();
   injecterDernieresPerfs();

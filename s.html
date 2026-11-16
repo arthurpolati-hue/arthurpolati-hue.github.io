@@ -663,7 +663,8 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
-         parseSetCount, parseRestSeconds, nombreDe, estEnCycle, cleSeance, nomSeance } from "./commun.js";
+         parseSetCount, parseRestSeconds, nombreDe, estEnCycle, cleSeance, nomSeance,
+         seanceCycle, msDe } from "./commun.js";
 import { lienParrainage, texteInvitation } from "./parrainage.js";
 import { formatDe, resumeBloc, phasesDuBloc } from "./formats.js";
 injecterStylesViz();
@@ -725,11 +726,56 @@ function todayKey(){
   return found ? found[0] : 'lundi';
 }
 
-// Séance prévue à la date d'un jour du bandeau. Semaine fixe : la case du même jour.
-// Programme en cycle : la séance du cycle qui tombe ce jour-là (calcul partagé avec
-// le coach, dans commun.js), quel que soit le jour de la semaine.
-function progDuJour(key){ return program[cleSeance(program, WEEK_DATES[key])] || {}; }
-function nomDuJour(key){ return nomSeance(program, cleSeance(program, WEEK_DATES[key])); }
+// Séance prévue pour un jour du bandeau. Semaine fixe : la case du même jour.
+// Programme en cycle : les séances ne sont liées à aucun jour. Le client fait la
+// séance qui suit la dernière qu'il a envoyée (calcul partagé avec le coach, dans
+// commun.js). Elle s'affiche aujourd'hui (et hier, en rattrapage) ; un jour passé
+// montre la séance faite ce jour-là, un jour à venir n'en montre aucune.
+let sessionsCycle = [];          // { date, seanceCle, completedAt } des dernières semaines
+function cleCycleDu(key){
+  const iso = isoLocal(WEEK_DATES[key]);
+  const faite = sessionsCycle.find(s => s.date === iso && s.seanceCle);
+  if(faite) return seanceCycle(program, sessionsCycle, iso);
+  if(iso > TODAY_ISO || iso < YESTERDAY_ISO) return null;
+  // Rattrapage d'hier alors qu'aujourd'hui est déjà envoyé : il referait la même séance.
+  if(iso === YESTERDAY_ISO && sessionsCycle.some(s => s.date === TODAY_ISO && s.seanceCle)) return null;
+  return seanceCycle(program, sessionsCycle, iso);
+}
+function prochaineSeance(){
+  return seanceCycle(program, sessionsCycle, isoLocal(addDays(startOfToday(), 1)));
+}
+function progDuJour(key){
+  if(!estEnCycle(program)) return program[cleSeance(program, WEEK_DATES[key])] || {};
+  const k = cleCycleDu(key);
+  return (k && program[k]) || {};
+}
+function nomDuJour(key){
+  if(!estEnCycle(program)) return nomSeance(program, cleSeance(program, WEEK_DATES[key]));
+  const k = cleCycleDu(key);
+  return k ? nomSeance(program, k) : '';
+}
+
+// Les règles interdisent au lien client de lister ses séances : on relit les dernières
+// semaines date par date (IDs déterministes), par tranches de 14 jours, et on s'arrête
+// dès qu'on trouve une séance du cycle envoyée après le dernier réglage du coach.
+async function chargerHistoriqueCycle(){
+  const repere = program.cycle && program.cycle.repere;
+  const trouvees = [];
+  for(let debut = 0; debut < 56; debut += 14){
+    const dates = Array.from({ length: 14 }, (_, i) => isoLocal(addDays(startOfToday(), -(debut + i))));
+    const snaps = await Promise.all(dates.map(d =>
+      getDoc(doc(db, 'sessions', `${clientId}_${d}`)).catch(() => null)));
+    snaps.forEach(sn => {
+      if(!sn || !sn.exists()) return;
+      const s = sn.data();
+      trouvees.push({ date: s.date, seanceCle: s.seanceCle || '', completedAt: s.completedAt });
+    });
+    const utile = trouvees.some(s => s.seanceCle && s.date < TODAY_ISO
+      && (!repere || !repere.at || msDe(s.completedAt) > repere.at));
+    if(utile) break;
+  }
+  sessionsCycle = trouvees;
+}
 
 function fmtClock(sec){
   const s = Math.max(0, sec);
@@ -857,9 +903,10 @@ async function boot(){
   }
 }
 
-function demarrerSuivi(progSnap){
+async function demarrerSuivi(progSnap){
   try{
     program = progSnap.exists() ? progSnap.data() : {};
+    if(estEnCycle(program)) await chargerHistoriqueCycle();
     $('#greeting').textContent = clientName ? `SALUT ${clientName.split(' ')[0].toUpperCase()}` : 'TA SEMAINE';
     renderWeekStrip();
     renderDay(selectedDay);
@@ -1225,7 +1272,9 @@ function renderWeekStrip(){
     pill.className = 'day-pill' + (key===tk ? ' today' : '') + (key===selectedDay ? ' active' : '') + (isRest ? ' rest' : '');
     pill.innerHTML = `<div class="dname">${label}</div>`
       + `<div class="dnum">${WEEK_DATES[key].getDate()}</div>`
-      + `<div class="dtag">${isRest ? 'Repos' : (estEnCycle(program) ? escapeHtml(nomDuJour(key).slice(0, 8)) : 'Séance')}</div>`
+      + `<div class="dtag">${estEnCycle(program)
+          ? (isRest ? (isoLocal(WEEK_DATES[key]) > TODAY_ISO ? '·' : '—') : escapeHtml(nomDuJour(key).slice(0, 8)))
+          : (isRest ? 'Repos' : 'Séance')}</div>`
       + (doneDays.has(key) ? '<span class="flag">✓</span>' : '');
     pill.addEventListener('click', ()=>{ selectedDay = key; renderWeekStrip(); renderDay(key); });
     wrap.appendChild(pill);
@@ -1246,6 +1295,21 @@ async function renderDay(key){
   const enCycle = estEnCycle(program);
   const fillable = isFillable(key);
   const isYesterday = dateISO === YESTERDAY_ISO;
+
+  if(isRest && enCycle){
+    // Cycle : pas de « jour de repos » programmé. Jour à venir : on annonce la suite ;
+    // jour passé sans envoi : rien à afficher.
+    const prochaine = prochaineSeance();
+    const futur = dateISO > TODAY_ISO;
+    wrap.innerHTML = `<div class="card" style="text-align:center;padding:34px 18px;">
+      <div style="font-size:1.6rem;margin-bottom:8px;">${futur ? '🔁' : (doneDays.has(key) ? '✓' : '😌')}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;">${futur ? 'À VENIR' : (doneDays.has(key) ? 'SÉANCE ENVOYÉE' : 'PAS DE SÉANCE CE JOUR-LÀ')}</div>
+      <p class="sub" style="margin:8px 0 0;">${prochaine
+        ? `Tes séances s'enchaînent dans l'ordre, quel que soit le jour. Prochaine : <b>${escapeHtml(nomSeance(program, prochaine))}</b>, elle s'ouvre le jour où tu t'entraînes.`
+        : "Ton coach prépare tes prochaines séances."}</p>
+    </div>`;
+    return;
+  }
 
   if(isRest){
     wrap.innerHTML = `<div class="card" style="text-align:center;padding:34px 18px;">
@@ -1417,8 +1481,9 @@ async function renderDay(key){
     try{
       const etat = await envoyer(setDoc(doc(db, 'sessions', sessionId), {
         clientId, clientName, date: dateISO, day: key,
-        // Programme en cycle : le nom de la séance faite (« Upper 1 »), lu par l'historique du coach.
-        ...(enCycle ? { seance: nomDuJour(key) } : {}),
+        // Programme en cycle : la séance faite (« mardi » = Séance 2), qui fixe la suivante,
+        // et son nom (« Upper 1 »), lu par l'historique du coach.
+        ...(enCycle ? { seanceCle: cleCycleDu(key), seance: nomDuJour(key) } : {}),
         echauffement: dayData.echauffement || '',
         exercises: dayData.exercises,
         status: 'completed',
@@ -1443,6 +1508,10 @@ async function renderDay(key){
         }))
       }, { merge: true }), 'ta séance');
       localStorage.removeItem(draftKey);
+      if(enCycle){
+        const faite = { date: dateISO, seanceCle: cleCycleDu(key), completedAt: new Date() };
+        sessionsCycle = sessionsCycle.filter(s => s.date !== dateISO).concat(faite);
+      }
       showSuccess(exercices);
       if(etat === 'attente'){
         $('#fillSuccess > p').textContent = "Pas de réseau pour l'instant : ta séance est enregistrée sur ce téléphone "
@@ -1784,6 +1853,18 @@ $$('.maintab').forEach(b=>{
 // Constat factuel et positif uniquement : combien de séances prévues, combien
 // envoyées. Aucune analyse de performance — c'est le travail du coach.
 function majEncouragement(){
+  if(estEnCycle(program)){
+    // Cycle : pas de nombre de séances « prévu » dans la semaine, on ne compte que l'envoyé.
+    const faits = DAYS.filter(([k]) => doneDays.has(k)).length;
+    const prochaine = prochaineSeance();
+    if(!prochaine) return;
+    const nom = `<b>${escapeHtml(nomSeance(program, prochaine))}</b>`;
+    $('#cheer').innerHTML = faits
+      ? `<b>${faits}</b> séance(s) envoyée(s) cette semaine. Prochaine : ${nom}.`
+      : `Ta prochaine séance : ${nom}. Tu la fais le jour qui t'arrange.`;
+    $('#cheer').style.display = 'block';
+    return;
+  }
   const prevus = DAYS.filter(([k])=>{
     const d = progDuJour(k);
     return d.exercises && d.exercises.length > 0;

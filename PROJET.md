@@ -285,22 +285,28 @@ réafficher), élargissement titres → résumés sous 5 résultats.
 il est cassé par la même panne et attend le même basculement.
 
 **Programme en cycle (16/11/2026)** — en plus du programme par jour de la semaine, un client peut
-être programmé **« par cycle »** : Upper 1 → Lower 1 → Upper 2 → Lower 2 → Upper 1… en boucle, sans
-tenir compte du jour de la semaine. Boutons « Par jour de la semaine / Par cycle » en tête de l'onglet
-Entraînement.
-- Stockage : `programs/{id}.cycle = { longueur, debut, noms }`. Les N premières cases (`lundi`,
+être programmé **« par cycle »** : Séance 1 → Séance 2 → Séance 3 → Séance 1… (nommables : Upper 1,
+Lower 1…), **sans lien avec les jours de la semaine**. Le client voit toujours la séance qui suit la
+dernière qu'il a envoyée, le jour où il s'entraîne : un jour sans entraînement ne fait rien sauter.
+Boutons « Par jour de la semaine / Par cycle » en tête de l'onglet Entraînement.
+- Stockage : `programs/{id}.cycle = { longueur, noms, repere }`. Les N premières cases (`lundi`,
   `mardi`…) servent de Séance 1 … N : **aucune migration**, un programme sans `cycle` reste une semaine.
-- **Calculé sur le calendrier** (`cleSeance()` dans `commun.js`, seule implémentation, importée par
-  `coach.html`, `s.html` et `analyse.js`) : position = jours écoulés depuis `debut`, modulo N. Le coach et
-  le client voient donc la même séance pour une date donnée, sans écriture en base. Une séance ratée
-  ne décale pas le cycle (choix assumé : simple et prévisible).
-- « Aujourd'hui, le client fait » recalcule `debut` ; changer la longueur garde la séance du jour à sa place.
-- Une case vide = jour de repos **dans** le cycle. Réduire le cycle ne supprime rien : les cases au-delà
-  sont gardées de côté et signalées. Intervertir deux séances (vue d'ensemble) déplace aussi leur nom.
-- Vue d'ensemble : séries, séances et fréquences sont des **moyennes ramenées à 7 jours** (× 7/N) ;
-  l'alerte « deux jours d'affilée » compare aussi la dernière séance avec la première.
-- Côté client : le bandeau affiche le nom de la séance sous chaque date ; la séance envoyée porte
-  `sessions.seance` (« Upper 1 »), repris dans l'historique du coach. Aucune règle Firestore à changer.
+- La séance envoyée porte `sessions.seanceCle` (« mardi » = Séance 2) et `sessions.seance` (« Upper 1 »,
+  repris dans l'historique du coach). **La suite se calcule sur ces envois** (`seanceCycle()` dans
+  `commun.js`, seule implémentation, importée par `coach.html`, `s.html` et `analyse.js`).
+- Le client ne peut pas lister ses séances (règles) : `s.html` relit les jours un par un, par tranches
+  de 14 jours (8 semaines au plus), et s'arrête dès qu'il trouve une séance du cycle.
+- « Prochaine séance du client » (coach) écrit `repere = { cle, at }` : seules les séances envoyées
+  après `at` (`completedAt`) comptent ensuite. Utile pour démarrer ailleurs qu'à la Séance 1 ou recaler.
+- Une case vide est **sautée** (pas de jour de repos dans le cycle). Réduire le cycle ne supprime rien :
+  les cases au-delà sont gardées de côté et signalées. Intervertir deux séances déplace aussi leur nom.
+- Côté client : aujourd'hui (et hier, en rattrapage, sauf si aujourd'hui est déjà envoyé) affichent la
+  séance suivante ; un jour passé affiche la séance faite ; un jour à venir annonce la prochaine.
+- Vue d'ensemble : chiffres **par tour de cycle** (on ne sait pas combien de séances tombent dans une
+  semaine) ; l'alerte « même groupe » compare les séances qui se suivent, la dernière avec la première.
+- Aucune règle Firestore à changer : `seanceCle` est un champ de plus dans `sessions`.
+- La première version (même jour, quelques heures) calculait le cycle sur le calendrier (`cycle.debut`) :
+  ce champ est désormais ignoré.
 
 ## 8. La suite
 

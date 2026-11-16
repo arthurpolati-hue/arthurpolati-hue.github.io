@@ -5,7 +5,7 @@
 // document `programs/{clientId}` déjà chargé.
 
 import { EXERCICES } from './exercices.js';
-import { norm, parseSetCount, parseRestSeconds, estEnCycle, longueurCycle, clesUtilisees, nomSeance } from './commun.js';
+import { norm, parseSetCount, parseRestSeconds, estEnCycle, clesUtilisees, seancesDuCycle, nomSeance } from './commun.js';
 
 export { parseSetCount, parseRestSeconds };   // réexport, pour n'avoir qu'un import côté pages
 
@@ -105,13 +105,12 @@ export function apercuSemaine(program){
   let totalSeries = 0, dureeTotale = 0;
   const nonClasses = new Set();
 
-  // Mode cycle : seules les N séances du cycle comptent, et les totaux « par semaine »
-  // sont ramenés à 7 jours (un cycle de 4 jours tourne 1,75 fois par semaine).
+  // Mode cycle : les séances ne sont liées à aucun jour, on ne sait donc pas combien
+  // tombent dans une semaine. Les totaux sont donnés PAR CYCLE (un tour complet), et
+  // les cases vides, que le client saute, n'apparaissent pas.
   const enCycle = estEnCycle(program);
-  const facteur = enCycle ? 7 / longueurCycle(program) : 1;
-  const arrondi = v => Math.round(v * 10) / 10;
 
-  clesUtilisees(program).forEach((cle)=>{
+  (enCycle ? seancesDuCycle(program) : clesUtilisees(program)).forEach((cle)=>{
     const label = nomSeance(program, cle);
     const j = (program && program[cle]) || {};
     const exos = j.exercises || [];
@@ -141,16 +140,15 @@ export function apercuSemaine(program){
 
   const actifs = jours.filter(j => !j.repos);
   const groupes = [...parGroupe.entries()]
-    .map(([nom, v])=> ({ nom, series:arrondi(v.series * facteur), frequence:arrondi(v.jours.size * facteur) }))
+    .map(([nom, v])=> ({ nom, series:v.series, frequence:v.jours.size }))
     .sort((a,b)=> b.series - a.series);
 
   return {
     jours, groupes,
     enCycle,
-    seancesParCycle: actifs.length,
-    totalSeances: arrondi(actifs.length * facteur),
-    totalSeries: arrondi(totalSeries * facteur),
-    dureeTotale: Math.round(dureeTotale * facteur),
+    totalSeances: actifs.length,
+    totalSeries,
+    dureeTotale,
     dureeMoyenne: actifs.length ? Math.round(dureeTotale / actifs.length) : 0,
     nonClasses: [...nonClasses]
   };
