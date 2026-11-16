@@ -41,6 +41,56 @@ export function joursEntre(isoA, isoB){
   return Math.round((new Date(isoB + 'T12:00:00') - new Date(isoA + 'T12:00:00')) / 86400000);
 }
 
+/* ─────────────────────────── Programme en cycle ───────────────────────────
+   Deux façons de programmer un client :
+   - par jour de la semaine (défaut) : `programs/{id}.lundi` = la séance du lundi ;
+   - par cycle : `programs/{id}.cycle = { longueur, debut, noms }`. Les N premières
+     cases (lundi, mardi…) servent alors de « Séance 1 … Séance N » et tournent en
+     boucle à partir de la date `debut` (Séance 1 ce jour-là, Séance 2 le lendemain…).
+     Une case vide est un jour de repos DANS le cycle.
+   Le cycle est calculé sur le calendrier, pas sur les séances envoyées : le coach et
+   le client voient toujours la même séance pour une date donnée, sans écriture en base.
+   Une seule implémentation, importée par coach.html, s.html et analyse.js. */
+
+export const CLES_JOURS = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+const CLE_DU_JS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+export const CYCLE_MAX = 7;
+
+export function estEnCycle(prog){
+  return !!(prog && prog.cycle && prog.cycle.debut && Number(prog.cycle.longueur) >= 1);
+}
+export function longueurCycle(prog){
+  if(!estEnCycle(prog)) return 7;
+  return Math.min(CYCLE_MAX, Math.max(1, parseInt(prog.cycle.longueur, 10) || 1));
+}
+/** Les cases utilisées : les 7 jours, ou les N premières en mode cycle. */
+export function clesUtilisees(prog){
+  return CLES_JOURS.slice(0, longueurCycle(prog));
+}
+/** Position (0…N-1) d'une date dans le cycle. `date` : Date ou 'AAAA-MM-JJ'. */
+export function positionCycle(prog, date){
+  const iso = typeof date === 'string' ? date : isoLocal(date);
+  const n = longueurCycle(prog);
+  const ecart = joursEntre(prog.cycle.debut, iso);
+  return ((ecart % n) + n) % n;               // modulo positif, même avant la date de début
+}
+/** Clé du programme à faire à cette date (« mardi » = séance 2 en mode cycle). */
+export function cleSeance(prog, date){
+  const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : date;
+  if(!estEnCycle(prog)) return CLE_DU_JS[d.getDay()];
+  return CLES_JOURS[positionCycle(prog, d)];
+}
+/** Nom affiché d'une case : « Upper 1 » / « Séance 2 » en cycle, « Lundi » sinon. */
+export function nomSeance(prog, cle){
+  if(!estEnCycle(prog)) return (cle||'').charAt(0).toUpperCase() + (cle||'').slice(1);
+  const nom = prog.cycle.noms && String(prog.cycle.noms[cle] || '').trim();
+  return nom || `Séance ${CLES_JOURS.indexOf(cle) + 1}`;
+}
+/** Date de début telle que `date` tombe sur la position `pos` du cycle. */
+export function debutPourPosition(pos, date = new Date()){
+  return isoLocal(addDays(date, -pos));
+}
+
 /* ─────────────────────────── Analyse de texte ─────────────────────────── */
 
 export function norm(str){

@@ -284,6 +284,24 @@ réafficher), élargissement titres → résumés sous 5 résultats.
 ⚠️ Le site de veille de l'ami (`~/Desktop/Veille Prepa Physique`) utilise encore Europe PMC :
 il est cassé par la même panne et attend le même basculement.
 
+**Programme en cycle (16/11/2026)** — en plus du programme par jour de la semaine, un client peut
+être programmé **« par cycle »** : Upper 1 → Lower 1 → Upper 2 → Lower 2 → Upper 1… en boucle, sans
+tenir compte du jour de la semaine. Boutons « Par jour de la semaine / Par cycle » en tête de l'onglet
+Entraînement.
+- Stockage : `programs/{id}.cycle = { longueur, debut, noms }`. Les N premières cases (`lundi`,
+  `mardi`…) servent de Séance 1 … N : **aucune migration**, un programme sans `cycle` reste une semaine.
+- **Calculé sur le calendrier** (`cleSeance()` dans `commun.js`, seule implémentation, importée par
+  `coach.html`, `s.html` et `analyse.js`) : position = jours écoulés depuis `debut`, modulo N. Le coach et
+  le client voient donc la même séance pour une date donnée, sans écriture en base. Une séance ratée
+  ne décale pas le cycle (choix assumé : simple et prévisible).
+- « Aujourd'hui, le client fait » recalcule `debut` ; changer la longueur garde la séance du jour à sa place.
+- Une case vide = jour de repos **dans** le cycle. Réduire le cycle ne supprime rien : les cases au-delà
+  sont gardées de côté et signalées. Intervertir deux séances (vue d'ensemble) déplace aussi leur nom.
+- Vue d'ensemble : séries, séances et fréquences sont des **moyennes ramenées à 7 jours** (× 7/N) ;
+  l'alerte « deux jours d'affilée » compare aussi la dernière séance avec la première.
+- Côté client : le bandeau affiche le nom de la séance sous chaque date ; la séance envoyée porte
+  `sessions.seance` (« Upper 1 »), repris dans l'historique du coach. Aucune règle Firestore à changer.
+
 ## 8. La suite
 
 - Suggestion de charge à partir du RPE, quand il y aura assez de clients.

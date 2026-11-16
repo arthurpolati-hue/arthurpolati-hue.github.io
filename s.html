@@ -663,7 +663,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
-         parseSetCount, parseRestSeconds, nombreDe } from "./commun.js";
+         parseSetCount, parseRestSeconds, nombreDe, estEnCycle, cleSeance, nomSeance } from "./commun.js";
 import { lienParrainage, texteInvitation } from "./parrainage.js";
 import { formatDe, resumeBloc, phasesDuBloc } from "./formats.js";
 injecterStylesViz();
@@ -724,6 +724,12 @@ function todayKey(){
   const found = DAYS.find(([k]) => isoLocal(WEEK_DATES[k]) === TODAY_ISO);
   return found ? found[0] : 'lundi';
 }
+
+// Séance prévue à la date d'un jour du bandeau. Semaine fixe : la case du même jour.
+// Programme en cycle : la séance du cycle qui tombe ce jour-là (calcul partagé avec
+// le coach, dans commun.js), quel que soit le jour de la semaine.
+function progDuJour(key){ return program[cleSeance(program, WEEK_DATES[key])] || {}; }
+function nomDuJour(key){ return nomSeance(program, cleSeance(program, WEEK_DATES[key])); }
 
 function fmtClock(sec){
   const s = Math.max(0, sec);
@@ -1212,14 +1218,14 @@ function renderWeekStrip(){
   wrap.innerHTML = '';
   const tk = todayKey();
   DAYS.forEach(([key,label])=>{
-    const dayData = program[key] || {};
+    const dayData = progDuJour(key);
     const isRest = !dayData.exercises || dayData.exercises.length === 0;
     const pill = document.createElement('button');
     pill.type = 'button';
     pill.className = 'day-pill' + (key===tk ? ' today' : '') + (key===selectedDay ? ' active' : '') + (isRest ? ' rest' : '');
     pill.innerHTML = `<div class="dname">${label}</div>`
       + `<div class="dnum">${WEEK_DATES[key].getDate()}</div>`
-      + `<div class="dtag">${isRest ? 'Repos' : 'Séance'}</div>`
+      + `<div class="dtag">${isRest ? 'Repos' : (estEnCycle(program) ? escapeHtml(nomDuJour(key).slice(0, 8)) : 'Séance')}</div>`
       + (doneDays.has(key) ? '<span class="flag">✓</span>' : '');
     pill.addEventListener('click', ()=>{ selectedDay = key; renderWeekStrip(); renderDay(key); });
     wrap.appendChild(pill);
@@ -1234,9 +1240,10 @@ async function renderDay(key){
   wrap.innerHTML = '';
   $('#progressBar').classList.remove('show');
 
-  const dayData = program[key] || {};
+  const dayData = progDuJour(key);
   const isRest = !dayData.exercises || dayData.exercises.length === 0;
   const dateISO = isoLocal(WEEK_DATES[key]);
+  const enCycle = estEnCycle(program);
   const fillable = isFillable(key);
   const isYesterday = dateISO === YESTERDAY_ISO;
 
@@ -1251,7 +1258,7 @@ async function renderDay(key){
 
   if(!fillable){
     const past = dateISO < TODAY_ISO;
-    let html = `<div class="card"><h2 style="text-transform:capitalize;">${escapeHtml(key)} ${WEEK_DATES[key].getDate()}</h2>`;
+    let html = `<div class="card"><h2 style="text-transform:capitalize;">${escapeHtml(key)} ${WEEK_DATES[key].getDate()}${enCycle ? ' · ' + escapeHtml(nomDuJour(key)) : ''}</h2>`;
     if(dayData.echauffement && dayData.echauffement.trim()){
       html += `<div class="objectif-box"><b>Échauffement :</b><br>${escapeHtml(dayData.echauffement).replace(/\n/g,'<br>')}</div>`;
     }
@@ -1318,6 +1325,9 @@ async function renderDay(key){
   const draftRestored = restoreDraft(draftKey, exercices, (n)=>{ notesGlobales = n; });
 
   let html = '';
+  if(enCycle){
+    html += `<div class="card" style="padding:12px 18px;"><h2 style="margin:0;">${escapeHtml(nomDuJour(key))}</h2></div>`;
+  }
   if(isYesterday){
     html += `<div class="banner banner-warn">⏳ <b>Rattrapage</b> — tu remplis la séance d'hier (${escapeHtml(key)} ${WEEK_DATES[key].getDate()}). Après aujourd'hui, elle ne sera plus modifiable.</div>`;
   }
@@ -1407,6 +1417,8 @@ async function renderDay(key){
     try{
       const etat = await envoyer(setDoc(doc(db, 'sessions', sessionId), {
         clientId, clientName, date: dateISO, day: key,
+        // Programme en cycle : le nom de la séance faite (« Upper 1 »), lu par l'historique du coach.
+        ...(enCycle ? { seance: nomDuJour(key) } : {}),
         echauffement: dayData.echauffement || '',
         exercises: dayData.exercises,
         status: 'completed',
@@ -1773,7 +1785,7 @@ $$('.maintab').forEach(b=>{
 // envoyées. Aucune analyse de performance — c'est le travail du coach.
 function majEncouragement(){
   const prevus = DAYS.filter(([k])=>{
-    const d = program[k] || {};
+    const d = progDuJour(k);
     return d.exercises && d.exercises.length > 0;
   });
   if(prevus.length === 0) return;
