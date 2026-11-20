@@ -302,6 +302,12 @@ Boutons « Par jour de la semaine / Par cycle » en tête de l'onglet Entraînem
   les cases au-delà sont gardées de côté et signalées. Intervertir deux séances déplace aussi leur nom.
 - Côté client : aujourd'hui (et hier, en rattrapage, sauf si aujourd'hui est déjà envoyé) affichent la
   séance suivante ; un jour passé affiche la séance faite ; un jour à venir annonce la prochaine.
+- **Séance oubliée (20/11/2026)** : une séance faite mais pas envoyée bloquait le client dessus (l'app
+  la reproposait sans fin, seul le coach pouvait recaler). Sous le titre de la séance, « Pas la bonne
+  séance ? » laisse le client choisir celle qu'il fait vraiment (`choixCycle` dans `s.html`, en
+  mémoire jusqu'à l'envoi) ; le `seanceCle` envoyé est le choix, la suite repart de là. Le brouillon
+  local est propre à chaque séance (`ard:draft:{session}:{clé}`), sinon deux séances qui partagent un
+  exercice se repassaient leurs saisies.
 - Vue d'ensemble : chiffres **par tour de cycle** (on ne sait pas combien de séances tombent dans une
   semaine) ; l'alerte « même groupe » compare les séances qui se suivent, la dernière avec la première.
 - Aucune règle Firestore à changer : `seanceCle` est un champ de plus dans `sessions`.

@@ -161,6 +161,11 @@
     border-radius:10px;padding:13px 10px;font-weight:700;font-size:0.9rem;cursor:pointer;
     font-family:'Work Sans',sans-serif;}
   .coach-opt.on{background:var(--blue-dim);border-color:var(--blue);color:var(--blue-soft);}
+  /* ---- Cycle : choisir une autre séance ---- */
+  .cycle-choix{margin-top:8px;}
+  .cycle-choix summary{cursor:pointer;color:var(--blue-soft);font-size:0.86rem;}
+  .cycle-opts{display:flex;flex-wrap:wrap;gap:8px;}
+  .cycle-opts .coach-opt{flex:1 1 40%;padding:10px 8px;}
 
   /* ---- Ressenti / réussite en boutons ---- */
   .rpe-aide{font-size:0.72rem;color:var(--fog);line-height:1.45;margin:0 0 12px;}
@@ -664,7 +669,7 @@ import { courbe, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle } from "./bilan.js";
 import { creerIcs, telechargerIcs, lienGoogleAgenda, fmtJourLong,
          parseSetCount, parseRestSeconds, nombreDe, estEnCycle, cleSeance, nomSeance,
-         seanceCycle, msDe } from "./commun.js";
+         seanceCycle, seancesDuCycle, msDe } from "./commun.js";
 import { lienParrainage, texteInvitation } from "./parrainage.js";
 import { formatDe, resumeBloc, phasesDuBloc } from "./formats.js";
 injecterStylesViz();
@@ -732,8 +737,13 @@ function todayKey(){
 // commun.js). Elle s'affiche aujourd'hui (et hier, en rattrapage) ; un jour passé
 // montre la séance faite ce jour-là, un jour à venir n'en montre aucune.
 let sessionsCycle = [];          // { date, seanceCle, completedAt } des dernières semaines
+// Séance choisie à la main par le client pour un jour remplissable (date ISO -> clé) :
+// une séance faite sans être envoyée bloquait le cycle sur elle. Le client prend
+// celle qu'il fait vraiment ; une fois envoyée, la suite repart de là.
+const choixCycle = {};
 function cleCycleDu(key){
   const iso = isoLocal(WEEK_DATES[key]);
+  if(choixCycle[iso] && seancesDuCycle(program).includes(choixCycle[iso])) return choixCycle[iso];
   const faite = sessionsCycle.find(s => s.date === iso && s.seanceCle);
   if(faite) return seanceCycle(program, sessionsCycle, iso);
   if(iso > TODAY_ISO || iso < YESTERDAY_ISO) return null;
@@ -1380,7 +1390,9 @@ async function renderDay(key){
     };
   });
 
-  const draftKey = `ard:draft:${sessionId}`;
+  // En cycle, le brouillon dépend aussi de la séance : deux séances qui partagent un
+  // exercice ne doivent pas se repasser leurs saisies quand le client change de séance.
+  const draftKey = enCycle ? `ard:draft:${sessionId}:${cleCycleDu(key)}` : `ard:draft:${sessionId}`;
   let notesGlobales = existing ? (existing.notesGlobales||'') : '';
   // Séance faite en présentiel avec le coach : sert à décompter le forfait côté coach.
   // Par défaut NON : la plupart des séances se font seul, et une case cochée par erreur
@@ -1390,7 +1402,17 @@ async function renderDay(key){
 
   let html = '';
   if(enCycle){
-    html += `<div class="card" style="padding:12px 18px;"><h2 style="margin:0;">${escapeHtml(nomDuJour(key))}</h2></div>`;
+    const cleDuJour = cleCycleDu(key);
+    const autres = seancesDuCycle(program);
+    html += `<div class="card" style="padding:12px 18px;"><h2 style="margin:0;">${escapeHtml(nomDuJour(key))}</h2>`;
+    if(autres.length > 1){
+      html += `<details class="cycle-choix"><summary>Pas la bonne séance ?</summary>
+        <p class="sub" style="margin:8px 0 10px;">Tu as fait une séance sans l'envoyer ? Choisis celle que tu fais aujourd'hui : la suite reprendra à partir d'elle.</p>
+        <div class="cycle-opts">${autres.map(k =>
+          `<button type="button" class="coach-opt${k === cleDuJour ? ' on' : ''}" data-cycle="${escapeHtml(k)}">${escapeHtml(nomSeance(program, k))}</button>`).join('')}</div>
+      </details>`;
+    }
+    html += `</div>`;
   }
   if(isYesterday){
     html += `<div class="banner banner-warn">⏳ <b>Rattrapage</b> — tu remplis la séance d'hier (${escapeHtml(key)} ${WEEK_DATES[key].getDate()}). Après aujourd'hui, elle ne sera plus modifiable.</div>`;
@@ -1427,6 +1449,12 @@ async function renderDay(key){
     <div class="error-msg" id="errorMsg"></div>
   </form>`;
   wrap.innerHTML = html;
+
+  $$('[data-cycle]').forEach(b => b.addEventListener('click', ()=>{
+    if(b.dataset.cycle === cleCycleDu(key)) return;
+    choixCycle[dateISO] = b.dataset.cycle;
+    renderWeekStrip(); renderDay(key);
+  }));
 
   if(draftRestored){
     $('#clearDraftBtn').addEventListener('click', ()=>{
