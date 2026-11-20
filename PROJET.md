@@ -24,7 +24,8 @@ Arthur Polati, coach sportif indépendant (ARD Coaching), et ses clients.
 | Site | https://arthurpolati-hue.github.io |
 | Espace coach | `/coach.html` — connexion Firebase (email + mot de passe) |
 | Règles Firestore | https://console.firebase.google.com/project/ard-coaching/firestore/databases/-default-/rules |
-| Copie des règles | `site/firestore.rules` (la console reste la source de vérité) |
+| Copie des règles | `site/firestore.rules` — **identique aux règles en ligne depuis le 20/11/2026** |
+| Publier les règles | Firebase CLI (`/opt/homebrew/bin/firebase`, compte connecté le 20/11/2026) depuis `Coaching VSCODE/firebase/` (hors du dépôt) : `cp ../site/firestore.rules . && firebase deploy --only firestore:rules`. Avant, relire les règles en ligne (API firebaserules, `releases/cloud.firestore`) et comparer |
 | GitHub CLI | `/opt/homebrew/bin/gh` (hors PATH). Build Pages bloqué : `gh api -X POST repos/arthurpolati-hue/arthurpolati-hue.github.io/pages/builds` |
 
 Projet Firebase `ard-coaching`, plan gratuit (Spark) : **pas de Storage, pas de notifications push,
@@ -60,8 +61,10 @@ reste (lister, supprimer, relire les photos).
 ## 5. Règles de travail (à respecter)
 
 1. **Ne jamais pousser en ligne sans un « go » explicite d'Arthur.**
-2. **Règles Firestore** : toujours lui donner le **texte complet à coller** (jamais un extrait), avec
-   le lien direct vers la console. C'est lui qui publie.
+2. **Règles Firestore** : publiées par Claude avec la Firebase CLI (la console plante sur le Mac
+   d'Arthur), **après** avoir comparé avec les règles en ligne. Connexion expirée : `firebase login
+   --no-localhost` dans le terminal d'Arthur, il valide sur son téléphone et colle ici l'adresse
+   `localhost:9005/...` affichée, que Claude ouvre avec `curl` sur le Mac.
 3. **Pas de vert** dans l'interface : direction artistique bleue.
 4. **Aucun chiffre inventé** dans les synthèses scientifiques : lire le résumé complet de l'étude,
    donner les conditions et les limites, signaler les désaccords entre études.
@@ -338,6 +341,10 @@ Boutons « Par jour de la semaine / Par cycle » en tête de l'onglet Entraînem
 - ⚠️ **Open Food Facts (étape 2)** : l'API produit par code-barres renvoie bien
   `Access-Control-Allow-Origin: *` (testé le 20/11/2026) ; **leur recherche par nom
   (search.openfoodfacts.org) ne le renvoie pas** → inutilisable depuis la page, d'où Ciqual pour la recherche.
+- ⚠️ **Règles en ligne en retard (découvert le 20/11/2026)** : la console était restée à la version du
+  17/09 ; l'ajout `parrainId`/`parrainNom` d'octobre n'avait jamais été publié, donc **les demandes de
+  bilan venues d'un lien de parrainage étaient refusées** entre le 05/10 et le 20/11. Corrigé par le
+  déploiement CLI du 20/11. Leçon : après chaque changement de règles, relire celles en ligne.
 - `alimentation-client.js` et `alimentation-coach.js` n'importent pas Firebase : les pages leur passent
   leurs fonctions, ce qui garde la démo isolée. `demo/build.sh` copie ces fichiers et `ciqual.json`.
 - Dans coach.html, `input[type=number]` n'a pas de style global (fond blanc) : champs texte + `inputmode`.
