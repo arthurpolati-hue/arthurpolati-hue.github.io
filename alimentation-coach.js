@@ -11,7 +11,8 @@
 
    Pas d'import Firebase : coach.html passe ses fonctions (même principe que s.html).
 */
-import { REPAS, AFFICHAGES, totauxJour, totauxRepas, valeursLigne, fmt, lireNombre, objectifsDe } from './alimentation.js';
+import { REPAS, AFFICHAGES, ACTIVITES, AJUSTEMENT_OBJECTIF, besoins, totauxJour, totauxRepas, valeursLigne,
+         fmt, lireNombre, objectifsDe } from './alimentation.js';
 import { escapeHtml as esc, isoLocal, addDays, fmtJourLong } from './commun.js';
 
 let ctx = null;
@@ -30,6 +31,7 @@ export async function ouvrirAlimentationCoach(cl){
   client = cl;
   const token = ++ouvertureToken;
   const nu = client.nutrition || {};
+  const pr = nu.profil || {};
   const pane = $('#paneAlimentation');
   pane.innerHTML = `
     <div class="card">
@@ -49,6 +51,33 @@ export async function ouvrirAlimentationCoach(cl){
         <div class="field"><label>Lipides (g)</label><input type="text" inputmode="decimal" id="nuL" value="${nu.l || ''}"></div>
       </div>
       <p class="sub" id="nuCoherence" style="margin:0 0 12px;font-size:0.8rem;"></p>
+      <details class="nu-calc" id="nuCalc" ${pr.sexe ? 'open' : ''}>
+        <summary>Calculer à partir de son profil</summary>
+        <div class="row">
+          <div class="field"><label>Sexe</label><select id="nuSexe"><option value="">—</option>
+            <option value="f" ${pr.sexe === 'f' ? 'selected' : ''}>Femme</option><option value="h" ${pr.sexe === 'h' ? 'selected' : ''}>Homme</option></select></div>
+          <div class="field"><label>Année de naissance</label><input type="text" inputmode="numeric" id="nuNaiss" value="${pr.naissance || ''}" placeholder="ex. 1994"></div>
+          <div class="field"><label>Taille (cm)</label><input type="text" inputmode="decimal" id="nuTaille" value="${pr.taille || ''}"></div>
+          <div class="field"><label>Poids (kg)</label><input type="text" inputmode="decimal" id="nuPoids" value="${pr.poids || ''}"></div>
+        </div>
+        <p class="sub" id="nuPoidsInfo" style="margin:-4px 0 10px;font-size:0.76rem;"></p>
+        <div class="row">
+          <div class="field" style="flex:2 1 220px;"><label>Activité</label><select id="nuActivite">
+            ${ACTIVITES.map(([v, l]) => `<option value="${v}" ${String(pr.activite || '1.55') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+          <div class="field"><label>Ajustement (%)</label><input type="text" inputmode="decimal" id="nuAjust" value="${pr.ajust ?? AJUSTEMENT_OBJECTIF[client.objectif] ?? 0}"></div>
+          <div class="field"><label>Protéines (g/kg)</label><input type="text" inputmode="decimal" id="nuGkg" value="${pr.protGkg ?? 1.6}"></div>
+          <div class="field"><label>Lipides (% kcal)</label><input type="text" inputmode="decimal" id="nuLip" value="${pr.lipPct ?? 30}"></div>
+        </div>
+        <div id="nuRes" class="nu-res"></div>
+        <button class="btn btn-ghost btn-sm" id="nuReporter" type="button" disabled>Reporter dans les objectifs</button>
+        <p class="sub nu-ref">Métabolisme de repos : équation de <b>Mifflin-St Jeor</b> (1990), établie sur 498 adultes en bonne santé
+        de 19 à 78 ans ; elle explique environ 70 % des écarts mesurés (R² 0,71), une erreur individuelle reste possible.
+        Multiplicateurs d'activité : valeurs usuelles, approximatives. Protéines : au-delà d'environ <b>1,6 g/kg/j</b>, pas de
+        gain de masse maigre supplémentaire en musculation (Morton 2018, méta-analyse de 49 essais) ; l'ISSN (2017) indique
+        1,4 à 2,0 g/kg/j pour la plupart des sportifs, 2,3 à 3,1 g/kg/j en restriction calorique chez des pratiquants entraînés.
+        L'ajustement (−15 % perte, +10 % masse par défaut) et la part des lipides sont <b>tes réglages</b>, pas des références.
+        Le reste des calories va aux glucides.</p>
+      </details>
       <p class="sub" style="margin:0 0 12px;font-size:0.8rem;">Tous les objectifs sont facultatifs : sans eux, le client voit
       seulement ses totaux. Dépasser un objectif n'affiche jamais d'alerte chez lui.</p>
       <button class="btn btn-ghost btn-sm" id="nuSave" type="button">Enregistrer</button>
@@ -91,6 +120,11 @@ export async function ouvrirAlimentationCoach(cl){
 
   ['#nuKcal', '#nuP', '#nuG', '#nuL'].forEach(s => $(s).addEventListener('input', coherence));
   coherence();
+  ['#nuSexe', '#nuNaiss', '#nuTaille', '#nuPoids', '#nuActivite', '#nuAjust', '#nuGkg', '#nuLip']
+    .forEach(s => { $(s).addEventListener('input', calculer); $(s).addEventListener('change', calculer); });
+  $('#nuReporter').addEventListener('click', reporter);
+  calculer();
+  dernierPoids(token);
   $('#nuSave').addEventListener('click', enregistrerReglages);
   $('#nuPlus').addEventListener('click', () => chargerJours(7));
   $('#nuAPour').addEventListener('change', () => { $('#nuAPortion').style.display = $('#nuAPour').value === 'portion' ? '' : 'none'; });
@@ -115,11 +149,68 @@ function coherence(){
     + (k ? (Math.abs(total - k) > k * 0.05 ? ` — écart de ${fmt(total - k)} kcal avec l'objectif calories.` : ', cohérent avec l\'objectif.') : '.');
 }
 
+/* ─────────────────────────── Calcul des besoins ─────────────────────────── */
+
+function profilSaisi(){
+  const v = s => lireNombre($(s).value);
+  const naissance = v('#nuNaiss');
+  return {
+    sexe: $('#nuSexe').value, naissance: naissance ? Math.round(naissance) : null,
+    taille: v('#nuTaille'), poids: v('#nuPoids'), activite: $('#nuActivite').value,
+    protGkg: v('#nuGkg'), lipPct: v('#nuLip'),     // l'ajustement (peut être négatif) est lu à part
+  };
+}
+
+let dernierCalcul = null;
+function calculer(){
+  const pr = profilSaisi();
+  const age = pr.naissance ? new Date().getFullYear() - pr.naissance : null;
+  const ajust = parseFloat(String($('#nuAjust').value).replace(',', '.').replace('−', '-'));
+  const r = besoins({ ...pr, age, activite: parseFloat(pr.activite), ajust: isFinite(ajust) ? ajust : 0,
+    protGkg: pr.protGkg ?? 1.6, lipPct: pr.lipPct ?? 30 });
+  dernierCalcul = r;
+  $('#nuReporter').disabled = !r;
+  $('#nuRes').innerHTML = r
+    ? `Métabolisme de repos <b>${fmt(r.mb)} kcal</b> · dépense estimée <b>${fmt(r.depense)} kcal</b>
+       (${age} ans)<br>→ objectif <b>${fmt(Math.round(r.kcal / 10) * 10)} kcal</b> · P <b>${fmt(r.p)} g</b>
+       · G <b>${fmt(r.g)} g</b> · L <b>${fmt(r.l)} g</b>`
+    : `<span style="color:var(--fog)">Renseigne sexe, année de naissance, taille et poids.</span>`;
+}
+
+function reporter(){
+  const r = dernierCalcul;
+  if(!r) return;
+  $('#nuKcal').value = Math.round(r.kcal / 10) * 10;
+  $('#nuP').value = Math.round(r.p);
+  $('#nuG').value = Math.round(r.g);
+  $('#nuL').value = Math.round(r.l);
+  coherence();
+  ctx.showToast('Reporté — pense à enregistrer.');
+}
+
+// Dernière pesée du client (measures/{id}.entries), proposée si le champ poids est vide.
+async function dernierPoids(token){
+  let e = null;
+  try{
+    const s = await ctx.getDoc(ctx.doc(ctx.db, 'measures', client.id));
+    if(s.exists()) e = (s.data().entries || []).filter(x => typeof x.poids === 'number')
+      .sort((a, b) => (a.date < b.date ? 1 : -1))[0] || null;
+  } catch(err){ /* mesures facultatives */ }
+  if(token !== ouvertureToken || !e) return;
+  const jj = `${e.date.slice(8, 10)}/${e.date.slice(5, 7)}/${e.date.slice(0, 4)}`;
+  if(!$('#nuPoids').value){ $('#nuPoids').value = fmt(e.poids, 1); calculer(); }
+  $('#nuPoidsInfo').textContent = `Dernière pesée : ${fmt(e.poids, 1)} kg le ${jj}.`;
+}
+
 async function enregistrerReglages(){
   const num = s => { const v = lireNombre($(s).value); return v === null ? null : Math.round(v); };
+  const pr = profilSaisi();
+  const ajust = parseFloat(String($('#nuAjust').value).replace(',', '.').replace('−', '-'));
   const nutrition = {
     actif: $('#nuActif').checked, affichage: $('#nuAffichage').value,
     kcal: num('#nuKcal'), p: num('#nuP'), g: num('#nuG'), l: num('#nuL'),
+    profil: { sexe: pr.sexe || '', naissance: pr.naissance, taille: pr.taille, poids: pr.poids,
+      activite: pr.activite, ajust: isFinite(ajust) ? ajust : null, protGkg: pr.protGkg, lipPct: pr.lipPct },
   };
   ctx.spinner(true);
   try{
@@ -233,7 +324,7 @@ function detailJour(repas){
     return `<div class="nu-rep"><b>${nom}</b> <span>${fmt(t.kcal)} kcal</span></div>`
       + lignes.map(li => {
         const v = valeursLigne(li);
-        const src = li.src === 'manuel' ? ' <em>(saisi à la main)</em>' : '';
+        const src = li.src === 'manuel' ? ' <em>(saisi à la main)</em>' : (li.src === 'off' ? ' <em>(code-barres)</em>' : '');
         return `<div class="nu-al">${esc(li.nom)}${src} — ${fmt(li.q)} g · ${fmt(v.kcal)} kcal · P ${fmt(v.p, 1)} · G ${fmt(v.g, 1)} · L ${fmt(v.l, 1)}</div>`;
       }).join('');
   }).join('');
@@ -360,6 +451,11 @@ function injecterStyles(){
   .nu-item-nom small{display:block;font-weight:400;color:var(--fog);font-size:0.76rem;margin-top:2px;}
   .nu-item-x{background:none;border:none;color:var(--fog);cursor:pointer;font-size:0.95rem;padding:6px;}
   .nu-form{margin-top:14px;padding-top:14px;border-top:1px solid var(--steel-line);}
+  .nu-calc{margin:0 0 14px;padding:12px 14px;border:1px solid var(--steel-line);border-radius:10px;}
+  .nu-calc summary{cursor:pointer;font-weight:700;font-size:0.88rem;color:var(--blue);}
+  .nu-calc[open] summary{margin-bottom:12px;}
+  .nu-res{font-size:0.86rem;line-height:1.6;margin:2px 0 10px;}
+  .nu-ref{margin:12px 0 0 !important;font-size:0.74rem !important;line-height:1.5;}
   `;
   document.head.appendChild(s);
 }

@@ -230,10 +230,13 @@ function ouvrirSheet(html){
   document.body.style.overflow = 'hidden';
 }
 function fermerSheet(){
+  arreterCamera();
   $('#alSheet').classList.remove('show');
   document.body.style.overflow = '';
 }
-const nomRepas = k => (REPAS.find(r => r[0] === k) || [, ''])[1].toLowerCase();
+// « Ajouter au déjeuner », « Ajouter à la collation » ; « Retirer du dîner », « Retirer de la collation ».
+const A_REPAS  = { petitdej: 'au petit-déjeuner', dejeuner: 'au déjeuner', collation: 'à la collation', diner: 'au dîner' };
+const DE_REPAS = { petitdej: 'du petit-déjeuner', dejeuner: 'du déjeuner', collation: 'de la collation', diner: 'du dîner' };
 
 function ligneResultat(a, i){
   const info = avecChiffres() ? `${fmt(a.kcal)} kcal / ${a.portion ? esc(a.portion.nom) : '100 g'}` : '';
@@ -247,12 +250,14 @@ function ligneResultat(a, i){
 
 function ouvrirRecherche(repas){
   ouvrirSheet(`
-    <div class="al-sheet-h"><h2>Ajouter au ${esc(nomRepas(repas))}</h2><button type="button" class="al-x" id="alFermer" aria-label="Fermer">✕</button></div>
+    <div class="al-sheet-h"><h2>Ajouter ${A_REPAS[repas] || ''}</h2><button type="button" class="al-x" id="alFermer" aria-label="Fermer">✕</button></div>
+    <button type="button" class="al-scan-btn" id="alScanBtn">📷 Scanner un code-barres</button>
     <input type="text" id="alCherche" placeholder="Rechercher : riz, poulet, yaourt…" autocomplete="off" enterkeyhint="search">
     <div class="al-liste" id="alResultats"></div>
     <button type="button" class="al-manuel" id="alManuel">Pas trouvé ? Saisir à la main</button>`);
   $('#alFermer').addEventListener('click', fermerSheet);
   $('#alManuel').addEventListener('click', () => ouvrirManuel(repas));
+  $('#alScanBtn').addEventListener('click', () => ouvrirScan(repas));
   const input = $('#alCherche');
   let courants = [];
   const afficher = () => {
@@ -299,7 +304,7 @@ function ouvrirQuantite(repas, a, existante){
         <button type="button" class="coach-opt" data-q="${portion.g * 2}">2 × ${esc(portion.nom)}</button></div>` : ''}
     ${chiffres ? `<p class="al-calc" id="alCalc"></p>` : ''}
     <button type="button" class="btn btn-blue btn-full" id="alValider">${existante ? 'Enregistrer' : 'Ajouter'}</button>
-    ${existante ? `<button type="button" class="al-manuel al-suppr" id="alSuppr">Retirer du ${esc(nomRepas(repas))}</button>` : ''}`);
+    ${existante ? `<button type="button" class="al-manuel al-suppr" id="alSuppr">Retirer ${DE_REPAS[repas] || ''}</button>` : ''}`);
   $('#alFermer').addEventListener('click', fermerSheet);
   const input = $('#alQ');
   const calc = () => {
@@ -334,10 +339,214 @@ function ouvrirQuantite(repas, a, existante){
   setTimeout(() => { input.focus(); input.select(); }, 50);
 }
 
-function ouvrirManuel(repas){
+/* ─────────────────────────────── Code-barres ─────────────────────────────── */
+// Lecture : BarcodeDetector quand le navigateur l'a (Chrome Android) ; sinon ZXing, chargé
+// seulement à l'ouverture du scan (Safari iOS n'a pas BarcodeDetector). Version figée et
+// empreinte SRI : un fichier modifié sur le CDN serait refusé.
+// Produit : Open Food Facts, API produit (CORS ouvert). Seul le numéro du code-barres part
+// chez eux, rien sur le client. Réponses gardées sur le téléphone (ard:off:{code}).
+const ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+const ZXING_SRI = 'sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB';
+const FORMATS_NATIFS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
+
+let zxingPromesse = null;
+function chargerZxing(){
+  if(window.ZXing) return Promise.resolve(window.ZXing);
+  if(!zxingPromesse){
+    zxingPromesse = new Promise((ok, ko) => {
+      const s = document.createElement('script');
+      s.src = ZXING_URL; s.integrity = ZXING_SRI; s.crossOrigin = 'anonymous';
+      s.onload = () => window.ZXing ? ok(window.ZXing) : ko(new Error('ZXing absent'));
+      s.onerror = () => { zxingPromesse = null; ko(new Error('ZXing non chargé')); };
+      document.head.appendChild(s);
+    });
+  }
+  return zxingPromesse;
+}
+
+/**
+ * Renvoie une fonction (canvas|video) => Promise<code|null>.
+ * `forcerZxing` : pour les tests (Chrome sur ordinateur a BarcodeDetector).
+ */
+// Un lecteur natif qui ne répond jamais (vu avec Chrome sans affichage) bloquerait le scan :
+// chaque appel est borné dans le temps, et on passe à ZXing si la détection ne démarre pas.
+const avecDelai = (p, ms, repli) => Promise.race([p, new Promise(r => setTimeout(() => r(repli), ms))]);
+
+export async function creerLecteur(forcerZxing = false){
+  if(!forcerZxing && 'BarcodeDetector' in window){
+    try{
+      const formats = await avecDelai(window.BarcodeDetector.getSupportedFormats(), 1500, []);
+      const ok = formats.filter(f => FORMATS_NATIFS.includes(f));
+      if(ok.length){
+        const det = new window.BarcodeDetector({ formats: ok });
+        const BLOQUE = Symbol('bloqué');
+        let lecteur = null, bloques = 0;
+        // Deux détections natives sans réponse d'affilée : on bascule sur ZXing pour de bon.
+        return async src => {
+          if(lecteur) return lecteur(src);
+          const r = await avecDelai(det.detect(src), 1500, BLOQUE);
+          if(r === BLOQUE){
+            if(++bloques >= 2) lecteur = await creerLecteur(true);
+            return null;
+          }
+          bloques = 0;
+          return r.length ? r[0].rawValue : null;
+        };
+      }
+    } catch(e){ /* repli sur ZXing */ }
+  }
+  const Z = await chargerZxing();
+  const hints = new Map();
+  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E]);
+  hints.set(Z.DecodeHintType.TRY_HARDER, true);
+  const lecteur = new Z.MultiFormatReader();
+  lecteur.setHints(hints);
+  const toile = document.createElement('canvas');
+  return async src => {
+    let c = src;
+    if(!(src instanceof HTMLCanvasElement)){
+      const w = src.videoWidth, h = src.videoHeight;
+      if(!w || !h) return null;
+      toile.width = w; toile.height = h;
+      toile.getContext('2d', { willReadFrequently: true }).drawImage(src, 0, 0, w, h);
+      c = toile;
+    }
+    try{
+      const bmp = new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(c)));
+      return lecteur.decodeWithState(bmp).getText();
+    } catch(e){ return null; }          // NotFoundException : rien dans cette image
+  };
+}
+
+let flux = null, boucle = null, scanToken = 0;
+function arreterCamera(){
+  scanToken++;                     // une ouverture de caméra encore en cours sera refermée à son arrivée
+  clearTimeout(boucle); boucle = null;
+  if(flux){ flux.getTracks().forEach(t => t.stop()); flux = null; }
+}
+
+function ouvrirScan(repas){
+  ouvrirSheet(`
+    <div class="al-sheet-h"><h2>Scanner un code-barres</h2><button type="button" class="al-x" id="alFermer" aria-label="Fermer">✕</button></div>
+    <div class="al-video"><video id="alVideo" playsinline muted autoplay></video><div class="al-viseur"></div></div>
+    <p class="al-info" id="alScanEtat">Ouverture de l'appareil photo…</p>
+    <label for="alCode">Ou tape les chiffres sous le code-barres</label>
+    <div class="al-qte"><input type="text" inputmode="numeric" id="alCode" maxlength="14" placeholder="ex. 3017620422003" style="max-width:none;font-size:1.05rem;">
+      <button type="button" class="btn btn-blue" id="alCodeOk">OK</button></div>
+    <button type="button" class="al-manuel" id="alRetour">Revenir à la recherche</button>`);
+  $('#alFermer').addEventListener('click', fermerSheet);
+  $('#alRetour').addEventListener('click', () => { arreterCamera(); ouvrirRecherche(repas); });
+  const valider = () => {
+    const code = $('#alCode').value.replace(/\D/g, '');
+    if(code.length >= 8){ arreterCamera(); chercherProduit(repas, code); }
+  };
+  $('#alCodeOk').addEventListener('click', valider);
+  $('#alCode').addEventListener('keydown', e => { if(e.key === 'Enter') valider(); });
+  demarrerCamera(repas);
+}
+
+async function demarrerCamera(repas){
+  const etat = t => { const e = $('#alScanEtat'); if(e) e.textContent = t; };
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    etat("Appareil photo indisponible ici : tape les chiffres du code-barres."); return;
+  }
+  let lire, f;
+  const token = scanToken;
+  try{
+    [f, lire] = await Promise.all([
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }),
+      creerLecteur(),
+    ]);
+  } catch(e){
+    console.warn('[ARD] Scan impossible', e);
+    if(token !== scanToken) return;
+    etat(e && e.name === 'NotAllowedError'
+      ? "L'accès à l'appareil photo a été refusé. Autorise-le dans les réglages du navigateur, ou tape les chiffres."
+      : "Impossible d'ouvrir le scan : tape les chiffres du code-barres.");
+    return;
+  }
+  const video = $('#alVideo');
+  if(token !== scanToken || !video){           // scan fermé ou relancé entre-temps
+    f.getTracks().forEach(t => t.stop()); return;
+  }
+  flux = f;
+  video.srcObject = flux;
+  try{ await video.play(); }catch(e){}
+  etat('Place le code-barres dans le cadre.');
+  const tour = async () => {
+    if(!flux || token !== scanToken) return;
+    const code = await lire(video).catch(() => null);
+    if(!flux || token !== scanToken) return;
+    if(code && /^\d{8,14}$/.test(code)){
+      if(navigator.vibrate) navigator.vibrate(60);
+      arreterCamera();
+      chercherProduit(repas, code);
+      return;
+    }
+    boucle = setTimeout(tour, 180);
+  };
+  tour();
+}
+
+const nb = v => { const x = Number(v); return isFinite(x) && x >= 0 ? x : null; };
+
+/** Produit Open Food Facts → aliment (valeurs pour 100 g), ou null s'il manque les calories. */
+export function alimentDepuisOff(code, p){
+  if(!p) return null;
+  const m = p.nutriments || {};
+  let kcal = nb(m['energy-kcal_100g']);
+  if(kcal === null && nb(m.energy_100g) !== null) kcal = m.energy_100g / 4.184;   // kJ → kcal
+  const nom = String(p.product_name_fr || p.product_name || '').trim();
+  const marque = String(p.brands || '').split(',')[0].trim();
+  const portion = nb(p.serving_quantity);
+  return {
+    nom: (nom || 'Produit ' + code) + (marque ? ' — ' + marque : ''), src: 'off', id: 'off' + code,
+    kcal, p: nb(m.proteins_100g) ?? 0, g: nb(m.carbohydrates_100g) ?? 0, l: nb(m.fat_100g) ?? 0,
+    ...(portion ? { portion: { nom: 'portion', g: portion } } : {}),
+  };
+}
+
+async function chercherProduit(repas, code){
+  ouvrirSheet(`
+    <div class="al-sheet-h"><h2>Code ${esc(code)}</h2><button type="button" class="al-x" id="alFermer" aria-label="Fermer">✕</button></div>
+    <p class="al-info" id="alOffEtat">Recherche du produit…</p>`);
+  $('#alFermer').addEventListener('click', fermerSheet);
+  const cle = 'ard:off:' + code;
+  let a = null;
+  try{ a = JSON.parse(localStorage.getItem(cle) || 'null'); }catch(e){}
+  let introuvable = false;
+  if(!a){
+    try{
+      const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`
+        + '?fields=code,product_name,product_name_fr,brands,nutriments,serving_quantity');
+      const d = await r.json();
+      if(d && d.status === 1){
+        a = alimentDepuisOff(code, d.product);
+        if(a && a.kcal !== null){ try{ localStorage.setItem(cle, JSON.stringify(a)); }catch(e){} }
+      } else introuvable = true;
+    } catch(e){
+      console.warn('[ARD] Open Food Facts injoignable', e);
+      const el = $('#alOffEtat');
+      if(el) el.innerHTML = `Impossible de joindre la base des produits (réseau ?). Réessaie, ou saisis l'aliment à la main.
+        <button type="button" class="al-manuel" id="alOffManuel">Saisir à la main</button>`;
+      $('#alOffManuel') && $('#alOffManuel').addEventListener('click', () => ouvrirManuel(repas));
+      return;
+    }
+  }
+  if(!$('#alOffEtat')) return;               // feuille fermée pendant la recherche
+  if(a && a.kcal !== null){ ouvrirQuantite(repas, a, null); return; }
+  $('#alOffEtat').innerHTML = (introuvable
+      ? "Ce produit n'est pas encore dans Open Food Facts."
+      : "Ce produit est connu, mais ses calories ne sont pas renseignées.")
+    + ` Recopie l'étiquette : ça prend 20 secondes.
+    <button type="button" class="btn btn-blue btn-full" id="alOffManuel" style="margin-top:14px;">Saisir à la main</button>`;
+  $('#alOffManuel').addEventListener('click', () => ouvrirManuel(repas, a ? a.nom : ''));
+}
+
+function ouvrirManuel(repas, nomDepart = ''){
   ouvrirSheet(`
     <div class="al-sheet-h"><h2>Saisir un aliment</h2><button type="button" class="al-x" id="alFermer" aria-label="Fermer">✕</button></div>
-    <div class="field"><label for="alMNom">Nom</label><input type="text" id="alMNom" placeholder="Ex. : barre protéinée chocolat"></div>
+    <div class="field"><label for="alMNom">Nom</label><input type="text" id="alMNom" placeholder="Ex. : barre protéinée chocolat" value="${esc(nomDepart)}"></div>
     <p class="al-info">Recopie l'étiquette, colonne <b>pour 100 g</b>. Seules les calories sont indispensables.</p>
     <div class="al-grille">
       <div class="field"><label for="alMK">Calories (kcal)</label><input type="text" inputmode="decimal" id="alMK"></div>
@@ -418,6 +627,12 @@ function injecterStyles(){
   .al-portions .coach-opt{padding:10px 6px;font-size:0.82rem;}
   .al-calc{font-size:0.86rem;color:var(--blue-soft);margin:0 0 14px;min-height:1.3em;}
   .al-grille{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;}
+  .al-scan-btn{width:100%;margin-bottom:10px;background:var(--blue-dim);border:1.5px solid var(--blue);border-radius:10px;
+    color:var(--blue-soft);font-weight:700;font-size:0.92rem;padding:12px;cursor:pointer;font-family:'Work Sans',sans-serif;}
+  .al-video{position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:12px;overflow:hidden;margin-bottom:10px;}
+  .al-video video{width:100%;height:100%;object-fit:cover;display:block;}
+  .al-viseur{position:absolute;left:10%;right:10%;top:32%;bottom:32%;border:2px solid var(--blue);border-radius:10px;
+    box-shadow:0 0 0 9999px rgba(0,0,0,0.35);pointer-events:none;}
   `;
   document.head.appendChild(s);
 }

@@ -349,9 +349,30 @@ Boutons « Par jour de la semaine / Par cycle » en tête de l'onglet Entraînem
   leurs fonctions, ce qui garde la démo isolée. `demo/build.sh` copie ces fichiers et `ciqual.json`.
 - Dans coach.html, `input[type=number]` n'a pas de style global (fond blanc) : champs texte + `inputmode`.
 
+**Alimentation — étape 2 (20/11/2026)** — scan de code-barres et calcul des besoins.
+- **Scan** (`alimentation-client.js`) : `BarcodeDetector` natif si présent (Chrome Android), sinon
+  **ZXing** (`@zxing/library@0.21.3`, jsDelivr, **SRI sha384**), chargé à l'ouverture du scan seulement.
+  Safari iOS n'a pas `BarcodeDetector`. Champ « tape les chiffres » toujours présent (caméra refusée).
+- ⚠️ Le `BarcodeDetector` de Chrome sans affichage ne répond jamais : chaque appel natif est borné
+  (1,5 s) et après deux silences on bascule sur ZXing. Un test ne peut donc valider que ZXing.
+- Produit : API produit Open Food Facts (`/api/v2/product/{code}.json`), valeurs pour 100 g, énergie en
+  kJ convertie si les kcal manquent, `serving_quantity` devient la portion. Mis en cache sur le téléphone
+  (`ard:off:{code}`). Absent ou sans calories → saisie à la main, nom pré-rempli. Ligne `src: 'off'`.
+  Les codes « bidon » existent souvent dans OFF (2000000000008 = un pecorino) : pour tester un produit
+  absent, 7777777777770 répondait « product not found » le 20/11/2026.
+- Confidentialité : seul le numéro part chez OFF ; image lue sur le téléphone. Page mise à jour (OFF et
+  jsDelivr ajoutés aux prestataires).
+- **Calcul des besoins** (fiche coach, « Calculer à partir de son profil », `besoins()` dans
+  `alimentation.js`) : Mifflin-St Jeor × activité × (1 + ajustement) ; protéines en g/kg, lipides en %
+  des calories, glucides = le reste. Références lues en entier (résumés PubMed, 20/11/2026) :
+  Mifflin 1990 (PMID 2305711, 498 adultes 19–78 ans, R² 0,71), Morton 2018 (PMID 28698222, 49 essais,
+  ~1,6 g/kg/j au-delà duquel pas de gain de masse maigre), ISSN Jäger 2017 (PMID 28642676, 1,4–2,0 g/kg/j ;
+  2,3–3,1 en restriction chez des entraînés). **Ajustement (−15 % perte, +10 % masse) et lipides 30 % :
+  des réglages, pas des références** — l'écran le dit. Multiplicateurs d'activité : usuels, approximatifs.
+- Profil gardé dans `clients.nutrition.profil` ; dernière pesée (`measures.entries`) proposée.
+  « Reporter dans les objectifs » remplit les champs, le coach enregistre lui-même.
+
 ## 8. La suite
 
-- **Alimentation, étape 2** : scan du code-barres (Open Food Facts, lecteur chargé à la demande, Safari
-  iOS n'ayant pas `BarcodeDetector`) et calcul automatique des besoins.
 - Suggestion de charge à partir du RPE, quand il y aura assez de clients.
 - Suppression automatique des données d'un client en pause depuis plus de 3 ans.

@@ -151,6 +151,47 @@ export function lireNombre(str){
   return isFinite(v) && v >= 0 ? v : null;
 }
 
+/* ─────────────────────────── Calcul des besoins ─────────────────────────── */
+// Outil du coach, jamais montré au client. Chaque réglage par défaut est modifiable.
+//
+// - Métabolisme de repos : Mifflin-St Jeor (Am J Clin Nutr 1990, PMID 2305711), établie sur
+//   498 adultes en bonne santé de 19 à 78 ans, poids normal ou obésité, calorimétrie indirecte ;
+//   R² = 0,71 : une erreur individuelle notable reste possible.
+//     homme = 10 × poids + 6,25 × taille − 5 × âge + 5 ; femme = … − 161
+// - Multiplicateurs d'activité : valeurs usuelles, approximatives (pas issues de Mifflin).
+// - Protéines par défaut 1,6 g/kg : au-delà d'environ 1,6 g/kg/j, pas de gain de masse maigre
+//   supplémentaire en musculation (Morton 2018, Br J Sports Med, PMID 28698222, 49 essais,
+//   adultes en bonne santé). L'ISSN (Jäger 2017, PMID 28642676) donne 1,4–2,0 g/kg/j pour la
+//   plupart des sportifs, et 2,3–3,1 g/kg/j en restriction calorique chez des pratiquants entraînés.
+// - Ajustement selon l'objectif et part des lipides : des RÉGLAGES du coach, pas des références.
+
+export const ACTIVITES = [
+  ['1.2',   'Sédentaire (peu ou pas de sport)'],
+  ['1.375', 'Légère (1 à 3 séances / semaine)'],
+  ['1.55',  'Modérée (3 à 5 séances / semaine)'],
+  ['1.725', 'Élevée (6 à 7 séances / semaine)'],
+  ['1.9',   'Très élevée (travail physique + sport)'],
+];
+/** Ajustement par défaut selon l'objectif du client (clients.objectif). Réglage, pas une référence. */
+export const AJUSTEMENT_OBJECTIF = { perte: -15, masse: 10, forme: 0 };
+
+/**
+ * p = { sexe: 'h'|'f', age, taille (cm), poids (kg), activite (multiplicateur),
+ *       ajust (%), protGkg, lipPct (% des calories) }
+ * Renvoie null si une donnée manque.
+ */
+export function besoins(p){
+  const { sexe, age, taille, poids, activite, ajust = 0, protGkg = 1.6, lipPct = 30 } = p || {};
+  if(!['h', 'f'].includes(sexe) || !(age > 0) || !(taille > 0) || !(poids > 0) || !(activite > 0)) return null;
+  const mb = 10 * poids + 6.25 * taille - 5 * age + (sexe === 'h' ? 5 : -161);
+  const depense = mb * activite;
+  const kcal = depense * (1 + n(ajust) / 100);
+  const pr = n(protGkg) * poids;
+  const li = kcal * n(lipPct) / 100 / 9;
+  const gl = Math.max(0, (kcal - pr * 4 - li * 9) / 4);
+  return { mb, depense, kcal, p: pr, l: li, g: gl };
+}
+
 /** Objectifs exploitables (au moins un nombre), ou null. */
 export function objectifsDe(nutrition){
   if(!nutrition) return null;
