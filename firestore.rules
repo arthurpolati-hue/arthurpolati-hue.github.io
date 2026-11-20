@@ -70,6 +70,23 @@ service cloud.firestore {
       allow delete: if coach();
     }
 
+    // Journal alimentaire : un document par client et par jour, "{clientId}_{YYYY-MM-DD}".
+    // Même modèle que les séances : le lien client le lit et l'écrit par son ID, sans
+    // jamais pouvoir lister ; le coach seul peut lister et supprimer.
+    match /alimentation/{docId} {
+      allow get:  if true;
+      allow list: if coach();
+      allow create, update: if coach() || clientExiste(clientDeLId(docId));
+      allow delete: if coach();
+    }
+
+    // Aliments et recettes du coach (un seul document `aliments/coach`) : lus par
+    // tous les liens clients pour la recherche, écrits par le coach uniquement.
+    match /aliments/{docId} {
+      allow get:  if true;
+      allow list, write: if coach();
+    }
+
     // Poids et mensurations : un seul document par client, tout l'historique dedans.
     match /measures/{clientId} {
       allow get:  if true;                  // le client voit sa propre courbe de poids
@@ -112,7 +129,8 @@ service cloud.firestore {
       allow list: if coach();
       allow create, update: if coach()
         || (clientExiste(clientId)
-            && request.resource.data.keys().hasOnly(['clientId','suivi','sante','santeRetire','santeTraite','version']));
+            && request.resource.data.keys().hasOnly(['clientId','suivi','sante','santeRetire','santeTraite','version',
+                                                    'alimentation','alimentationRetire']));
       allow delete: if coach();
     }
 

@@ -830,6 +830,7 @@
       <div class="subtabs" id="subtabs">
         <button class="subtab active" type="button" data-pane="entrainement">Entraînement</button>
         <button class="subtab" type="button" data-pane="resultats">Résultats</button>
+        <button class="subtab" type="button" data-pane="alimentation">Alimentation</button>
         <button class="subtab" type="button" data-pane="fiche">Fiche &amp; lien</button>
       </div>
 
@@ -991,6 +992,9 @@
       </div>
 
       <!-- ======================= FICHE & LIEN ======================= -->
+      <!-- ======================= ALIMENTATION (alimentation-coach.js) ======================= -->
+      <div id="paneAlimentation" style="display:none;"></div>
+
       <div id="paneFiche" style="display:none;">
         <div class="card" id="linkResult">
           <h2>Lien fixe du client</h2>
@@ -1096,6 +1100,7 @@ import {
   query, where, orderBy, limit, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { EXERCICES } from "./exercices.js";
+import { initAlimentationCoach, ouvrirAlimentationCoach } from "./alimentation-coach.js";
 import { courbe, mini, verdict, estim1RM, injecterStylesViz, VIZ_COLORS, MESURES } from "./viz.js";
 import { bilanCycle, bilanTexte, OBJECTIFS } from "./bilan.js";
 import { apercuSemaine, fmtDuree, GROUPES, GROUPES_PERSO, groupeDe, groupeCatalogue,
@@ -1128,6 +1133,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+initAlimentationCoach({ db, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, query, collection, where,
+  showToast: (m, e) => showToast(m, e), spinner: on => spinner(on) });
 
 const $ = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -1339,6 +1346,8 @@ function switchPane(nom){
   $('#paneEntrainement').style.display = nom === 'entrainement' ? 'block' : 'none';
   $('#paneResultats').style.display    = nom === 'resultats'    ? 'block' : 'none';
   $('#paneFiche').style.display        = nom === 'fiche'        ? 'block' : 'none';
+  $('#paneAlimentation').style.display = nom === 'alimentation' ? 'block' : 'none';
+  if(nom === 'alimentation') ouvrirAlimentationCoach(currentClient);
   // La barre d'enregistrement ne concerne que le programme.
   $('#savebar').classList.toggle('show', nom === 'entrainement');
   if(nom === 'resultats') loadResultats();
@@ -2392,6 +2401,7 @@ async function refsDuClient(id, { avatar = true, seulementSante = false } = {}){
   ajouter('measures', id);
   if(seulementSante) return [...refs.values()];
   await parChamp('sessions');
+  await parChamp('alimentation');
   // Bilans : rattachés au client, ou encore seulement au prospect dont il est issu.
   await parChamp('bilans');
   const psBilan = await getDocs(query(collection(db, 'prospects'), where('clientId', '==', id)));
@@ -2418,7 +2428,7 @@ async function effacerRefs(refs){
 
 $('#deleteClientBtn').addEventListener('click', async ()=>{
   const name = currentClient.name || '';
-  if(!confirm(`Supprimer définitivement ${name} et TOUTES ses données ?\n\nFiche, programme, bilan, séances, mesures, photos, rendez-vous et consentements sont effacés, et son lien cesse de fonctionner. Sa fiche prospect et ses ventes à l'unité sont anonymisées (tes taux et ton CA restent justes).\n\nC'est irréversible : exporte ses données avant si tu veux en garder une trace.`)) return;
+  if(!confirm(`Supprimer définitivement ${name} et TOUTES ses données ?\n\nFiche, programme, bilan, séances, journal alimentaire, mesures, photos, rendez-vous et consentements sont effacés, et son lien cesse de fonctionner. Sa fiche prospect et ses ventes à l'unité sont anonymisées (tes taux et ton CA restent justes).\n\nC'est irréversible : exporte ses données avant si tu veux en garder une trace.`)) return;
   const typed = window.prompt(`Pour confirmer, retape le nom exact du client :`, '');
   if((typed||'').trim() !== name.trim()){ showToast("Nom non confirmé — rien n'a été supprimé.", true); return; }
   spinner(true);
@@ -2487,7 +2497,7 @@ const nomSlug = t => norm(t || 'client').replace(/[^a-z0-9]+/g, '-').replace(/^-
 
 $('#exportAllBtn').addEventListener('click', async ()=>{
   const avecPhotos = $('#exportPhotos').checked;
-  const noms = ['clients', 'programs', 'bilans', 'sessions', 'measures', 'rdv', 'reprises', 'prospects', 'ventes', 'taches', 'factures', 'reglages', 'consentements'];
+  const noms = ['clients', 'programs', 'bilans', 'sessions', 'alimentation', 'aliments', 'measures', 'rdv', 'reprises', 'prospects', 'ventes', 'taches', 'factures', 'reglages', 'consentements'];
   if(avecPhotos) noms.push('photos');
   spinner(true);
   $('#exportInfo').textContent = 'Export en cours…';
@@ -2522,7 +2532,7 @@ $('#exportClientBtn').addEventListener('click', async ()=>{
     const lectures = await Promise.allSettled([
       ...COLLECTIONS_PAR_ID.map(coll => getDoc(doc(db, coll, c.id)).then(d => { if(d.exists()) ranger(coll, d.id, d.data()); })),
       getDoc(doc(db, 'photos', avatarId(c.id))).then(d => { if(d.exists()) ranger('photos', d.id, d.data()); }),
-      ...['sessions', 'photos', 'prospects', 'ventes', 'bilans'].map(coll =>
+      ...['sessions', 'alimentation', 'photos', 'prospects', 'ventes', 'bilans'].map(coll =>
         getDocs(query(collection(db, coll), where('clientId', '==', c.id))).then(snap => snap.forEach(d => ranger(coll, d.id, d.data()))))
     ]);
     const refus = lectures.filter(r => r.status === 'rejected').length;

@@ -47,6 +47,8 @@ reste (lister, supprimer, relire les photos).
 | `clients/{id}` | nom, téléphone, objectif, `cycleStart`, `actif`, offre, tarif, `partenaire` | coach |
 | `programs/{id}` | le programme, par jour de la semaine | coach |
 | `sessions/{id}_{date}` | séance envoyée : séries (reps, charge, RPE), remarques | client et coach |
+| `alimentation/{id}_{date}` | journal alimentaire du jour, repas par repas (valeurs recopiées) | client et coach |
+| `aliments/coach` | aliments et recettes du coach, communs à tous les clients | coach (lu par les liens) |
 | `measures/{id}` | poids et mensurations (historique dans un seul document) + index des photos | client et coach |
 | `photos/{id}_{date}`, `photos/avatar-{id}` | photos de suivi et photo de fiche, en base64 | client (écrit), coach (lit) |
 | `rdv/{id}`, `reprises/{id}` | rendez-vous proposés/choisis, demandes de reprise | client et coach |
@@ -314,7 +316,35 @@ Boutons « Par jour de la semaine / Par cycle » en tête de l'onglet Entraînem
 - La première version (même jour, quelques heures) calculait le cycle sur le calendrier (`cycle.debut`) :
   ce champ est désormais ignoré.
 
+**Alimentation — étape 1 (20/11/2026)** — journal alimentaire côté client, suivi côté coach.
+- **Activé client par client** : `clients.nutrition = { actif, affichage, kcal, p, g, l }`, réglé dans
+  l'onglet « Alimentation » de la fiche. Sans `actif`, l'onglet n'apparaît pas sur son lien.
+  `affichage` : `complet` (kcal + macros), `proteines` (kcal + protéines) ou `journal` (aucun chiffre).
+- **Accord séparé** (`consentements.alimentation` / `alimentationRetire` / `alimentationTraite`), demandé à
+  la première ouverture de l'onglet. Au retrait, la fiche coach affiche « Effacer son journal »
+  (promis dans `confidentialite.html`). Export et suppression du client incluent `alimentation`.
+- **Base d'aliments** : `ciqual.json`, table Ciqual 2020 de l'ANSES (Licence Ouverte), 3 092 aliments,
+  232 Ko, généré par `outils/ciqual2json.py` depuis l'Excel officiel. Recherche locale : aucune lecture
+  Firestore, aucune requête vers un tiers. Plus `aliments/coach` (en premier, badge « Arthur »).
+- ⚠️ **Énergie manquante dans Ciqual** pour ~800 aliments (lentille corail, chou-fleur…) : l'ANSES ne la
+  donne pas quand un composant manque. Elle est **recalculée** avec les coefficients du règlement UE
+  1169/2011 (P 4, G 4, L 9, fibres 2, alcool 7, polyols 2,4, acides organiques 3) et marquée
+  `kcalCalculee` ; le client voit la mention. 94 aliments sans protéines/glucides/lipides sont écartés.
+  « traces » et « < x » comptent pour 0.
+- **Une ligne du journal recopie ses valeurs pour 100 g** : le journal ne bouge pas si la base change.
+  Les aliments du coach sont rangés pour 100 g ; une portion (« 1 bol = 350 g ») n'est qu'un raccourci.
+- Journal modifiable sur 7 jours, consultable sur 30. Dépasser un objectif ne colore rien et n'affiche
+  aucun message (règle 6). Côté coach : 7 jours par 7 jours (lecture par ID), moyenne sur les jours notés.
+- ⚠️ **Open Food Facts (étape 2)** : l'API produit par code-barres renvoie bien
+  `Access-Control-Allow-Origin: *` (testé le 20/11/2026) ; **leur recherche par nom
+  (search.openfoodfacts.org) ne le renvoie pas** → inutilisable depuis la page, d'où Ciqual pour la recherche.
+- `alimentation-client.js` et `alimentation-coach.js` n'importent pas Firebase : les pages leur passent
+  leurs fonctions, ce qui garde la démo isolée. `demo/build.sh` copie ces fichiers et `ciqual.json`.
+- Dans coach.html, `input[type=number]` n'a pas de style global (fond blanc) : champs texte + `inputmode`.
+
 ## 8. La suite
 
+- **Alimentation, étape 2** : scan du code-barres (Open Food Facts, lecteur chargé à la demande, Safari
+  iOS n'ayant pas `BarcodeDetector`) et calcul automatique des besoins.
 - Suggestion de charge à partir du RPE, quand il y aura assez de clients.
 - Suppression automatique des données d'un client en pause depuis plus de 3 ans.
